@@ -1,0 +1,10 @@
+{
+  "ticker": "AMZN",
+  "company_name": "Amazon.com Inc.",
+  "mock": true,
+  "timestamp": "2026-01-31T12:47:03.067828",
+  "metrics": {
+    "total_debt": 50000,
+    "leverage": 1.5
+  }
+}

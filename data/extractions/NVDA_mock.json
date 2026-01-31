@@ -1,0 +1,10 @@
+{
+  "ticker": "NVDA",
+  "company_name": "NVIDIA Corporation",
+  "mock": true,
+  "timestamp": "2026-01-31T12:47:05.431624",
+  "metrics": {
+    "total_debt": 50000,
+    "leverage": 1.5
+  }
+}

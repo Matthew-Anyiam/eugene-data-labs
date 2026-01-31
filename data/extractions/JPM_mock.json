@@ -1,0 +1,10 @@
+{
+  "ticker": "JPM",
+  "company_name": "JPMorgan Chase & Co.",
+  "mock": true,
+  "timestamp": "2026-01-31T12:47:04.193127",
+  "metrics": {
+    "total_debt": 50000,
+    "leverage": 1.5
+  }
+}

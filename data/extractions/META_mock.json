@@ -1,0 +1,10 @@
+{
+  "ticker": "META",
+  "company_name": "Meta Platforms Inc.",
+  "mock": true,
+  "timestamp": "2026-01-31T12:47:04.194075",
+  "metrics": {
+    "total_debt": 50000,
+    "leverage": 1.5
+  }
+}
