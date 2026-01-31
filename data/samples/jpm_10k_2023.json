@@ -1,0 +1,16 @@
+{
+  "company": {
+    "ticker": "JPM",
+    "name": "JPMorgan Chase & Co.",
+    "cik": "19617",
+    "fiscal_year_end": "December 31"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-20",
+    "period_end": "2023-12-31",
+    "accession_number": "0000019617-24-000018"
+  },
+  "debt_section": "Total long-term debt: $295,865 million. Senior debt: $215,420M. Subordinated debt: $19,824M.",
+  "earnings_excerpt": "Jamie Dimon: Record revenue $162.4 billion. Net income $49.6 billion."
+}

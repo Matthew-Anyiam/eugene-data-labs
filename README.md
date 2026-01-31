@@ -26,7 +26,7 @@ Eugene extracts structured credit and debt data from SEC filings that nobody els
 
 ```bash
 # Clone
-git clone https://github.com/Matthew-Anyiam/eugene-data-labs.git
+git clone https://github.com/rexyang624/eugene-data-labs.git
 cd eugene-data-labs
 
 # Setup
@@ -296,4 +296,4 @@ Architecture informed by lessons from [Fintool](https://fintool.com) and the bro
 
 ---
 
-Built by [Matthew Anyiam](https://github.com/Matthew-Anyiam) | [Eugene Data Labs](https://eugenedatalabs.com)
+Built by [Rex Yang](https://github.com/rexyang624) | [Eugene Data Labs](https://eugenedatalabs.com)
