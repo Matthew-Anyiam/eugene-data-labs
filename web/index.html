@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eugene Intelligence - Credit Data</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #141414;
+            --border: #2a2a2a;
+            --text: #e5e5e5;
+            --muted: #888;
+            --accent: #3b82f6;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .logo span {
+            color: var(--accent);
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        input[type="text"] {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            font-size: 1rem;
+            width: 200px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        .stat-label {
+            color: var(--muted);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .stat-value.positive {
+            color: var(--green);
+        }
+        
+        .stat-value.negative {
+            color: var(--red);
+        }
+        
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge.compliant {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--green);
+        }
+        
+        .badge.warning {
+            background: rgba(234, 179, 8, 0.1);
+            color: var(--yellow);
+        }
+        
+        .badge.breach {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--red);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            color: var(--muted);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--red);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--red);
+            display: none;
+        }
+        
+        .error.active {
+            display: block;
+        }
+        
+        #results {
+            display: none;
+        }
+        
+        #results.active {
+            display: block;
+        }
+        
+        .covenant-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .covenant-row:last-child {
+            border-bottom: none;
+        }
+        
+        .cushion-bar {
+            width: 100px;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .cushion-fill {
+            height: 100%;
+            background: var(--green);
+            border-radius: 4px;
+        }
+        
+        .cushion-fill.warning {
+            background: var(--yellow);
+        }
+        
+        .cushion-fill.danger {
+            background: var(--red);
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.875rem;
+            text-align: center;
+        }
+        
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Eugene <span>Intelligence</span></div>
+            <div class="search-box">
+                <input type="text" id="ticker-input" placeholder="Enter ticker (e.g., TSLA)" />
+                <button id="search-btn" onclick="searchTicker()">Analyze</button>
+            </div>
+        </header>
+        
+        <div class="loading" id="loading">
+            <p>Analyzing credit profile...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div id="results">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Debt</div>
+                    <div class="stat-value" id="total-debt">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Net Debt</div>
+                    <div class="stat-value" id="net-debt">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Leverage Ratio</div>
+                    <div class="stat-value" id="leverage">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Interest Coverage</div>
+                    <div class="stat-value" id="coverage">—</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Debt Instruments</h2>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Instrument</th>
+                            <th>Type</th>
+                            <th class="text-right">Outstanding</th>
+                            <th class="text-right">Rate</th>
+                            <th class="text-right">Maturity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debt-table"></tbody>
+                </table>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Financial Covenants</h2>
+                </div>
+                <div id="covenants"></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Maturity Schedule</h2>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th class="text-right">Amount Due</th>
+                        </tr>
+                    </thead>
+                    <tbody id="maturity-table"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Eugene Data Labs — The most accurate market and financial data for agents</p>
+            <p><a href="https://github.com/eugene-intelligence/eugene">GitHub</a> · <a href="/docs">API Docs</a></p>
+        </footer>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8000/v1';
+        
+        async function searchTicker() {
+            const ticker = document.getElementById('ticker-input').value.toUpperCase();
+            if (!ticker) return;
+            
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const results = document.getElementById('results');
+            
+            loading.classList.add('active');
+            error.classList.remove('active');
+            results.classList.remove('active');
+            
+            try {
+                const response = await fetch(`${API_BASE}/credit/${ticker}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}`);
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (err) {
+                error.textContent = `Error: ${err.message}. Make sure the API is running.`;
+                error.classList.add('active');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+        
+        function formatMoney(value) {
+            if (value === null || value === undefined) return '—';
+            const absValue = Math.abs(value);
+            if (absValue >= 1000) {
+                return `$${(value / 1000).toFixed(1)}B`;
+            }
+            return `$${value.toFixed(0)}M`;
+        }
+        
+        function formatRate(instrument) {
+            if (instrument.rate_type === 'floating') {
+                const ref = instrument.reference_rate || 'SOFR';
+                const spread = instrument.spread_bps || 0;
+                return `${ref} + ${spread}bps`;
+            }
+            if (instrument.interest_rate) {
+                return `${(instrument.interest_rate * 100).toFixed(2)}%`;
+            }
+            return '—';
+        }
+        
+        function displayResults(data) {
+            const metrics = data.aggregate_metrics || {};
+            
+            // Stats
+            document.getElementById('total-debt').textContent = formatMoney(metrics.total_debt);
+            
+            const netDebt = document.getElementById('net-debt');
+            netDebt.textContent = formatMoney(metrics.net_debt);
+            netDebt.className = 'stat-value ' + (metrics.net_debt < 0 ? 'positive' : '');
+            
+            document.getElementById('leverage').textContent = 
+                metrics.leverage_ratio ? `${metrics.leverage_ratio.toFixed(2)}x` : '—';
+            
+            document.getElementById('coverage').textContent = 
+                metrics.interest_coverage_ratio ? `${metrics.interest_coverage_ratio.toFixed(1)}x` : '—';
+            
+            // Debt instruments
+            const debtTable = document.getElementById('debt-table');
+            debtTable.innerHTML = '';
+            
+            for (const inst of (data.debt_instruments || [])) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${inst.instrument_name}</td>
+                    <td>${inst.instrument_type.replace('_', ' ')}</td>
+                    <td class="text-right">${formatMoney(inst.outstanding_amount)}</td>
+                    <td class="text-right">${formatRate(inst)}</td>
+                    <td class="text-right">${inst.maturity_date || '—'}</td>
+                `;
+                debtTable.appendChild(row);
+            }
+            
+            // Covenants
+            const covenantsDiv = document.getElementById('covenants');
+            covenantsDiv.innerHTML = '';
+            
+            for (const cov of (data.covenants || [])) {
+                const cushion = calculateCushion(cov);
+                const cushionClass = cushion > 30 ? '' : cushion > 15 ? 'warning' : 'danger';
+                const statusClass = cov.in_compliance ? 'compliant' : 'breach';
+                
+                const div = document.createElement('div');
+                div.className = 'covenant-row';
+                div.innerHTML = `
+                    <div>
+                        <strong>${cov.covenant_name}</strong>
+                        <div style="color: var(--muted); font-size: 0.875rem;">
+                            ${cov.threshold_direction === 'max' ? 'Max' : 'Min'} ${cov.threshold_value}x 
+                            · Current ${cov.current_value}x
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--muted);">Cushion</div>
+                            <div class="cushion-bar">
+                                <div class="cushion-fill ${cushionClass}" style="width: ${Math.min(cushion, 100)}%"></div>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--muted);">${cushion.toFixed(0)}%</div>
+                        </div>
+                        <span class="badge ${statusClass}">${cov.in_compliance ? 'Compliant' : 'Breach'}</span>
+                    </div>
+                `;
+                covenantsDiv.appendChild(div);
+            }
+            
+            // Maturity schedule
+            const maturityTable = document.getElementById('maturity-table');
+            maturityTable.innerHTML = '';
+            let total = 0;
+            
+            for (const mat of (data.maturity_schedule || [])) {
+                total += mat.amount_due;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${mat.fiscal_year}</td>
+                    <td class="text-right">${formatMoney(mat.amount_due)}</td>
+                `;
+                maturityTable.appendChild(row);
+            }
+            
+            // Total row
+            const totalRow = document.createElement('tr');
+            totalRow.innerHTML = `
+                <td><strong>Total</strong></td>
+                <td class="text-right"><strong>${formatMoney(total)}</strong></td>
+            `;
+            maturityTable.appendChild(totalRow);
+            
+            document.getElementById('results').classList.add('active');
+        }
+        
+        function calculateCushion(covenant) {
+            if (!covenant.threshold_value || !covenant.current_value) return 0;
+            
+            if (covenant.threshold_direction === 'max') {
+                // Max covenant (e.g., max leverage 4x, current 2x = 50% cushion)
+                return ((covenant.threshold_value - covenant.current_value) / covenant.threshold_value) * 100;
+            } else {
+                // Min covenant (e.g., min coverage 3x, current 6x = 100% cushion)
+                return ((covenant.current_value - covenant.threshold_value) / covenant.threshold_value) * 100;
+            }
+        }
+        
+        // Handle enter key
+        document.getElementById('ticker-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchTicker();
+        });
+        
+        // Demo data for offline testing
+        function loadDemoData() {
+            const demoData = {
+                ticker: 'TSLA',
+                company_name: 'Tesla, Inc.',
+                aggregate_metrics: {
+                    total_debt: 4008,
+                    net_debt: -25092,
+                    leverage_ratio: 0.32,
+                    interest_coverage_ratio: 48.2
+                },
+                debt_instruments: [
+                    {
+                        instrument_name: 'Automotive Asset-backed Notes',
+                        instrument_type: 'asset_backed',
+                        outstanding_amount: 2326,
+                        rate_type: 'floating',
+                        reference_rate: 'SOFR',
+                        spread_bps: 182,
+                        maturity_date: '2028-12-31'
+                    },
+                    {
+                        instrument_name: 'Automotive Lease-backed Notes',
+                        instrument_type: 'asset_backed',
+                        outstanding_amount: 1283,
+                        rate_type: 'fixed',
+                        interest_rate: 0.0531,
+                        maturity_date: '2027-12-31'
+                    }
+                ],
+                covenants: [
+                    {
+                        covenant_name: 'Maximum Leverage Ratio',
+                        threshold_value: 3.5,
+                        threshold_direction: 'max',
+                        current_value: 0.08,
+                        in_compliance: true
+                    },
+                    {
+                        covenant_name: 'Minimum Interest Coverage',
+                        threshold_value: 3.0,
+                        threshold_direction: 'min',
+                        current_value: 48.2,
+                        in_compliance: true
+                    }
+                ],
+                maturity_schedule: [
+                    {fiscal_year: 2024, amount_due: 2373},
+                    {fiscal_year: 2025, amount_due: 678},
+                    {fiscal_year: 2026, amount_due: 512},
+                    {fiscal_year: 2027, amount_due: 389},
+                    {fiscal_year: 2028, amount_due: 56}
+                ]
+            };
+            
+            displayResults(demoData);
+        }
+        
+        // Load demo data on page load for testing
+        // Comment this out when API is running
+        loadDemoData();
+    </script>
+</body>
+</html>
