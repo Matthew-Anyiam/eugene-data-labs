@@ -1,0 +1,16 @@
+{
+  "company": {
+    "ticker": "GOOGL",
+    "name": "Alphabet Inc.",
+    "cik": "1652044",
+    "fiscal_year_end": "December 31"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-01-31",
+    "period_end": "2023-12-31",
+    "accession_number": "0001652044-24-000012"
+  },
+  "debt_section": "Total debt: $14,701 million. Senior unsecured notes with rates from 0.45% to 2.25%. Maturities: 2024: $1,000M, 2025: $3,000M, 2026: $1,000M, 2027: $2,000M, 2028: $1,250M, Thereafter: $6,451M.",
+  "earnings_excerpt": "Sundar Pichai: Revenue $307 billion, up 9%. Cloud revenue $33 billion, up 26%. Ruth Porat: Net income $73.8 billion."
+}

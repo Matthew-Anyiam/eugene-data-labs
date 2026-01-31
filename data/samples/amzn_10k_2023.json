@@ -1,0 +1,16 @@
+{
+  "company": {
+    "ticker": "AMZN",
+    "name": "Amazon.com Inc.",
+    "cik": "1018724",
+    "fiscal_year_end": "December 31"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-01",
+    "period_end": "2023-12-31",
+    "accession_number": "0001018724-24-000008"
+  },
+  "debt_section": "Total debt: $67,150 million. Notes with rates from 0.80% to 5.20%. Maturities: 2024: $8,300M, 2025: $3,600M, 2026: $6,400M, 2027: $7,150M, 2028: $4,700M, Thereafter: $37,000M.",
+  "earnings_excerpt": "Andy Jassy: Revenue $574 billion. AWS revenue $91 billion, up 13%. Brian Olsavsky: Operating income $36.9 billion."
+}
