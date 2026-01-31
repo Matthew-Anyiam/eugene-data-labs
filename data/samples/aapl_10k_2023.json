@@ -1,0 +1,16 @@
+{
+  "company": {
+    "ticker": "AAPL",
+    "name": "Apple Inc.",
+    "cik": "320193",
+    "fiscal_year_end": "September 30"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2023-11-03",
+    "period_end": "2023-09-30",
+    "accession_number": "0000320193-23-000106"
+  },
+  "debt_section": "NOTE 7 – DEBT\n\nThe following table presents the Company's term debt as of September 30, 2023 and September 24, 2022:\n\n                                                    2023         2022\nFixed-rate notes:\n  2013-2022 issued notes                         $ 106,572    $ 111,824\n  Commercial paper                                   5,985        9,982\n    Total term debt                              $ 112,557    $ 121,806\n\nAs of September 30, 2023, the Company had outstanding floating-rate notes of $1.0 billion and fixed-rate notes of $105.6 billion.\n\nThe weighted-average interest rate on the Company's term debt was 3.52% as of September 30, 2023.\n\nDebt Maturities:\n2024                                            $ 10,791\n2025                                              12,263\n2026                                              11,970\n2027                                               9,698\n2028                                               7,792\nThereafter                                        60,043\n    Total                                       $ 112,557\n\nThe Company maintains a $5.5 billion unsecured revolving credit facility. As of September 30, 2023, no amounts were drawn under this facility.",
+  "earnings_excerpt": "APPLE Q4 2023 EARNINGS CALL\n\nTim Cook, CEO: We're pleased to report revenue of $89.5 billion for the September quarter. iPhone revenue was $43.8 billion, and we set an all-time revenue record in Services of $22.3 billion.\n\nLuca Maestri, CFO: We returned over $25 billion to shareholders during the quarter. Our net cash position was $51 billion. We expect December quarter revenue to be similar to last year."
+}
