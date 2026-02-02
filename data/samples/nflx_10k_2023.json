@@ -1,0 +1,22 @@
+{
+  "company": {
+    "ticker": "NFLX",
+    "name": "Netflix, Inc.",
+    "cik": "1065280",
+    "fiscal_year_end": "December",
+    "sector": "Communication Services"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "00001065280-24-000001"
+  },
+  "debt_section": "As of December 31, 2023, Netflix, Inc. had total debt of $86,172 million. The company's leverage ratio was 3.67x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "Netflix, Inc. reported strong results for fiscal year 2023. Operating margin was 13.3%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 86172,
+    "leverage_ratio": 3.67,
+    "operating_margin": 0.133
+  }
+}

@@ -1,10 +1,14 @@
 {
   "ticker": "AMZN",
-  "company_name": "Amazon.com Inc.",
+  "company_name": "Amazon.com, Inc.",
   "mock": true,
-  "timestamp": "2026-01-31T12:47:03.067828",
+  "timestamp": "2026-02-02T04:21:22.978582",
+  "filing_type": "10-K",
+  "period_end": "2023-12-31",
   "metrics": {
-    "total_debt": 50000,
-    "leverage": 1.5
-  }
+    "total_debt": 9281,
+    "leverage_ratio": 2.13,
+    "operating_margin": 0.062
+  },
+  "confidence": 0.85
 }

@@ -2,9 +2,13 @@
   "ticker": "WMT",
   "company_name": "Walmart Inc.",
   "mock": true,
-  "timestamp": "2026-01-31T12:47:05.434202",
+  "timestamp": "2026-02-02T04:21:22.980929",
+  "filing_type": "10-K",
+  "period_end": "2023-12-31",
   "metrics": {
-    "total_debt": 50000,
-    "leverage": 1.5
-  }
+    "total_debt": 33653,
+    "leverage_ratio": 2.3,
+    "operating_margin": 0.173
+  },
+  "confidence": 0.85
 }

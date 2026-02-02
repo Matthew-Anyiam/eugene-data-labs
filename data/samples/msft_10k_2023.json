@@ -3,14 +3,20 @@
     "ticker": "MSFT",
     "name": "Microsoft Corporation",
     "cik": "789019",
-    "fiscal_year_end": "June 30"
+    "fiscal_year_end": "June",
+    "sector": "Technology"
   },
   "filing": {
     "type": "10-K",
-    "filed_at": "2023-07-27",
-    "period_end": "2023-06-30",
-    "accession_number": "0000789019-23-000010"
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "0000789019-24-000001"
   },
-  "debt_section": "Total debt: $47,032 million. Senior unsecured notes with interest rates from 2.40% to 4.45%. Maturities: 2024: $5,250M, 2025: $2,750M, 2026: $3,000M, 2027: $8,000M, 2028: $4,500M, Thereafter: $23,532M.",
-  "earnings_excerpt": "Satya Nadella: Revenue $211.9 billion, up 7%. Cloud revenue $111.6 billion. Amy Hood: Operating income $88.5 billion."
+  "debt_section": "As of December 31, 2023, Microsoft Corporation had total debt of $21,466 million. The company's leverage ratio was 0.51x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "Microsoft Corporation reported strong results for fiscal year 2023. Operating margin was 33.3%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 21466,
+    "leverage_ratio": 0.51,
+    "operating_margin": 0.333
+  }
 }

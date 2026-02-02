@@ -1,0 +1,22 @@
+{
+  "company": {
+    "ticker": "ORCL",
+    "name": "Oracle Corporation",
+    "cik": "1341439",
+    "fiscal_year_end": "May",
+    "sector": "Technology"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "00001341439-24-000001"
+  },
+  "debt_section": "As of December 31, 2023, Oracle Corporation had total debt of $42,192 million. The company's leverage ratio was 1.43x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "Oracle Corporation reported strong results for fiscal year 2023. Operating margin was 15.7%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 42192,
+    "leverage_ratio": 1.43,
+    "operating_margin": 0.157
+  }
+}

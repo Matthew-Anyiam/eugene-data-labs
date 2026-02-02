@@ -2,9 +2,13 @@
   "ticker": "MSFT",
   "company_name": "Microsoft Corporation",
   "mock": true,
-  "timestamp": "2026-01-31T12:47:05.430234",
+  "timestamp": "2026-02-02T04:21:22.977137",
+  "filing_type": "10-K",
+  "period_end": "2023-12-31",
   "metrics": {
-    "total_debt": 50000,
-    "leverage": 1.5
-  }
+    "total_debt": 21466,
+    "leverage_ratio": 0.51,
+    "operating_margin": 0.333
+  },
+  "confidence": 0.85
 }

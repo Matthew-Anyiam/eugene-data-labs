@@ -1,0 +1,22 @@
+{
+  "company": {
+    "ticker": "DIS",
+    "name": "The Walt Disney Company",
+    "cik": "1744489",
+    "fiscal_year_end": "September",
+    "sector": "Communication Services"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "00001744489-24-000001"
+  },
+  "debt_section": "As of December 31, 2023, The Walt Disney Company had total debt of $83,854 million. The company's leverage ratio was 3.81x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "The Walt Disney Company reported strong results for fiscal year 2023. Operating margin was 17.0%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 83854,
+    "leverage_ratio": 3.81,
+    "operating_margin": 0.17
+  }
+}

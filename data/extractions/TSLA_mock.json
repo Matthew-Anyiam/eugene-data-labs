@@ -2,9 +2,13 @@
   "ticker": "TSLA",
   "company_name": "Tesla, Inc.",
   "mock": true,
-  "timestamp": "2026-01-31T12:47:05.433107",
+  "timestamp": "2026-02-02T04:21:22.972538",
+  "filing_type": "10-K",
+  "period_end": "2023-12-31",
   "metrics": {
-    "total_debt": 50000,
-    "leverage": 1.5
-  }
+    "total_debt": 7648,
+    "leverage_ratio": 1.79,
+    "operating_margin": 0.101
+  },
+  "confidence": 0.85
 }

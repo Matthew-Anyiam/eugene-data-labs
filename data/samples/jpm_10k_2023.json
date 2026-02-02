@@ -3,14 +3,20 @@
     "ticker": "JPM",
     "name": "JPMorgan Chase & Co.",
     "cik": "19617",
-    "fiscal_year_end": "December 31"
+    "fiscal_year_end": "December",
+    "sector": "Financials"
   },
   "filing": {
     "type": "10-K",
-    "filed_at": "2024-02-20",
+    "filed_at": "2024-02-15",
     "period_end": "2023-12-31",
-    "accession_number": "0000019617-24-000018"
+    "accession_number": "000019617-24-000001"
   },
-  "debt_section": "Total long-term debt: $295,865 million. Senior debt: $215,420M. Subordinated debt: $19,824M.",
-  "earnings_excerpt": "Jamie Dimon: Record revenue $162.4 billion. Net income $49.6 billion."
+  "debt_section": "As of December 31, 2023, JPMorgan Chase & Co. had total debt of $258,952 million. The company's leverage ratio was 5.75x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "JPMorgan Chase & Co. reported strong results for fiscal year 2023. Operating margin was 33.1%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 258952,
+    "leverage_ratio": 5.75,
+    "operating_margin": 0.331
+  }
 }

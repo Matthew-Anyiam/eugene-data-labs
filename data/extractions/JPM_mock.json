@@ -2,9 +2,13 @@
   "ticker": "JPM",
   "company_name": "JPMorgan Chase & Co.",
   "mock": true,
-  "timestamp": "2026-01-31T12:47:04.193127",
+  "timestamp": "2026-02-02T04:21:22.980535",
+  "filing_type": "10-K",
+  "period_end": "2023-12-31",
   "metrics": {
-    "total_debt": 50000,
-    "leverage": 1.5
-  }
+    "total_debt": 258952,
+    "leverage_ratio": 5.75,
+    "operating_margin": 0.331
+  },
+  "confidence": 0.85
 }
