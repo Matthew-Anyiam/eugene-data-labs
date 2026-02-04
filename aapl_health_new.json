@@ -1,0 +1,486 @@
+{
+  "ticker": "AAPL",
+  "company_name": "Apple Inc.",
+  "metrics": {
+    "current_ratio": {
+      "value": 0.87,
+      "name": "Current Ratio",
+      "formula": "Current Assets / Current Liabilities",
+      "what_it_measures": "Short-term liquidity \u2014 can the company pay bills due within a year",
+      "industry_note": "Below 1.0 is common in tech and retail (negative working capital models). Manufacturing typically needs above 1.5."
+    },
+    "debt_to_assets": {
+      "value": 0.265,
+      "name": "Debt-to-Assets",
+      "formula": "Total Debt / Total Assets",
+      "what_it_measures": "What proportion of assets are funded by debt",
+      "industry_note": "Utilities and telecoms often run 0.5-0.7. Tech companies typically below 0.3. Banks are structurally different."
+    },
+    "debt_to_equity": {
+      "value": 1.91,
+      "name": "Debt-to-Equity",
+      "formula": "Total Debt / Total Equity",
+      "what_it_measures": "Leverage \u2014 how much debt relative to shareholder equity",
+      "industry_note": "Negative equity is common in companies with heavy buybacks (e.g., Starbucks, Boeing). Does not necessarily indicate distress."
+    },
+    "interest_coverage": {
+      "value": 43.21,
+      "name": "Interest Coverage",
+      "formula": "EBIT / Interest Expense",
+      "what_it_measures": "How easily the company can pay interest on outstanding debt",
+      "industry_note": "Below 1.5x is a warning sign across all sectors. Above 8x is very comfortable."
+    },
+    "net_debt_to_ebitda": {
+      "value": 0.53,
+      "name": "Net Debt / EBITDA",
+      "formula": "(Total Debt - Cash) / EBITDA",
+      "what_it_measures": "How many years of earnings needed to pay off net debt",
+      "industry_note": "Negative means net cash position. Below 2x is conservative. Above 4x warrants attention. Leveraged buyouts often run 5-7x."
+    },
+    "roe_pct": {
+      "value": 191.4,
+      "name": "Return on Equity (ROE)",
+      "formula": "Net Income / Total Equity * 100",
+      "what_it_measures": "How effectively shareholder capital generates profit",
+      "industry_note": "15-20% is strong for most industries. Banks target 10-15%. Can be artificially high with low equity base."
+    },
+    "roa_pct": {
+      "value": 26.58,
+      "name": "Return on Assets (ROA)",
+      "formula": "Net Income / Total Assets * 100",
+      "what_it_measures": "How efficiently assets generate profit",
+      "industry_note": "Asset-light businesses (tech, services) typically higher. Banks run 0.8-1.5% due to massive balance sheets."
+    },
+    "roic_pct": {
+      "value": 77.6,
+      "name": "Return on Invested Capital (ROIC)",
+      "formula": "EBIT / (Total Debt + Total Equity) * 100",
+      "what_it_measures": "Return generated on all invested capital (debt + equity)",
+      "industry_note": "Above cost of capital (~8-10%) means value creation. Warren Buffett's preferred metric."
+    },
+    "net_margin_pct": {
+      "value": 45.0,
+      "name": "Net Profit Margin",
+      "formula": "Net Income / Revenue * 100",
+      "what_it_measures": "How much of each dollar of revenue becomes profit",
+      "industry_note": "Software/SaaS: 20-40%. Banks: 25-35%. Retail/grocery: 1-3%. Manufacturing: 5-15%."
+    },
+    "operating_margin_pct": {
+      "value": 53.0,
+      "name": "Operating Margin",
+      "formula": "Operating Income / Revenue * 100",
+      "what_it_measures": "Profitability from core operations before interest and taxes",
+      "industry_note": "Better than net margin for comparing across tax jurisdictions and capital structures."
+    },
+    "free_cash_flow": {
+      "value": 99584.0,
+      "name": "Free Cash Flow",
+      "formula": "Operating Cash Flow - Capital Expenditures",
+      "what_it_measures": "Cash available after maintaining/expanding the asset base",
+      "industry_note": "The ultimate measure of financial flexibility. Negative FCF is normal for high-growth companies investing heavily.",
+      "unit": "millions_usd"
+    },
+    "altman_z_score": {
+      "value": 1.57,
+      "name": "Altman Z-Score",
+      "formula": "1.2*(WC/TA) + 1.4*(RE/TA) + 3.3*(EBIT/TA) + 0.6*(Equity/TL) + 1.0*(Rev/TA)",
+      "what_it_measures": "Bankruptcy probability model developed by Edward Altman in 1968",
+      "industry_note": "Above 3.0: safe. 1.8-3.0: grey zone. Below 1.8: distress. Designed for manufacturing \u2014 less reliable for tech, banks, and companies with heavy buybacks. Uses book equity here, not market cap."
+    },
+    "_revenue": {
+      "value": 215639000000,
+      "unit": "USD",
+      "label": "Total Revenue"
+    },
+    "_net_income": {
+      "value": 96995000000,
+      "unit": "USD",
+      "label": "Net Income"
+    },
+    "_total_debt": {
+      "value": 96662000000,
+      "unit": "USD",
+      "label": "Total Debt"
+    },
+    "_cash": {
+      "value": 29943000000,
+      "unit": "USD",
+      "label": "Cash & Equivalents"
+    },
+    "_total_assets": {
+      "value": 364980000000,
+      "unit": "USD",
+      "label": "Total Assets"
+    }
+  },
+  "trends": {
+    "net_income": {
+      "values": [
+        {
+          "fiscal_year": 2021,
+          "value": 55256000000
+        },
+        {
+          "fiscal_year": 2022,
+          "value": 57411000000
+        },
+        {
+          "fiscal_year": 2023,
+          "value": 94680000000
+        },
+        {
+          "fiscal_year": 2024,
+          "value": 99803000000
+        },
+        {
+          "fiscal_year": 2025,
+          "value": 96995000000
+        }
+      ],
+      "cagr_pct": 15.1,
+      "total_change_pct": 75.5,
+      "direction": "up",
+      "years": 5
+    },
+    "operating_cash_flow": {
+      "values": [
+        {
+          "fiscal_year": 2021,
+          "value": 69391000000
+        },
+        {
+          "fiscal_year": 2022,
+          "value": 80674000000
+        },
+        {
+          "fiscal_year": 2023,
+          "value": 104038000000
+        },
+        {
+          "fiscal_year": 2024,
+          "value": 122151000000
+        },
+        {
+          "fiscal_year": 2025,
+          "value": 110543000000
+        }
+      ],
+      "cagr_pct": 12.3,
+      "total_change_pct": 59.3,
+      "direction": "up",
+      "years": 5
+    },
+    "total_debt": {
+      "values": [
+        {
+          "fiscal_year": 2013,
+          "value": 0
+        },
+        {
+          "fiscal_year": 2014,
+          "value": 16960000000
+        },
+        {
+          "fiscal_year": 2023,
+          "value": 110087000000
+        },
+        {
+          "fiscal_year": 2024,
+          "value": 105103000000
+        },
+        {
+          "fiscal_year": 2025,
+          "value": 96662000000
+        }
+      ],
+      "cagr_pct": null,
+      "total_change_pct": null,
+      "direction": "up",
+      "years": 5
+    },
+    "total_assets": {
+      "values": [
+        {
+          "fiscal_year": 2021,
+          "value": 323888000000
+        },
+        {
+          "fiscal_year": 2022,
+          "value": 351002000000
+        },
+        {
+          "fiscal_year": 2023,
+          "value": 352755000000
+        },
+        {
+          "fiscal_year": 2024,
+          "value": 352583000000
+        },
+        {
+          "fiscal_year": 2025,
+          "value": 364980000000
+        }
+      ],
+      "cagr_pct": 3.0,
+      "total_change_pct": 12.7,
+      "direction": "up",
+      "years": 5
+    },
+    "eps_basic": {
+      "values": [
+        {
+          "fiscal_year": 2021,
+          "value": 2.99
+        },
+        {
+          "fiscal_year": 2022,
+          "value": 3.31
+        },
+        {
+          "fiscal_year": 2023,
+          "value": 5.67
+        },
+        {
+          "fiscal_year": 2024,
+          "value": 6.15
+        },
+        {
+          "fiscal_year": 2025,
+          "value": 6.16
+        }
+      ],
+      "cagr_pct": 19.8,
+      "total_change_pct": 106.0,
+      "direction": "up",
+      "years": 5
+    }
+  },
+  "xbrl_sources": {
+    "current_ratio": {
+      "current_assets": {
+        "xbrl_tag": "AssetsCurrent",
+        "value": 152987000000,
+        "period_end": "2024-09-28"
+      },
+      "current_liabilities": {
+        "xbrl_tag": "LiabilitiesCurrent",
+        "value": 176392000000,
+        "period_end": "2024-09-28"
+      }
+    },
+    "debt_to_assets": {
+      "total_debt": {
+        "xbrl_tag": "LongTermDebt",
+        "value": 96662000000,
+        "period_end": "2024-09-28"
+      },
+      "total_assets": {
+        "xbrl_tag": "Assets",
+        "value": 364980000000,
+        "period_end": "2024-09-28"
+      }
+    },
+    "debt_to_equity": {
+      "total_debt": {
+        "xbrl_tag": "LongTermDebt",
+        "value": 96662000000,
+        "period_end": "2024-09-28"
+      },
+      "total_equity": {
+        "xbrl_tag": "StockholdersEquity",
+        "value": 50672000000,
+        "period_end": "2022-09-24"
+      }
+    },
+    "interest_coverage": {
+      "operating_income": {
+        "xbrl_tag": "OperatingIncomeLoss",
+        "value": 114301000000,
+        "period_end": "2023-09-30"
+      },
+      "interest_expense": {
+        "xbrl_tag": "InterestExpense",
+        "value": 2645000000,
+        "period_end": "2021-09-25"
+      }
+    },
+    "net_debt_to_ebitda": {
+      "total_debt": {
+        "xbrl_tag": "LongTermDebt",
+        "value": 96662000000,
+        "period_end": "2024-09-28"
+      },
+      "cash_and_equivalents": {
+        "xbrl_tag": "CashAndCashEquivalentsAtCarryingValue",
+        "value": 29943000000,
+        "period_end": "2024-09-28"
+      },
+      "operating_income": {
+        "xbrl_tag": "OperatingIncomeLoss",
+        "value": 114301000000,
+        "period_end": "2023-09-30"
+      },
+      "depreciation_amortization": {
+        "xbrl_tag": "DepreciationDepletionAndAmortization",
+        "value": 11519000000,
+        "period_end": "2023-09-30"
+      }
+    },
+    "roe_pct": {
+      "net_income": {
+        "xbrl_tag": "NetIncomeLoss",
+        "value": 96995000000,
+        "period_end": "2023-09-30"
+      },
+      "total_equity": {
+        "xbrl_tag": "StockholdersEquity",
+        "value": 50672000000,
+        "period_end": "2022-09-24"
+      }
+    },
+    "roa_pct": {
+      "net_income": {
+        "xbrl_tag": "NetIncomeLoss",
+        "value": 96995000000,
+        "period_end": "2023-09-30"
+      },
+      "total_assets": {
+        "xbrl_tag": "Assets",
+        "value": 364980000000,
+        "period_end": "2024-09-28"
+      }
+    },
+    "roic_pct": {
+      "operating_income": {
+        "xbrl_tag": "OperatingIncomeLoss",
+        "value": 114301000000,
+        "period_end": "2023-09-30"
+      },
+      "total_debt": {
+        "xbrl_tag": "LongTermDebt",
+        "value": 96662000000,
+        "period_end": "2024-09-28"
+      },
+      "total_equity": {
+        "xbrl_tag": "StockholdersEquity",
+        "value": 50672000000,
+        "period_end": "2022-09-24"
+      }
+    },
+    "net_margin_pct": {
+      "net_income": {
+        "xbrl_tag": "NetIncomeLoss",
+        "value": 96995000000,
+        "period_end": "2023-09-30"
+      },
+      "revenue": {
+        "xbrl_tag": "Revenues",
+        "value": 215639000000,
+        "period_end": "2016-09-24"
+      }
+    },
+    "operating_margin_pct": {
+      "operating_income": {
+        "xbrl_tag": "OperatingIncomeLoss",
+        "value": 114301000000,
+        "period_end": "2023-09-30"
+      },
+      "revenue": {
+        "xbrl_tag": "Revenues",
+        "value": 215639000000,
+        "period_end": "2016-09-24"
+      }
+    },
+    "free_cash_flow": {
+      "operating_cash_flow": {
+        "xbrl_tag": "NetCashProvidedByUsedInOperatingActivities",
+        "value": 110543000000,
+        "period_end": "2023-09-30"
+      },
+      "capital_expenditures": {
+        "xbrl_tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "value": 10959000000,
+        "period_end": "2023-09-30"
+      }
+    },
+    "altman_z_score": {
+      "current_assets": {
+        "xbrl_tag": "AssetsCurrent",
+        "value": 152987000000,
+        "period_end": "2024-09-28"
+      },
+      "current_liabilities": {
+        "xbrl_tag": "LiabilitiesCurrent",
+        "value": 176392000000,
+        "period_end": "2024-09-28"
+      },
+      "total_assets": {
+        "xbrl_tag": "Assets",
+        "value": 364980000000,
+        "period_end": "2024-09-28"
+      },
+      "retained_earnings": {
+        "xbrl_tag": "RetainedEarningsAccumulatedDeficit",
+        "value": -19154000000,
+        "period_end": "2024-09-28"
+      },
+      "operating_income": {
+        "xbrl_tag": "OperatingIncomeLoss",
+        "value": 114301000000,
+        "period_end": "2023-09-30"
+      },
+      "total_equity": {
+        "xbrl_tag": "StockholdersEquity",
+        "value": 50672000000,
+        "period_end": "2022-09-24"
+      },
+      "total_liabilities": {
+        "xbrl_tag": "Liabilities",
+        "value": 308030000000,
+        "period_end": "2024-09-28"
+      },
+      "revenue": {
+        "xbrl_tag": "Revenues",
+        "value": 215639000000,
+        "period_end": "2016-09-24"
+      }
+    },
+    "_revenue": {
+      "revenue": {
+        "xbrl_tag": "Revenues",
+        "value": 215639000000,
+        "period_end": "2016-09-24"
+      }
+    },
+    "_net_income": {
+      "net_income": {
+        "xbrl_tag": "NetIncomeLoss",
+        "value": 96995000000,
+        "period_end": "2023-09-30"
+      }
+    },
+    "_total_debt": {
+      "total_debt": {
+        "xbrl_tag": "LongTermDebt",
+        "value": 96662000000,
+        "period_end": "2024-09-28"
+      }
+    },
+    "_cash": {
+      "cash_and_equivalents": {
+        "xbrl_tag": "CashAndCashEquivalentsAtCarryingValue",
+        "value": 29943000000,
+        "period_end": "2024-09-28"
+      }
+    },
+    "_total_assets": {
+      "total_assets": {
+        "xbrl_tag": "Assets",
+        "value": 364980000000,
+        "period_end": "2024-09-28"
+      }
+    }
+  },
+  "computed_at": "2026-02-04T23:07:19.061764",
+  "data_source": "SEC XBRL (deterministic, no LLM)"
+}

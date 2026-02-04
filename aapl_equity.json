@@ -1,0 +1,307 @@
+{
+  "ticker": "AAPL",
+  "company": "Apple Inc.",
+  "type": "equity_research",
+  "generated_at": "2026-02-04T01:50:32.044450",
+  "summary": "Apple reported strong fiscal 2025 performance with total revenue of $416.2B, up 6.4% YoY. Services segment led growth at 13.5% to $109.2B, while iPhone revenue grew 4.2% to $209.6B. Mac showed robust 12.4% growth to $33.7B, and iPad increased 5.0% to $28.0B. Only Wearables declined 3.6% to $35.7B. Key risks include stock volatility, tax examination uncertainties, and cybersecurity threats. Management maintains confidence in share repurchase program completion and dividend sustainability. Revenue recognition methodology remains consistent with hardware recognized at shipment and services over delivery period.",
+  "data": {
+    "financial_performance": {
+      "revenue": {
+        "value": 416161,
+        "period": "2025",
+        "yoy_change_pct": 6.4,
+        "source_section": "Note 2 \u2013 Revenue",
+        "source_text": "Total net sales $416,161 $391,035 $383,285",
+        "confidence": 1.0
+      },
+      "net_income": {
+        "value": null,
+        "period": "",
+        "yoy_change_pct": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "eps_diluted": {
+        "value": null,
+        "period": "",
+        "yoy_change_pct": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "gross_margin_pct": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "operating_margin_pct": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "net_margin_pct": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      }
+    },
+    "segments": [
+      {
+        "name": "iPhone",
+        "revenue": 209586,
+        "operating_income": null,
+        "yoy_revenue_change_pct": 4.2,
+        "source_section": "Note 2 \u2013 Revenue",
+        "source_text": "iPhone $209,586 $201,183 $200,583",
+        "confidence": 1.0
+      },
+      {
+        "name": "Mac",
+        "revenue": 33708,
+        "operating_income": null,
+        "yoy_revenue_change_pct": 12.4,
+        "source_section": "Note 2 \u2013 Revenue",
+        "source_text": "Mac 33,708 29,984 29,357",
+        "confidence": 1.0
+      },
+      {
+        "name": "iPad",
+        "revenue": 28023,
+        "operating_income": null,
+        "yoy_revenue_change_pct": 5.0,
+        "source_section": "Note 2 \u2013 Revenue",
+        "source_text": "iPad 28,023 26,694 28,300",
+        "confidence": 1.0
+      },
+      {
+        "name": "Wearables, Home and Accessories",
+        "revenue": 35686,
+        "operating_income": null,
+        "yoy_revenue_change_pct": -3.6,
+        "source_section": "Note 2 \u2013 Revenue",
+        "source_text": "Wearables, Home and Accessories 35,686 37,005 39,845",
+        "confidence": 1.0
+      },
+      {
+        "name": "Services",
+        "revenue": 109158,
+        "operating_income": null,
+        "yoy_revenue_change_pct": 13.5,
+        "source_section": "Note 2 \u2013 Revenue",
+        "source_text": "Services (1) 109,158 96,169 85,200",
+        "confidence": 1.0
+      }
+    ],
+    "guidance": [],
+    "key_metrics": [
+      {
+        "metric_name": "Deferred Revenue Recognition",
+        "value": 8229,
+        "period": "2025",
+        "source_section": "Note 2 \u2013 Revenue",
+        "confidence": 1.0
+      }
+    ],
+    "risk_factors": [
+      {
+        "risk": "Stock price volatility may affect repurchase program effectiveness and investor confidence",
+        "severity": "medium",
+        "is_new": false,
+        "source_section": "General Risks",
+        "source_text": "Price volatility may cause the average price at which the Company repurchases its stock"
+      },
+      {
+        "risk": "Tax examination outcomes are uncertain and could materially impact financial results",
+        "severity": "high",
+        "is_new": false,
+        "source_section": "General Risks",
+        "source_text": "The Company is also subject to the examination of its tax returns and other tax matters"
+      },
+      {
+        "risk": "Cybersecurity threats pose material risks requiring ongoing management and assessment",
+        "severity": "high",
+        "is_new": false,
+        "source_section": "Item 1C. Cybersecurity",
+        "source_text": "management, led by its Head of Corporate Information Security, has overall responsibility"
+      }
+    ],
+    "capital_allocation": {
+      "capex": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "share_buybacks": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "dividends_paid": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "acquisitions": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      }
+    },
+    "management_commentary": [
+      {
+        "topic": "Share Repurchase Program",
+        "quote_summary": "Management believes stock price should reflect growth expectations and dividend continuation, with current repurchase program expected to be fully consummated",
+        "source_section": "General Risks",
+        "source_text": "The Company believes the price of its stock should reflect expectations of future growth"
+      },
+      {
+        "topic": "Revenue Recognition",
+        "quote_summary": "Company recognizes revenue when control transfers to customers, with hardware recognized at shipment and services over time",
+        "source_section": "Note 2 \u2013 Revenue",
+        "source_text": "The Company recognizes revenue at the amount to which it expects to be entitled when control"
+      },
+      {
+        "topic": "Cybersecurity Management",
+        "quote_summary": "Head of Corporate Information Security leads dedicated team with 25+ years experience, coordinating across company for incident prevention and response",
+        "source_section": "Item 1C. Cybersecurity",
+        "source_text": "The Company's Head of Corporate Information Security has extensive knowledge and skills"
+      }
+    ],
+    "summary": "Apple reported strong fiscal 2025 performance with total revenue of $416.2B, up 6.4% YoY. Services segment led growth at 13.5% to $109.2B, while iPhone revenue grew 4.2% to $209.6B. Mac showed robust 12.4% growth to $33.7B, and iPad increased 5.0% to $28.0B. Only Wearables declined 3.6% to $35.7B. Key risks include stock volatility, tax examination uncertainties, and cybersecurity threats. Management maintains confidence in share repurchase program completion and dividend sustainability. Revenue recognition methodology remains consistent with hardware recognized at shipment and services over delivery period."
+  },
+  "cited_values": [
+    {
+      "field": "revenue",
+      "value": 416161,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K 2025-10-31",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 2 \u2013 Revenue",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Total net sales $416,161 $391,035 $383,285"
+        }
+      ]
+    },
+    {
+      "field": "segment_iPhone_revenue",
+      "value": 209586,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K 2025-10-31",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 2 \u2013 Revenue",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "iPhone $209,586 $201,183 $200,583"
+        }
+      ]
+    },
+    {
+      "field": "segment_Mac_revenue",
+      "value": 33708,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K 2025-10-31",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 2 \u2013 Revenue",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Mac 33,708 29,984 29,357"
+        }
+      ]
+    },
+    {
+      "field": "segment_iPad_revenue",
+      "value": 28023,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K 2025-10-31",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 2 \u2013 Revenue",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "iPad 28,023 26,694 28,300"
+        }
+      ]
+    },
+    {
+      "field": "segment_Wearables, Home and Accessories_revenue",
+      "value": 35686,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K 2025-10-31",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 2 \u2013 Revenue",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Wearables, Home and Accessories 35,686 37,005 39,845"
+        }
+      ]
+    },
+    {
+      "field": "segment_Services_revenue",
+      "value": 109158,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K 2025-10-31",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 2 \u2013 Revenue",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Services (1) 109,158 96,169 85,200"
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "count": 1,
+    "avg_confidence": 1.0,
+    "documents": [
+      {
+        "source_type": "sec_10k",
+        "document": "Apple Inc. 10-K 2025-10-31",
+        "confidence": 0.0,
+        "filing_date": "2025-10-31",
+        "accession_number": "0000320193-25-000079",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
+      }
+    ]
+  },
+  "meta": {
+    "processing_time_ms": 18773,
+    "tokens_used": 5283
+  }
+}

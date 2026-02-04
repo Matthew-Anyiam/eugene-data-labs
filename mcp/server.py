@@ -1,423 +1,305 @@
 """
-Eugene Intelligence - MCP Server
-
-Model Context Protocol server for AI agent integration.
-Allows Claude and other AI agents to query Eugene data directly.
+Eugene Intelligence - MCP Server v0.4.0
+Financial context infrastructure for AI agents.
 """
+import json, sys, logging, os
+from dotenv import load_dotenv
+load_dotenv(os.environ.get("DOTENV_PATH", ".env"))
+from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+load_dotenv()
+from eugene.config import Config, get_config
 
-import json
-from typing import Any
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import (
-    Tool,
-    TextContent,
-    CallToolResult,
-)
+logger = logging.getLogger(__name__)
 
-# Initialize MCP server
-server = Server("eugene-intelligence")
-
-
-# ==========================================
-# Mock Data (Same as API - would share DB)
-# ==========================================
-
-MOCK_COMPANIES = {
-    "AAPL": {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology"},
-    "MSFT": {"ticker": "MSFT", "name": "Microsoft Corporation", "sector": "Technology"},
-    "TSLA": {"ticker": "TSLA", "name": "Tesla Inc.", "sector": "Consumer Discretionary"},
-    "JPM": {"ticker": "JPM", "name": "JPMorgan Chase & Co.", "sector": "Financials"},
-}
-
-MOCK_CREDIT_DATA = {
-    "TSLA": {
-        "ticker": "TSLA",
-        "company_name": "Tesla Inc.",
-        "as_of_date": "2024-09-30",
-        "total_debt_millions": 5500,
-        "net_debt_millions": -8000,
-        "cash_millions": 13500,
-        "ebitda_millions": 12000,
-        "leverage_ratio": 0.46,
-        "interest_coverage": 25.0,
-        "debt_instruments": [
-            {
-                "name": "2025 Convertible Notes",
-                "type": "convertible",
-                "outstanding_millions": 1800,
-                "rate": "2.00% fixed",
-                "maturity": "2025-05-15"
+TOOLS = [
+    {
+        "name": "credit_monitor",
+        "description": "Get comprehensive credit analysis for a company. Analyzes SEC filings to extract debt structure, maturity schedule, covenants, liquidity, and credit risks. Every data point is cited to its source document and section.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol (e.g., AAPL, TSLA, BA)"},
+                "include_quarterly": {"type": "boolean", "description": "Also analyze latest 10-Q", "default": False}
             },
-            {
-                "name": "Automotive Asset-Backed Notes",
-                "type": "asset_backed",
-                "outstanding_millions": 3700,
-                "rate": "4.50% fixed",
-                "maturity": "2028-12-15"
-            }
-        ],
-        "covenants": [],
-        "maturity_schedule": {
-            "2025": 1800,
-            "2026": 500,
-            "2027": 700,
-            "2028": 2500
-        },
-        "analysis": "Tesla maintains a net cash position with minimal leverage. No financial covenants on outstanding debt. Near-term maturity of $1.8B convertible notes in May 2025 is easily covered by $13.5B cash position."
+            "required": ["ticker"]
+        }
     },
-    "JPM": {
-        "ticker": "JPM",
-        "company_name": "JPMorgan Chase & Co.",
-        "as_of_date": "2024-09-30",
-        "total_debt_millions": 350000,
-        "tier1_capital_ratio": 15.3,
-        "cet1_ratio": 15.0,
-        "leverage_ratio": 6.5,
-        "debt_instruments": [
-            {
-                "name": "Senior Notes (Various)",
-                "type": "senior_unsecured",
-                "outstanding_millions": 200000,
-                "rate": "Various 3-6%",
-                "maturity": "2025-2054"
+    {
+        "name": "equity_research",
+        "description": "Generate equity research analysis for a company. Extracts revenue, earnings, margins, segments, guidance, risk factors, and capital allocation from SEC filings. Every insight is sourced and verifiable.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "filing_type": {"type": "string", "description": "10-K (annual) or 10-Q (quarterly)", "default": "10-K", "enum": ["10-K", "10-Q"]},
+                "focus": {"type": "string", "description": "Optional focus: revenue, margins, guidance, risk, capital", "enum": ["revenue", "margins", "guidance", "risk", "capital"]}
             },
-            {
-                "name": "Subordinated Debt",
-                "type": "subordinated",
-                "outstanding_millions": 25000,
-                "rate": "Various 4-7%",
-                "maturity": "2026-2049"
-            }
-        ],
-        "covenants": [
-            {
-                "type": "regulatory",
-                "name": "Minimum CET1 Ratio",
-                "requirement": 11.4,
-                "current": 15.0,
-                "status": "compliant",
-                "cushion_percent": 31.6
-            }
-        ],
-        "analysis": "JPMorgan maintains strong capital ratios well above regulatory minimums. CET1 ratio of 15.0% provides 360bps cushion above the 11.4% requirement. Bank is well-positioned for stress scenarios."
+            "required": ["ticker"]
+        }
+    },
+    {
+        "name": "get_company_filings",
+        "description": "List recent SEC filings for a company. Returns filing dates, types, accession numbers.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "filing_type": {"type": "string", "description": "Filter: 10-K, 10-Q, 8-K, etc."},
+                "limit": {"type": "integer", "description": "Number of filings (default 5)", "default": 5}
+            },
+            "required": ["ticker"]
+        }
+    },
+    {
+        "name": "get_company_info",
+        "description": "Get basic company information from SEC EDGAR.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"}
+            },
+            "required": ["ticker"]
+        }
+    },
+    {
+        "name": "get_filing_section",
+        "description": "Extract a specific section from a company SEC filing. Returns sourced text with citation.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "filing_type": {"type": "string", "description": "Filing type", "default": "10-K"},
+                "section_keyword": {"type": "string", "description": "Keyword to find section (e.g., Risk Factor, Revenue, Debt)"}
+            },
+            "required": ["ticker", "section_keyword"]
+        }
+    },
+    {
+        "name": "get_financials",
+        "description": "Get standardized financial data for any public company using XBRL. Returns balance sheet, income statement, cash flow, and debt data in a consistent format regardless of how the company reports. No LLM needed - direct from SEC structured data.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "fiscal_year": {"type": "integer", "description": "Specific fiscal year (optional, defaults to latest)"},
+                "form_type": {"type": "string", "description": "10-K for annual, 10-Q for quarterly", "default": "10-K"}
+            },
+            "required": ["ticker"]
+        }
+    },
+    {
+        "name": "company_health",
+        "description": "Get a financial health report with letter grade (A-F), ratios, and trend analysis for any public company. Uses XBRL data - no LLM, instant results. Computes current ratio, debt-to-assets, interest coverage, ROE, ROA, ROIC, margins, Altman Z-Score, free cash flow, and more.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "include_trends": {"type": "boolean", "description": "Include 5-year trend analysis", "default": True},
+                "years": {"type": "integer", "description": "Years of trend history", "default": 5}
+            },
+            "required": ["ticker"]
+        }
+    },
+    {
+        "name": "compare_companies",
+        "description": "Compare financial health across multiple companies. Returns ranked health grades, ratios, and trends side by side. Example: compare JPM vs BAC vs GS.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "tickers": {"type": "array", "items": {"type": "string"}, "description": "List of ticker symbols to compare"},
+                "include_trends": {"type": "boolean", "description": "Include trend analysis", "default": True},
+                "years": {"type": "integer", "description": "Years of history", "default": 5}
+            },
+            "required": ["tickers"]
+        }
+    },
+    {
+        "name": "get_financial_history",
+        "description": "Get historical time series for any financial metric. Supports revenue, net_income, total_assets, total_debt, operating_cash_flow, eps_basic, and 30+ other standardized metrics. Returns up to 10 years of annual data.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "metric": {"type": "string", "description": "Metric key: revenue, net_income, total_assets, total_liabilities, operating_income, operating_cash_flow, capital_expenditures, total_debt, eps_basic, eps_diluted, etc."},
+                "years": {"type": "integer", "description": "Number of years of history", "default": 5},
+                "form_type": {"type": "string", "description": "10-K for annual, 10-Q for quarterly", "default": "10-K"}
+            },
+            "required": ["ticker", "metric"]
+        }
     }
-}
+]
 
 
-# ==========================================
-# Tool Definitions
-# ==========================================
+class MCPServer:
+    def __init__(self, config=None):
+        self.config = config or get_config()
+        self._edgar = None
+        self._credit_agent = None
+        self._equity_agent = None
+        self._xbrl = None
+        self._health = None
 
-@server.list_tools()
-async def list_tools() -> list[Tool]:
-    """List available tools"""
-    return [
-        Tool(
-            name="get_company_info",
-            description="Get basic information about a company including name, sector, and coverage status",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string",
-                        "description": "Stock ticker symbol (e.g., AAPL, MSFT, TSLA)"
-                    }
-                },
-                "required": ["ticker"]
-            }
-        ),
-        Tool(
-            name="get_credit_summary",
-            description="Get comprehensive credit analysis for a company including debt levels, leverage ratios, debt instruments, covenants, and maturity schedule. Use this to understand a company's debt structure and credit risk.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string",
-                        "description": "Stock ticker symbol"
-                    }
-                },
-                "required": ["ticker"]
-            }
-        ),
-        Tool(
-            name="get_debt_instruments",
-            description="Get detailed information about a company's individual debt instruments including bonds, loans, credit facilities, and convertible notes",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string",
-                        "description": "Stock ticker symbol"
-                    }
-                },
-                "required": ["ticker"]
-            }
-        ),
-        Tool(
-            name="get_covenants",
-            description="Get financial covenant information for a company including leverage limits, coverage requirements, current compliance status, and covenant cushion",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string",
-                        "description": "Stock ticker symbol"
-                    }
-                },
-                "required": ["ticker"]
-            }
-        ),
-        Tool(
-            name="get_maturity_schedule",
-            description="Get the debt maturity schedule showing when debt payments are due by year",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string",
-                        "description": "Stock ticker symbol"
-                    }
-                },
-                "required": ["ticker"]
-            }
-        ),
-        Tool(
-            name="compare_credit",
-            description="Compare credit metrics between two companies",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ticker1": {
-                        "type": "string",
-                        "description": "First company ticker"
-                    },
-                    "ticker2": {
-                        "type": "string",
-                        "description": "Second company ticker"
-                    }
-                },
-                "required": ["ticker1", "ticker2"]
-            }
-        ),
-        Tool(
-            name="list_covered_companies",
-            description="List all companies with credit data coverage",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "sector": {
-                        "type": "string",
-                        "description": "Optional: filter by sector"
-                    }
-                }
-            }
-        ),
-        Tool(
-            name="get_credit_alerts",
-            description="Get recent credit alerts and warnings for monitored companies",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string",
-                        "description": "Optional: filter by ticker"
-                    },
-                    "severity": {
-                        "type": "string",
-                        "enum": ["info", "warning", "critical"],
-                        "description": "Optional: filter by severity"
-                    }
-                }
-            }
-        )
-    ]
+    @property
+    def edgar(self):
+        if self._edgar is None:
+            from eugene.sources.edgar import EDGARClient
+            self._edgar = EDGARClient(self.config)
+        return self._edgar
 
+    @property
+    def credit_agent(self):
+        if self._credit_agent is None:
+            from eugene.agents.credit import CreditMonitorAgent
+            self._credit_agent = CreditMonitorAgent(self.config)
+        return self._credit_agent
 
-# ==========================================
-# Tool Implementations
-# ==========================================
+    @property
+    def equity_agent(self):
+        if self._equity_agent is None:
+            from eugene.agents.equity import EquityResearchAgent
+            self._equity_agent = EquityResearchAgent(self.config)
+        return self._equity_agent
+    @property
+    def xbrl(self):
+        if self._xbrl is None:
+            from eugene.sources.xbrl import XBRLClient
+            self._xbrl = XBRLClient(self.config)
+        return self._xbrl
+    @property
+    def health(self):
+        if self._health is None:
+            from eugene.agents.health import HealthMonitor
+            self._health = HealthMonitor(self.config)
+        return self._health
 
-@server.call_tool()
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle tool calls"""
-    
-    if name == "get_company_info":
-        ticker = arguments.get("ticker", "").upper()
-        
-        if ticker in MOCK_COMPANIES:
-            company = MOCK_COMPANIES[ticker]
-            has_credit = ticker in MOCK_CREDIT_DATA
-            
-            result = {
-                "ticker": company["ticker"],
-                "name": company["name"],
-                "sector": company["sector"],
-                "credit_coverage": has_credit,
-                "data_as_of": MOCK_CREDIT_DATA.get(ticker, {}).get("as_of_date", "N/A")
-            }
-            return [TextContent(type="text", text=json.dumps(result, indent=2))]
+    def handle_request(self, request):
+        method = request.get("method", "")
+        request_id = request.get("id")
+        if method == "initialize":
+            return {"jsonrpc": "2.0", "id": request_id, "result": {
+                "protocolVersion": "2024-11-05", "capabilities": {"tools": {}},
+                "serverInfo": {"name": "eugene-intelligence", "version": "0.4.0",
+                               "description": "Financial context infrastructure. Structured and verified data from SEC filings, with credit intelligence and equity research. Every claim is sourced."}
+            }}
+        elif method == "tools/list":
+            return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": TOOLS}}
+        elif method == "tools/call":
+            return self._handle_tool_call(request_id, request.get("params", {}))
+        elif method == "notifications/initialized":
+            return None
         else:
-            return [TextContent(type="text", text=f"Company {ticker} not found in Eugene database")]
-    
-    elif name == "get_credit_summary":
-        ticker = arguments.get("ticker", "").upper()
-        
-        if ticker in MOCK_CREDIT_DATA:
-            data = MOCK_CREDIT_DATA[ticker]
-            
-            summary = {
-                "ticker": data["ticker"],
-                "company": data["company_name"],
-                "as_of_date": data["as_of_date"],
-                "key_metrics": {
-                    "total_debt_millions": data.get("total_debt_millions"),
-                    "net_debt_millions": data.get("net_debt_millions"),
-                    "cash_millions": data.get("cash_millions"),
-                    "leverage_ratio": data.get("leverage_ratio"),
-                    "interest_coverage": data.get("interest_coverage"),
-                },
-                "debt_instrument_count": len(data.get("debt_instruments", [])),
-                "covenant_count": len(data.get("covenants", [])),
-                "analysis": data.get("analysis", "")
-            }
-            return [TextContent(type="text", text=json.dumps(summary, indent=2))]
-        else:
-            return [TextContent(type="text", text=f"Credit data for {ticker} not available. Coverage includes: {', '.join(MOCK_CREDIT_DATA.keys())}")]
-    
-    elif name == "get_debt_instruments":
-        ticker = arguments.get("ticker", "").upper()
-        
-        if ticker in MOCK_CREDIT_DATA:
-            instruments = MOCK_CREDIT_DATA[ticker].get("debt_instruments", [])
-            result = {
-                "ticker": ticker,
-                "debt_instruments": instruments,
-                "total_instruments": len(instruments)
-            }
-            return [TextContent(type="text", text=json.dumps(result, indent=2))]
-        else:
-            return [TextContent(type="text", text=f"Debt data for {ticker} not available")]
-    
-    elif name == "get_covenants":
-        ticker = arguments.get("ticker", "").upper()
-        
-        if ticker in MOCK_CREDIT_DATA:
-            covenants = MOCK_CREDIT_DATA[ticker].get("covenants", [])
-            
-            if not covenants:
-                return [TextContent(type="text", text=f"{ticker} has no financial covenants on its outstanding debt (common for investment-grade or convertible debt)")]
-            
-            result = {
-                "ticker": ticker,
-                "covenants": covenants,
-                "all_compliant": all(c.get("status") == "compliant" for c in covenants)
-            }
-            return [TextContent(type="text", text=json.dumps(result, indent=2))]
-        else:
-            return [TextContent(type="text", text=f"Covenant data for {ticker} not available")]
-    
-    elif name == "get_maturity_schedule":
-        ticker = arguments.get("ticker", "").upper()
-        
-        if ticker in MOCK_CREDIT_DATA:
-            schedule = MOCK_CREDIT_DATA[ticker].get("maturity_schedule", {})
-            total = sum(schedule.values())
-            
-            result = {
-                "ticker": ticker,
-                "maturity_schedule_millions": schedule,
-                "total_debt_millions": total,
-                "near_term_18m": sum(v for k, v in schedule.items() if int(k) <= 2026)
-            }
-            return [TextContent(type="text", text=json.dumps(result, indent=2))]
-        else:
-            return [TextContent(type="text", text=f"Maturity data for {ticker} not available")]
-    
-    elif name == "compare_credit":
-        ticker1 = arguments.get("ticker1", "").upper()
-        ticker2 = arguments.get("ticker2", "").upper()
-        
-        results = {}
-        for ticker in [ticker1, ticker2]:
-            if ticker in MOCK_CREDIT_DATA:
-                data = MOCK_CREDIT_DATA[ticker]
-                results[ticker] = {
-                    "company": data["company_name"],
-                    "total_debt_millions": data.get("total_debt_millions"),
-                    "leverage_ratio": data.get("leverage_ratio"),
-                    "interest_coverage": data.get("interest_coverage"),
-                    "has_covenants": len(data.get("covenants", [])) > 0
-                }
+            return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Unknown method: {}".format(method)}}
+
+    def _handle_tool_call(self, request_id, params):
+        tool_name = params.get("name", "")
+        arguments = params.get("arguments", {})
+        try:
+            if tool_name == "credit_monitor":
+                result = self._credit_monitor(arguments)
+            elif tool_name == "equity_research":
+                result = self._equity_research(arguments)
+            elif tool_name == "get_company_filings":
+                result = self._get_company_filings(arguments)
+            elif tool_name == "get_company_info":
+                result = self._get_company_info(arguments)
+            elif tool_name == "get_filing_section":
+                result = self._get_filing_section(arguments)
+            elif tool_name == "company_health":
+                result = self._company_health(arguments)
+            elif tool_name == "compare_companies":
+                result = self._compare_companies(arguments)
+            elif tool_name == "get_financials":
+                result = self._get_financials(arguments)
+            elif tool_name == "get_financial_history":
+                result = self._get_financial_history(arguments)
             else:
-                results[ticker] = {"error": "not_found"}
-        
-        return [TextContent(type="text", text=json.dumps(results, indent=2))]
-    
-    elif name == "list_covered_companies":
-        sector = arguments.get("sector", "").lower() if arguments.get("sector") else None
-        
-        companies = []
-        for ticker, company in MOCK_COMPANIES.items():
-            if sector and company.get("sector", "").lower() != sector:
-                continue
-            companies.append({
-                "ticker": ticker,
-                "name": company["name"],
-                "sector": company["sector"],
-                "has_credit_data": ticker in MOCK_CREDIT_DATA
-            })
-        
-        return [TextContent(type="text", text=json.dumps({"companies": companies, "total": len(companies)}, indent=2))]
-    
-    elif name == "get_credit_alerts":
-        ticker = arguments.get("ticker", "").upper() if arguments.get("ticker") else None
-        severity = arguments.get("severity", "").lower() if arguments.get("severity") else None
-        
-        # Mock alerts
-        alerts = [
-            {
-                "ticker": "XYZ",
-                "type": "covenant_warning",
-                "severity": "warning",
-                "message": "Leverage ratio at 4.1x, approaching 4.5x covenant limit",
-                "date": "2025-01-15"
-            },
-            {
-                "ticker": "ABC",
-                "type": "maturity_alert",
-                "severity": "info",
-                "message": "$500M debt maturing in next 18 months",
-                "date": "2025-01-14"
-            }
-        ]
-        
-        if ticker:
-            alerts = [a for a in alerts if a["ticker"] == ticker]
-        if severity:
-            alerts = [a for a in alerts if a["severity"] == severity]
-        
-        return [TextContent(type="text", text=json.dumps({"alerts": alerts}, indent=2))]
-    
-    else:
-        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+                return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Unknown tool: {}".format(tool_name)}}
+            return {"jsonrpc": "2.0", "id": request_id, "result": {"content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}]}}
+        except Exception as e:
+            logger.error("Tool call error: {}".format(e), exc_info=True)
+            return {"jsonrpc": "2.0", "id": request_id, "result": {"content": [{"type": "text", "text": json.dumps({"error": str(e), "tool": tool_name})}], "isError": True}}
 
+    def _credit_monitor(self, args):
+        ticker = args["ticker"].upper()
+        result = self.credit_agent.analyze(ticker=ticker, include_quarterly=args.get("include_quarterly", False))
+        return result.to_dict()
 
-# ==========================================
-# Main
-# ==========================================
+    def _equity_research(self, args):
+        ticker = args["ticker"].upper()
+        result = self.equity_agent.analyze(ticker=ticker, filing_type=args.get("filing_type", "10-K"), focus=args.get("focus"))
+        return result.to_dict()
 
-async def main():
-    """Run the MCP server"""
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options()
-        )
+    def _get_company_filings(self, args):
+        ticker = args["ticker"].upper()
+        filings = self.edgar.get_filings(ticker, filing_type=args.get("filing_type"), limit=args.get("limit", 5))
+        return {"ticker": ticker, "count": len(filings), "filings": [f.to_dict() for f in filings]}
 
+    def _get_company_info(self, args):
+        ticker = args["ticker"].upper()
+        company = self.edgar.get_company(ticker)
+        return {"ticker": ticker, "name": company.name, "cik": company.cik, "sic": company.sic, "state": company.state}
+
+    def _get_filing_section(self, args):
+        ticker = args["ticker"].upper()
+        filing_type = args.get("filing_type", "10-K")
+        keyword = args["section_keyword"]
+        filings = self.edgar.get_filings(ticker, filing_type=filing_type, limit=1)
+        if not filings:
+            return {"error": "No {} found for {}".format(filing_type, ticker)}
+        filing = filings[0]
+        html = self.edgar.get_filing_content(filing)
+        text = self.edgar.extract_text_from_html(html)
+        idx = text.find(keyword)
+        if idx < 0:
+            idx = text.lower().find(keyword.lower())
+        if idx < 0:
+            return {"ticker": ticker, "section": keyword, "found": False, "message": "Section not found"}
+        start = max(0, idx - 200)
+        end = min(len(text), idx + 5000)
+        return {"ticker": ticker, "filing_type": filing_type, "filing_date": filing.filing_date,
+                "section": keyword, "found": True, "text": text[start:end],
+                "source": {"document": "{} {}".format(filing.company_name, filing_type),
+                           "accession_number": filing.accession_number, "filing_date": filing.filing_date, "url": filing.filing_url}}
+
+    def run_stdio(self):
+        """Run server over stdin/stdout for MCP clients."""
+        import sys
+        try:
+            for line in sys.stdin:
+                
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    request = json.loads(line)
+                    response = self.handle_request(request)
+                    if response is not None:
+                        sys.stdout.write(json.dumps(response) + "\n")
+                        sys.stdout.flush()
+                except json.JSONDecodeError:
+                    sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}) + "\n")
+                    sys.stdout.flush()
+                except Exception as e:
+                    sys.stderr.write("Eugene error: {}\n".format(e))
+                    sys.stderr.flush()
+        except KeyboardInterrupt:
+            pass
+        except Exception as e:
+            sys.stderr.write("Eugene fatal: {}\n".format(e))
+            sys.stderr.flush()
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    if "--test" in sys.argv:
+        print("Testing MCP Server v0.4.0...")
+        server = MCPServer()
+        response = server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"capabilities": {}}})
+        assert response["result"]["serverInfo"]["version"] == "0.4.0"
+        print("  Initialize OK")
+        response = server.handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        tools = response["result"]["tools"]
+        names = [t["name"] for t in tools]
+        print("  {} tools: {}".format(len(tools), ", ".join(names)))
+        print("\nAll tests passed!")
+    else:
+        MCPServer().run_stdio()
