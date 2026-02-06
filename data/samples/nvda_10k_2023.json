@@ -1,0 +1,22 @@
+{
+  "company": {
+    "ticker": "NVDA",
+    "name": "NVIDIA Corporation",
+    "cik": "1045810",
+    "fiscal_year_end": "January",
+    "sector": "Technology"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "00001045810-24-000001"
+  },
+  "debt_section": "As of December 31, 2023, NVIDIA Corporation had total debt of $27,307 million. The company's leverage ratio was 1.18x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "NVIDIA Corporation reported strong results for fiscal year 2023. Operating margin was 18.5%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 27307,
+    "leverage_ratio": 1.18,
+    "operating_margin": 0.185
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "TSLA": {
+    "ticker": "TSLA",
+    "company_name": "Tesla, Inc.",
+    "total_debt": 4000,
+    "net_debt": -25100,
+    "leverage_ratio": 0.08,
+    "interest_coverage": 48.2,
+    "covenants": [
+      {
+        "name": "Max Leverage",
+        "threshold": 3.5,
+        "current": 0.08,
+        "cushion": 97.7
+      }
+    ],
+    "covenant_cushion_min": 97.7,
+    "last_filing_date": "2025-01-29",
+    "insider_sentiment": "neutral",
+    "recent_alerts": [],
+    "watching": true,
+    "alert_threshold": "medium"
+  }
+}

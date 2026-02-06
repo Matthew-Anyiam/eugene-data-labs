@@ -1,0 +1,16 @@
+{
+  "company": {
+    "ticker": "BRK.A",
+    "name": "Berkshire Hathaway Inc.",
+    "cik": "1067983",
+    "fiscal_year_end": "December 31"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-24",
+    "period_end": "2023-12-31",
+    "accession_number": "0001067983-24-000008"
+  },
+  "debt_section": "Total borrowings: $124,139 million. Cash and equivalents: $167.6 billion.",
+  "earnings_excerpt": "Warren Buffett: Operating earnings $37.4 billion. Cash position $167.6 billion."
+}

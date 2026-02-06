@@ -1,0 +1,598 @@
+{
+  "ticker": "JPM",
+  "company": "JPMORGAN CHASE & CO",
+  "type": "credit_monitor",
+  "generated_at": "2026-02-04T03:09:18.386384",
+  "summary": "JPMorgan Chase shows strong credit profile with $4.0T assets, $401.4B long-term debt, and robust capital ratios (CET1 15.7%, Tier 1 16.8%). Strong liquidity with $469B cash equivalents results in negative net debt position. Credit metrics show normalization with provision expense up to $10.7B and charge-off rate at 0.68%. All regulatory ratios well above minimums including LCR at 113%. Balance sheet growth of 3% driven by loan expansion and securities portfolio changes.",
+  "data": {
+    "debt_overview": {
+      "total_debt": {
+        "value": 401418,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Long-term debt 401,418",
+        "confidence": 0.9
+      },
+      "total_long_term_debt": {
+        "value": 401418,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Long-term debt 401,418",
+        "confidence": 0.9
+      },
+      "total_short_term_debt": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "cash_and_equivalents": {
+        "value": 469317,
+        "source_section": "Selected Consolidated balance sheets data",
+        "source_text": "Cash and due from banks 23,372 + Deposits with banks 445,945",
+        "confidence": 0.8
+      },
+      "net_debt": {
+        "value": -67899,
+        "source_section": "Calculated",
+        "source_text": "Long-term debt 401,418 - Cash equivalents 469,317",
+        "confidence": 0.7
+      },
+      "total_equity": {
+        "value": 344758,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Total stockholders' equity 344,758",
+        "confidence": 0.9
+      },
+      "debt_to_equity": {
+        "value": 1.16,
+        "source_section": "Calculated",
+        "source_text": "Long-term debt 401,418 / Total equity 344,758",
+        "confidence": 0.8
+      }
+    },
+    "instruments": [],
+    "maturity_schedule": [],
+    "covenants": [
+      {
+        "name": "Common equity Tier 1 capital ratio",
+        "type": "regulatory",
+        "threshold": null,
+        "current_value": 15.7,
+        "in_compliance": true,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Common equity Tier 1 (\"CET1\") capital ratio 15.7",
+        "confidence": 0.9
+      },
+      {
+        "name": "Tier 1 capital ratio",
+        "type": "regulatory",
+        "threshold": null,
+        "current_value": 16.8,
+        "in_compliance": true,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Tier 1 capital ratio 16.8",
+        "confidence": 0.9
+      },
+      {
+        "name": "Total capital ratio",
+        "type": "regulatory",
+        "threshold": null,
+        "current_value": 18.5,
+        "in_compliance": true,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Total capital ratio 18.5",
+        "confidence": 0.9
+      },
+      {
+        "name": "Liquidity coverage ratio",
+        "type": "regulatory",
+        "threshold": 100,
+        "current_value": 113,
+        "in_compliance": true,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Firm Liquidity coverage ratio (\"LCR\") (average) 113",
+        "confidence": 0.9
+      }
+    ],
+    "liquidity": {
+      "cash_and_equivalents": {
+        "value": 469317,
+        "source_section": "Selected Consolidated balance sheets data",
+        "confidence": 0.8
+      },
+      "credit_facility_total": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "credit_facility_available": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "commercial_paper_outstanding": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      }
+    },
+    "credit_risks": [
+      {
+        "risk": "Credit loss provisions increased to $10.7B reflecting loan growth and seasoning",
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Provision for credit losses 10,678",
+        "severity": "medium"
+      },
+      {
+        "risk": "Net charge-off rate increased to 0.68% from 0.52%",
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Net charge-off rate 0.68%",
+        "severity": "medium"
+      },
+      {
+        "risk": "Allowance for loan losses increased 9% to $24.3B",
+        "source_section": "Selected Consolidated balance sheets data",
+        "source_text": "Allowance for loan losses (24,345)",
+        "severity": "medium"
+      }
+    ],
+    "recent_changes": [
+      {
+        "change": "Long-term debt increased from $391.8B to $401.4B",
+        "date": "2024-12-31",
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Long-term debt 401,418 vs 391,825"
+      },
+      {
+        "change": "Total assets increased 3% to $4.0T",
+        "date": "2024-12-31",
+        "source_section": "Selected Consolidated balance sheets data",
+        "source_text": "Total assets 4,002,814 vs 3,875,393"
+      }
+    ],
+    "balance_sheet": {
+      "total_assets": {
+        "value": 4002814,
+        "source_section": "Selected Consolidated balance sheets data",
+        "source_text": "Total assets $ 4,002,814",
+        "confidence": 0.9
+      },
+      "total_liabilities": {
+        "value": 3658056,
+        "source_section": "Calculated",
+        "source_text": "Total assets 4,002,814 - Total equity 344,758",
+        "confidence": 0.8
+      },
+      "current_assets": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "current_liabilities": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "total_equity": {
+        "value": 344758,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Total stockholders' equity 344,758",
+        "confidence": 0.9
+      },
+      "retained_earnings": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "revenue": {
+        "value": 177556,
+        "source_section": "Three-Year Summary of Consolidated Financial Highlights",
+        "source_text": "Total net revenue $ 177,556",
+        "confidence": 0.9
+      },
+      "ebit": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "ebitda": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "interest_expense": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "operating_cash_flow": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "capital_expenditures": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "depreciation_amortization": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      }
+    },
+    "summary": "JPMorgan Chase shows strong credit profile with $4.0T assets, $401.4B long-term debt, and robust capital ratios (CET1 15.7%, Tier 1 16.8%). Strong liquidity with $469B cash equivalents results in negative net debt position. Credit metrics show normalization with provision expense up to $10.7B and charge-off rate at 0.68%. All regulatory ratios well above minimums including LCR at 113%. Balance sheet growth of 3% driven by loan expansion and securities portfolio changes.",
+    "financial_health": {
+      "ratios": {
+        "debt_to_assets": {
+          "value": 0.068,
+          "interpretation": "Conservative leverage"
+        },
+        "debt_to_equity": {
+          "value": 0.85,
+          "interpretation": "Moderate leverage"
+        },
+        "net_debt_to_ebitda": {
+          "value": -1.05,
+          "interpretation": "Net cash position"
+        }
+      },
+      "health_rating": {
+        "score": 100,
+        "max_score": 100,
+        "components_available": 35,
+        "grade": "A - Excellent financial health"
+      },
+      "free_cash_flow_raw": null,
+      "xbrl_sources": {
+        "debt_to_assets": {
+          "total_debt": {
+            "xbrl_tag": "LongTermDebt",
+            "value": 249024000000,
+            "period_end": "2012-12-31"
+          },
+          "total_assets": {
+            "xbrl_tag": "Assets",
+            "value": 3665743000000,
+            "period_end": "2022-12-31"
+          }
+        },
+        "debt_to_equity": {
+          "total_debt": {
+            "xbrl_tag": "LongTermDebt",
+            "value": 249024000000,
+            "period_end": "2012-12-31"
+          },
+          "total_equity": {
+            "xbrl_tag": "StockholdersEquity",
+            "value": 292332000000,
+            "period_end": "2022-12-31"
+          }
+        },
+        "net_debt_to_ebitda": {
+          "total_debt": {
+            "xbrl_tag": "LongTermDebt",
+            "value": 249024000000,
+            "period_end": "2012-12-31"
+          },
+          "cash_and_equivalents": {
+            "xbrl_tag": "CashAndCashEquivalentsAtCarryingValue",
+            "value": 361683000000,
+            "period_end": "2015-12-31"
+          }
+        }
+      },
+      "data_source": "SEC XBRL (no LLM)"
+    }
+  },
+  "cited_values": [
+    {
+      "field": "total_debt",
+      "value": 401418,
+      "unit": "millions_usd",
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Long-term debt 401,418"
+        }
+      ]
+    },
+    {
+      "field": "total_long_term_debt",
+      "value": 401418,
+      "unit": "millions_usd",
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Long-term debt 401,418"
+        }
+      ]
+    },
+    {
+      "field": "cash_and_equivalents",
+      "value": 469317,
+      "unit": "millions_usd",
+      "confidence": 0.8,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.8,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Selected Consolidated balance sheets data",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Cash and due from banks 23,372 + Deposits with banks 445,945"
+        }
+      ]
+    },
+    {
+      "field": "net_debt",
+      "value": -67899,
+      "unit": "millions_usd",
+      "confidence": 0.7,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.7,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Calculated",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Long-term debt 401,418 - Cash equivalents 469,317"
+        }
+      ]
+    },
+    {
+      "field": "total_equity",
+      "value": 344758,
+      "unit": "millions_usd",
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Total stockholders' equity 344,758"
+        }
+      ]
+    },
+    {
+      "field": "debt_to_equity",
+      "value": 1.16,
+      "unit": "millions_usd",
+      "confidence": 0.8,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.8,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Calculated",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Long-term debt 401,418 / Total equity 344,758"
+        }
+      ]
+    },
+    {
+      "field": "covenant_Common equity Tier 1 capital ratio",
+      "value": {
+        "threshold": null,
+        "current_value": 15.7,
+        "in_compliance": true
+      },
+      "unit": null,
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Common equity Tier 1 (\"CET1\") capital ratio 15.7"
+        }
+      ]
+    },
+    {
+      "field": "covenant_Tier 1 capital ratio",
+      "value": {
+        "threshold": null,
+        "current_value": 16.8,
+        "in_compliance": true
+      },
+      "unit": null,
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Tier 1 capital ratio 16.8"
+        }
+      ]
+    },
+    {
+      "field": "covenant_Total capital ratio",
+      "value": {
+        "threshold": null,
+        "current_value": 18.5,
+        "in_compliance": true
+      },
+      "unit": null,
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Total capital ratio 18.5"
+        }
+      ]
+    },
+    {
+      "field": "covenant_Liquidity coverage ratio",
+      "value": {
+        "threshold": 100,
+        "current_value": 113,
+        "in_compliance": true
+      },
+      "unit": null,
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Firm Liquidity coverage ratio (\"LCR\") (average) 113"
+        }
+      ]
+    },
+    {
+      "field": "bs_total_assets",
+      "value": 4002814,
+      "unit": "millions_usd",
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Selected Consolidated balance sheets data",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Total assets $ 4,002,814"
+        }
+      ]
+    },
+    {
+      "field": "bs_total_liabilities",
+      "value": 3658056,
+      "unit": "millions_usd",
+      "confidence": 0.8,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.8,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Calculated",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Total assets 4,002,814 - Total equity 344,758"
+        }
+      ]
+    },
+    {
+      "field": "bs_total_equity",
+      "value": 344758,
+      "unit": "millions_usd",
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Total stockholders' equity 344,758"
+        }
+      ]
+    },
+    {
+      "field": "bs_revenue",
+      "value": 177556,
+      "unit": "millions_usd",
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "JPMORGAN CHASE & CO 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-02-14",
+          "accession_number": "0000019617-25-000270",
+          "section": "Three-Year Summary of Consolidated Financial Highlights",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm",
+          "source_text": "Total net revenue $ 177,556"
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "count": 1,
+    "avg_confidence": 0.864,
+    "documents": [
+      {
+        "source_type": "sec_10k",
+        "document": "JPMORGAN CHASE & CO 10-K FY2025",
+        "confidence": 0.0,
+        "filing_date": "2025-02-14",
+        "accession_number": "0000019617-25-000270",
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/jpm-20241231.htm"
+      }
+    ]
+  },
+  "meta": {
+    "processing_time_ms": 30135,
+    "tokens_used": 8257
+  }
+}

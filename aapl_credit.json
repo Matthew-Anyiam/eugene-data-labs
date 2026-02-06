@@ -1,0 +1,356 @@
+{
+  "ticker": "AAPL",
+  "company": "Apple Inc.",
+  "type": "credit_monitor",
+  "generated_at": "2026-02-04T01:47:03.706988",
+  "summary": "Apple maintains a strong credit profile with $98.7B total debt offset by $132.4B in cash and marketable securities, resulting in net cash position of $33.7B. Debt consists primarily of senior unsecured notes ($91.3B) and commercial paper ($8.0B). The company has manageable near-term maturities of $12.4B in 2026 and strong liquidity position. Recent activities include $4.5B new debt issuance and $2.0B net commercial paper repayment in 2025.",
+  "data": {
+    "debt_overview": {
+      "total_debt": {
+        "value": 98678,
+        "source_section": "Note 9 - Debt",
+        "source_text": "Total term debt 90,678... commercial paper outstanding, $8.0 billion",
+        "confidence": 0.95
+      },
+      "total_long_term_debt": {
+        "value": 78328,
+        "source_section": "Note 9 - Debt",
+        "source_text": "Total non-current portion of term debt $78,328",
+        "confidence": 1.0
+      },
+      "total_short_term_debt": {
+        "value": 20350,
+        "source_section": "Note 9 - Debt",
+        "source_text": "Current portion of term debt (12,350)... commercial paper outstanding $8.0 billion",
+        "confidence": 0.95
+      },
+      "cash_and_equivalents": {
+        "value": 132400,
+        "source_section": "Liquidity and Capital Resources",
+        "source_text": "cash, cash equivalents and marketable securities, which totaled $132.4 billion",
+        "confidence": 1.0
+      },
+      "net_debt": {
+        "value": -33722,
+        "source_section": "Calculated",
+        "source_text": "Total debt $98,678M - Cash $132,400M",
+        "confidence": 0.9
+      },
+      "total_equity": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      },
+      "debt_to_equity": {
+        "value": null,
+        "source_section": "",
+        "source_text": "",
+        "confidence": 0
+      }
+    },
+    "instruments": [
+      {
+        "name": "2013-2023 Fixed-rate Notes",
+        "type": "Senior Unsecured Notes",
+        "principal": 86781,
+        "interest_rate": "0.000% - 4.850%",
+        "rate_type": "Fixed",
+        "maturity_date": "2025-2062",
+        "source_section": "Note 9 - Debt",
+        "source_text": "Fixed-rate 0.000% \u2013 4.850% notes 2025 \u2013 2062 $86,781",
+        "confidence": 1.0
+      },
+      {
+        "name": "2025 Fixed-rate Notes",
+        "type": "Senior Unsecured Notes",
+        "principal": 4500,
+        "interest_rate": "4.000% - 4.750%",
+        "rate_type": "Fixed",
+        "maturity_date": "2028-2035",
+        "source_section": "Note 9 - Debt",
+        "source_text": "Fixed-rate 4.000% \u2013 4.750% notes 2028 \u2013 2035 4,500",
+        "confidence": 1.0
+      },
+      {
+        "name": "Commercial Paper",
+        "type": "Unsecured Short-term Notes",
+        "principal": 8000,
+        "interest_rate": "4.19%",
+        "rate_type": "Variable",
+        "maturity_date": "Less than 9 months",
+        "source_section": "Note 9 - Debt",
+        "source_text": "$8.0 billion of commercial paper outstanding... weighted-average interest rate 4.19%",
+        "confidence": 1.0
+      }
+    ],
+    "maturity_schedule": [
+      {
+        "year": 2026,
+        "amount": 12393,
+        "source_section": "Note 9 - Debt"
+      },
+      {
+        "year": 2027,
+        "amount": 10078,
+        "source_section": "Note 9 - Debt"
+      },
+      {
+        "year": 2028,
+        "amount": 9300,
+        "source_section": "Note 9 - Debt"
+      },
+      {
+        "year": 2029,
+        "amount": 5235,
+        "source_section": "Note 9 - Debt"
+      },
+      {
+        "year": 2030,
+        "amount": 4972,
+        "source_section": "Note 9 - Debt"
+      },
+      {
+        "year": 2031,
+        "amount": 49303,
+        "source_section": "Note 9 - Debt"
+      }
+    ],
+    "covenants": [],
+    "liquidity": {
+      "cash_and_equivalents": {
+        "value": 132400,
+        "source_section": "Liquidity and Capital Resources",
+        "confidence": 1.0
+      },
+      "credit_facility_total": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "credit_facility_available": {
+        "value": null,
+        "source_section": "",
+        "confidence": 0
+      },
+      "commercial_paper_outstanding": {
+        "value": 8000,
+        "source_section": "Note 9 - Debt",
+        "confidence": 1.0
+      }
+    },
+    "credit_risks": [
+      {
+        "risk": "Interest rate risk on fixed-rate notes managed through interest rate swaps",
+        "source_section": "Note 9 - Debt",
+        "source_text": "uses interest rate swaps to effectively convert the fixed interest rates to floating",
+        "severity": "low"
+      },
+      {
+        "risk": "Foreign exchange risk on foreign currency-denominated notes",
+        "source_section": "Note 9 - Debt",
+        "source_text": "uses cross-currency swaps to effectively convert these notes to U.S. dollar",
+        "severity": "low"
+      },
+      {
+        "risk": "Near-term debt maturities requiring refinancing",
+        "source_section": "Note 9 - Debt",
+        "source_text": "$12.4 billion payable within 12 months",
+        "severity": "low"
+      }
+    ],
+    "recent_changes": [
+      {
+        "change": "New debt issuance of $4.5 billion in 2025",
+        "date": "2025",
+        "source_section": "Note 9 - Debt",
+        "source_text": "2025 debt issuance: Fixed-rate 4.000% \u2013 4.750% notes 2028 \u2013 2035 4,500"
+      },
+      {
+        "change": "Net repayment of commercial paper $2.0 billion",
+        "date": "2025",
+        "source_section": "Note 9 - Debt",
+        "source_text": "Total proceeds from/(repayments of) commercial paper, net $(2,032)"
+      },
+      {
+        "change": "New $100 billion share repurchase program announced",
+        "date": "May 2025",
+        "source_section": "Capital Return Program",
+        "source_text": "announced a new share repurchase program of up to $100 billion"
+      }
+    ],
+    "summary": "Apple maintains a strong credit profile with $98.7B total debt offset by $132.4B in cash and marketable securities, resulting in net cash position of $33.7B. Debt consists primarily of senior unsecured notes ($91.3B) and commercial paper ($8.0B). The company has manageable near-term maturities of $12.4B in 2026 and strong liquidity position. Recent activities include $4.5B new debt issuance and $2.0B net commercial paper repayment in 2025."
+  },
+  "cited_values": [
+    {
+      "field": "total_debt",
+      "value": 98678,
+      "unit": "millions_usd",
+      "confidence": 0.95,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 0.95,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 9 - Debt",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Total term debt 90,678... commercial paper outstanding, $8.0 billion"
+        }
+      ]
+    },
+    {
+      "field": "total_long_term_debt",
+      "value": 78328,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 9 - Debt",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Total non-current portion of term debt $78,328"
+        }
+      ]
+    },
+    {
+      "field": "total_short_term_debt",
+      "value": 20350,
+      "unit": "millions_usd",
+      "confidence": 0.95,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 0.95,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 9 - Debt",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Current portion of term debt (12,350)... commercial paper outstanding $8.0 billion"
+        }
+      ]
+    },
+    {
+      "field": "cash_and_equivalents",
+      "value": 132400,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Liquidity and Capital Resources",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "cash, cash equivalents and marketable securities, which totaled $132.4 billion"
+        }
+      ]
+    },
+    {
+      "field": "net_debt",
+      "value": -33722,
+      "unit": "millions_usd",
+      "confidence": 0.9,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 0.9,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Calculated",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Total debt $98,678M - Cash $132,400M"
+        }
+      ]
+    },
+    {
+      "field": "instrument_2013-2023 Fixed-rate Notes",
+      "value": 86781,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 9 - Debt",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Fixed-rate 0.000% \u2013 4.850% notes 2025 \u2013 2062 $86,781"
+        }
+      ]
+    },
+    {
+      "field": "instrument_2025 Fixed-rate Notes",
+      "value": 4500,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 9 - Debt",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "Fixed-rate 4.000% \u2013 4.750% notes 2028 \u2013 2035 4,500"
+        }
+      ]
+    },
+    {
+      "field": "instrument_Commercial Paper",
+      "value": 8000,
+      "unit": "millions_usd",
+      "confidence": 1.0,
+      "multi_sourced": false,
+      "sources": [
+        {
+          "source_type": "sec_10k",
+          "document": "Apple Inc. 10-K FY2025",
+          "confidence": 1.0,
+          "filing_date": "2025-10-31",
+          "accession_number": "0000320193-25-000079",
+          "section": "Note 9 - Debt",
+          "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+          "source_text": "$8.0 billion of commercial paper outstanding... weighted-average interest rate 4.19%"
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "count": 1,
+    "avg_confidence": 0.975,
+    "documents": [
+      {
+        "source_type": "sec_10k",
+        "document": "Apple Inc. 10-K FY2025",
+        "confidence": 0.0,
+        "filing_date": "2025-10-31",
+        "accession_number": "0000320193-25-000079",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
+      }
+    ]
+  },
+  "meta": {
+    "processing_time_ms": 29370,
+    "tokens_used": 6326
+  }
+}

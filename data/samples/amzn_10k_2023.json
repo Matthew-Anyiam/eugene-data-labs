@@ -1,0 +1,22 @@
+{
+  "company": {
+    "ticker": "AMZN",
+    "name": "Amazon.com, Inc.",
+    "cik": "1018724",
+    "fiscal_year_end": "December",
+    "sector": "Consumer Discretionary"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "00001018724-24-000001"
+  },
+  "debt_section": "As of December 31, 2023, Amazon.com, Inc. had total debt of $9,281 million. The company's leverage ratio was 2.13x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "Amazon.com, Inc. reported strong results for fiscal year 2023. Operating margin was 6.2%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 9281,
+    "leverage_ratio": 2.13,
+    "operating_margin": 0.062
+  }
+}

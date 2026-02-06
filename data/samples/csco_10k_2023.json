@@ -1,0 +1,22 @@
+{
+  "company": {
+    "ticker": "CSCO",
+    "name": "Cisco Systems, Inc.",
+    "cik": "858877",
+    "fiscal_year_end": "July",
+    "sector": "Technology"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "0000858877-24-000001"
+  },
+  "debt_section": "As of December 31, 2023, Cisco Systems, Inc. had total debt of $26,208 million. The company's leverage ratio was 0.54x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "Cisco Systems, Inc. reported strong results for fiscal year 2023. Operating margin was 26.1%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 26208,
+    "leverage_ratio": 0.54,
+    "operating_margin": 0.261
+  }
+}

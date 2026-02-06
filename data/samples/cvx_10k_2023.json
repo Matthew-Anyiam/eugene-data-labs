@@ -1,0 +1,22 @@
+{
+  "company": {
+    "ticker": "CVX",
+    "name": "Chevron Corporation",
+    "cik": "93410",
+    "fiscal_year_end": "December",
+    "sector": "Energy"
+  },
+  "filing": {
+    "type": "10-K",
+    "filed_at": "2024-02-15",
+    "period_end": "2023-12-31",
+    "accession_number": "000093410-24-000001"
+  },
+  "debt_section": "As of December 31, 2023, Chevron Corporation had total debt of $26,291 million. The company's leverage ratio was 2.74x EBITDA. Management remains committed to maintaining investment-grade credit ratings and strong liquidity.",
+  "earnings_excerpt": "Chevron Corporation reported strong results for fiscal year 2023. Operating margin was 14.1%, reflecting continued focus on operational efficiency. Management provided guidance for continued growth in the coming year.",
+  "mock_metrics": {
+    "total_debt": 26291,
+    "leverage_ratio": 2.74,
+    "operating_margin": 0.141
+  }
+}
