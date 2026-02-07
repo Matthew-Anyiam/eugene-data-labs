@@ -253,7 +253,7 @@ class EquityResearchAgent:
             "beat_rate_pct": track.get("beat_rate_pct"),
             "total_beats": track.get("beats"),
             "total_misses": track.get("misses"),
-            "next_earnings": earnings.get("next_earnings", {}).get("date"),
+            "next_earnings": earnings.get("next_earnings", {}).get("date") if earnings.get("next_earnings") else None,
             "trailing_eps": earnings.get("current_estimates", {}).get("trailing_eps"),
             "forward_eps": earnings.get("current_estimates", {}).get("forward_eps"),
             "earnings_growth_pct": earnings.get("current_estimates", {}).get("earnings_growth"),

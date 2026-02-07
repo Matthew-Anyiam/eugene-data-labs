@@ -1,73 +1,71 @@
 # Eugene Intelligence
 
-Financial data infrastructure for AI agents.
+**Financial context for AI.**
 
-## What it does
+The data layer for agents that need to get finance right.
 
-Eugene gives AI agents instant access to structured financial data from SEC filings. No scraping, no hallucination — every number traced to its source.
-```
-> Compare the financial health of JPM, BAC, and GS
+---
 
-JPM: ROE 12.9%, $362B cash, Net Margin 29.3%
-BAC: ROE 10.2%, $177B cash, Net Margin 29.0%  
-GS:  ROE 9.6%,  $242B cash
-```
+## What is Eugene?
+
+Eugene provides verified market data for AI agents — fundamentals, prices, earnings, insider trades, institutional holdings — through one MCP server.
+
+Every number traced to source. No hallucination.
+
+## Products
+
+| Category | Data |
+|----------|------|
+| **Fundamentals** | SEC XBRL financials, ratios, 5-year trends |
+| **Prices** | 20+ years historical, real-time quotes |
+| **Earnings** | EPS actuals vs estimates, transcripts, guidance |
+| **Ownership** | Insider transactions (Form 4), Institutional (13F) |
+| **Corporate Actions** | Dividends, splits, M&A activity |
+| **Filings** | 10-K, 10-Q, 8-K — bulk downloads + real-time |
 
 ## Quick Start
 
-**CLI:**
-```bash
-python cli.py health AAPL
-python cli.py compare JPM BAC GS
-python cli.py financials MSFT
-python cli.py history AAPL revenue 5
-```
-
-**Claude Desktop:**
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+### MCP Server (for Claude Desktop)
 ```json
 {
   "mcpServers": {
     "eugene": {
-      "command": "python3",
-      "args": ["/path/to/eugene/mcp/mcp_server.py"],
-      "env": {
-        "PYTHONPATH": "/path/to/eugene",
-        "DOTENV_PATH": "/path/to/eugene/.env"
-      }
+      "command": "python",
+      "args": ["-m", "mcp.mcp_server"],
+      "cwd": "/path/to/eugene"
     }
   }
 }
 ```
 
-## MCP Tools
+### Python
+```python
+from eugene.agents.equity_research import EquityResearchAgent
+from eugene.config import Config
 
-| Tool | Description | Speed |
-|------|-------------|-------|
-| `company_health` | 12 financial ratios + 5-year trends | ~3s |
-| `compare_companies` | Side-by-side metrics for multiple tickers | ~5s |
-| `get_financials` | Raw XBRL data (balance sheet, income, cash flow) | ~2s |
-| `get_financial_history` | Time series for any metric | ~2s |
-| `credit_monitor` | Debt analysis with LLM insights | ~15s |
-| `equity_research` | Revenue breakdown, guidance, risks | ~15s |
-| `get_company_filings` | List SEC filings | ~1s |
-
-## How it works
-
-1. **XBRL** — SEC's machine-readable financial data. Deterministic, no parsing errors.
-2. **LLM** — Qualitative analysis of 10-K text (credit, equity research).
-3. **Python** — Ratio computation, trend analysis, no hallucination on math.
-
-Every claim cites its source. Every number comes from SEC filings.
-
-## Setup
-```bash
-pip install python-dotenv anthropic requests
-cp .env.example .env  # Add your Anthropic API key
-python cli.py health AAPL
+agent = EquityResearchAgent(Config())
+report = agent.generate_report("NVDA", peers=["AMD", "INTC"])
 ```
 
-## License
+## Demo
 
-MIT
+Try it: [huggingface.co/spaces/Rex165/eugene-intelligence](https://huggingface.co/spaces/Rex165/eugene-intelligence)
+
+## MCP Tools (16+)
+
+- `company_health` — Financial ratios and trends
+- `get_stock_prices` — Historical prices and quotes
+- `get_earnings` — EPS history and estimates
+- `get_insider_trades` — Form 4 insider activity
+- `get_13f_holdings` — Institutional ownership
+- `equity_report` — Full research report with thesis
+- `credit_monitor` — Debt analysis and risk scoring
+- And more...
+
+## Contact
+
+matthew@eugeneintelligence.com
+
+---
+
+*Built for agents that need to get finance right.*

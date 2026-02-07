@@ -230,6 +230,29 @@ TOOLS = [
             },
             "required": ["ticker"]
         }
+    },
+    {
+        "name": "get_13f_holdings",
+        "description": "Get institutional holdings from SEC 13F filings. Shows what hedge funds and asset managers own.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "institution": {"type": "string", "description": "Institution name (BERKSHIRE, BLACKROCK, VANGUARD, CITADEL) or CIK number"}
+            },
+            "required": ["institution"]
+        }
+    },
+    {
+        "name": "get_earnings_transcript",
+        "description": "Get earnings call transcript with management remarks, Q&A, and guidance analysis. Includes sentiment scoring and tone analysis.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "quarter": {"type": "string", "description": "Specific quarter like 'Q1 2025' or leave empty for most recent"}
+            },
+            "required": ["ticker"]
+        }
     }
 ]
 
@@ -299,7 +322,25 @@ def handle_tool_call(name, args):
             agent = EquityResearchAgent(Config())
             return agent.quick_screen(args["tickers"])
 
-        
+        elif name == "get_13f_holdings":
+            from eugene.sources.holdings_13f import get_whale_holdings, get_13f_filing
+            inst = args["institution"]
+            if inst.isdigit():
+                return get_13f_filing(inst)
+            return get_whale_holdings(inst)
+
+        elif name == "get_earnings_transcript":
+            from eugene.sources.transcripts import EarningsTranscriptExtractor
+            extractor = EarningsTranscriptExtractor()
+            transcript = extractor.get_earnings_transcript(
+                args["ticker"],
+                args.get("quarter")
+            )
+            if transcript:
+                return transcript.to_dict()
+            else:
+                return {"error": f"No earnings transcript found for {args['ticker']}"}
+
         else:
             return {"error": "Unknown tool: {}".format(name)}
     except Exception as e:
@@ -346,3 +387,5 @@ if __name__ == "__main__":
         except Exception as e:
             sys.stderr.write("Error: {}\n".format(e))
             sys.stderr.flush()
+
+# 13F Holdings tools will be added via the add script
