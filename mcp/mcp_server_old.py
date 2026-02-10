@@ -1,4 +1,3 @@
-from eugene.tools.consolidated_tools import TOOLS, handle_tool_call as consolidated_handle
 #!/usr/bin/env python3
 """Eugene Intelligence MCP Server - Standalone version"""
 import sys

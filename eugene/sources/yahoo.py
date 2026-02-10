@@ -108,6 +108,210 @@ def get_stock_prices(
         }
 
 
+def get_dividend_history(ticker: str, period: str = "5y") -> dict:
+    """
+    Get dividend history for a ticker using yfinance.
+
+    Args:
+        ticker: Stock ticker symbol (e.g., 'AAPL')
+        period: Time period ('1y', '2y', '5y', '10y', 'max')
+
+    Returns:
+        Dictionary with dividend data and analysis
+    """
+    try:
+        ticker = ticker.upper()
+        stock = yf.Ticker(ticker)
+
+        # Get dividend data
+        dividends = stock.dividends
+
+        if dividends.empty:
+            return {
+                "ticker": ticker,
+                "has_dividends": False,
+                "message": "No dividend history found",
+                "source": "Yahoo Finance"
+            }
+
+        # Filter by period
+        if period != 'max':
+            period_map = {'1y': 365, '2y': 730, '5y': 1825, '10y': 3650}
+            days = period_map.get(period, 1825)
+            cutoff_date = datetime.now() - timedelta(days=days)
+            dividends = dividends[dividends.index >= cutoff_date]
+
+        # Calculate dividend metrics
+        dividend_data = []
+        for date, amount in dividends.items():
+            dividend_data.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "amount": round(float(amount), 4),
+                "year": date.year,
+                "quarter": f"Q{((date.month-1)//3)+1}"
+            })
+
+        # Sort by date (newest first)
+        dividend_data.sort(key=lambda x: x["date"], reverse=True)
+
+        # Calculate analysis
+        annual_dividends = {}
+        for div in dividend_data:
+            year = div["year"]
+            if year not in annual_dividends:
+                annual_dividends[year] = 0
+            annual_dividends[year] += div["amount"]
+
+        # Calculate growth rates
+        years = sorted(annual_dividends.keys(), reverse=True)
+        growth_rates = []
+
+        for i in range(len(years) - 1):
+            current_year = years[i]
+            prior_year = years[i + 1]
+            current_div = annual_dividends[current_year]
+            prior_div = annual_dividends[prior_year]
+
+            if prior_div > 0:
+                growth_rate = ((current_div - prior_div) / prior_div) * 100
+                growth_rates.append({
+                    "year": current_year,
+                    "growth_rate": round(growth_rate, 2)
+                })
+
+        # Calculate dividend yield (approximate)
+        current_price = stock.info.get('currentPrice', stock.info.get('regularMarketPrice'))
+        current_yield = None
+        if current_price and years:
+            latest_annual = annual_dividends[years[0]]
+            current_yield = round((latest_annual / current_price) * 100, 2)
+
+        return {
+            "ticker": ticker,
+            "has_dividends": True,
+            "period": period,
+            "total_payments": len(dividend_data),
+            "dividend_history": dividend_data,
+            "annual_totals": dict(sorted(annual_dividends.items(), reverse=True)),
+            "growth_analysis": {
+                "growth_rates": growth_rates,
+                "avg_growth_rate": round(sum(g["growth_rate"] for g in growth_rates) / len(growth_rates), 2) if growth_rates else None,
+                "consecutive_increases": len([g for g in growth_rates if g["growth_rate"] > 0])
+            },
+            "current_yield": current_yield,
+            "source": "Yahoo Finance"
+        }
+
+    except Exception as e:
+        return {
+            "ticker": ticker.upper(),
+            "error": str(e),
+            "source": "Yahoo Finance"
+        }
+
+
+def get_stock_splits(ticker: str, period: str = "10y") -> dict:
+    """
+    Get stock split history for a ticker using yfinance.
+
+    Args:
+        ticker: Stock ticker symbol (e.g., 'AAPL')
+        period: Time period ('1y', '2y', '5y', '10y', 'max')
+
+    Returns:
+        Dictionary with stock split data and analysis
+    """
+    try:
+        ticker = ticker.upper()
+        stock = yf.Ticker(ticker)
+
+        # Get split data
+        splits = stock.splits
+
+        if splits.empty:
+            return {
+                "ticker": ticker,
+                "has_splits": False,
+                "message": "No stock split history found",
+                "source": "Yahoo Finance"
+            }
+
+        # Filter by period
+        if period != 'max':
+            period_map = {'1y': 365, '2y': 730, '5y': 1825, '10y': 3650}
+            days = period_map.get(period, 3650)
+            cutoff_date = datetime.now() - timedelta(days=days)
+            splits = splits[splits.index >= cutoff_date]
+
+        # Process split data
+        split_data = []
+        total_split_factor = 1.0
+
+        for date, ratio in splits.items():
+            # Convert split ratio to readable format
+            ratio_float = float(ratio)
+
+            if ratio_float > 1:
+                # Stock split (e.g., 2.0 = 2:1 split)
+                split_type = "split"
+                readable_ratio = f"{int(ratio_float)}:1"
+            else:
+                # Reverse split (e.g., 0.5 = 1:2 reverse split)
+                split_type = "reverse_split"
+                reverse_ratio = 1 / ratio_float
+                readable_ratio = f"1:{int(reverse_ratio)}"
+
+            total_split_factor *= ratio_float
+
+            split_data.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "ratio": ratio_float,
+                "readable_ratio": readable_ratio,
+                "type": split_type,
+                "year": date.year
+            })
+
+        # Sort by date (newest first)
+        split_data.sort(key=lambda x: x["date"], reverse=True)
+
+        # Calculate cumulative effect
+        cumulative_factor = 1.0
+        for split in reversed(split_data):  # Process oldest first for cumulative
+            cumulative_factor *= split["ratio"]
+            split["cumulative_factor"] = round(cumulative_factor, 4)
+
+        split_data.reverse()  # Back to newest first
+
+        return {
+            "ticker": ticker,
+            "has_splits": True,
+            "period": period,
+            "total_splits": len(split_data),
+            "split_history": split_data,
+            "analysis": {
+                "total_split_factor": round(total_split_factor, 4),
+                "years_with_splits": len(set(s["year"] for s in split_data)),
+                "split_types": {
+                    "splits": len([s for s in split_data if s["type"] == "split"]),
+                    "reverse_splits": len([s for s in split_data if s["type"] == "reverse_split"])
+                },
+                "most_recent": split_data[0] if split_data else None
+            },
+            "interpretation": {
+                "effect": "If you owned 1 share at the beginning of the period, you would now own {:.4f} shares".format(total_split_factor),
+                "price_adjustment": "Historical prices should be multiplied by {:.4f} to adjust for splits".format(1 / total_split_factor if total_split_factor != 0 else 1)
+            },
+            "source": "Yahoo Finance"
+        }
+
+    except Exception as e:
+        return {
+            "ticker": ticker.upper(),
+            "error": str(e),
+            "source": "Yahoo Finance"
+        }
+
+
 def get_earnings_data(ticker: str) -> dict:
     """
     Get earnings history — EPS actuals vs estimates, revenue, and earnings dates.

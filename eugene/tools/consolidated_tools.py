@@ -33,27 +33,33 @@ def company_data(
     Args:
         ticker: Single company (e.g., "AAPL")
         tickers: Multiple companies for compare/screen
-        type: prices | financials | health | history | filings | compare | screen | report
+        type: prices | financials | health | history | filings | compare | screen | report | profile | estimates
         metric: For history type (revenue, net_income, total_assets, etc.)
         years: For history type (default 5)
     """
-    from eugene.sources.yahoo import get_stock_prices
     from eugene.sources.xbrl import XBRLClient
     
     if type == "prices":
-        return get_stock_prices(ticker)
+        from eugene.sources.fmp import get_stock_price
+        return get_stock_price(ticker)
+    
+    elif type == "profile":
+        from eugene.sources.fmp import get_company_profile
+        return get_company_profile(ticker)
+    
+    elif type == "estimates":
+        from eugene.sources.fmp import get_analyst_estimates
+        return get_analyst_estimates(ticker)
     
     elif type == "financials":
         client = XBRLClient()
         return client.get_financials(ticker)
     
     elif type == "health":
-        # Combines ratios, Z-score, trends
         from mcp.mcp_server import get_health
         return get_health().analyze(ticker).to_dict()
     
     elif type == "history":
-        from eugene.sources.xbrl import XBRLClient
         client = XBRLClient()
         return client.get_metric_history(ticker, metric, years)
     
@@ -75,7 +81,7 @@ def company_data(
     
     else:
         return {"error": f"Unknown type: {type}. Valid: {COMPANY_DATA_TYPES}"}
-
+    
 
 # ============================================
 # EARNINGS DATA — Everything earnings-related
@@ -104,10 +110,9 @@ def earnings_data(
         type: history | calendar | moves | full | transcript
         quarter: For transcript (e.g., "Q1 2025")
     """
-    from eugene.sources.yahoo import get_earnings_data
-    
     if type == "history":
-        return get_earnings_data(ticker)
+        from eugene.sources.fmp import get_earnings
+        return get_earnings(ticker)
     
     elif type == "calendar":
         from mcp.mcp_server import earnings_calendar
@@ -127,7 +132,6 @@ def earnings_data(
     
     else:
         return {"error": f"Unknown type: {type}. Valid: {EARNINGS_DATA_TYPES}"}
-
 
 # ============================================
 # OWNERSHIP DATA — Who owns what
@@ -175,37 +179,65 @@ def ownership_data(
 
 
 # ============================================
+# # ============================================
 # MARKET DATA — Macro and market-wide
 # ============================================
 
 MARKET_DATA_TYPES = [
-    "news",       # Market/company news
     "economics",  # FRED economic data
     "treasury",   # Yield curve
-    "bulk",       # Bulk downloads
-    "calendar",   # IPO/dividend/splits
+    "search",     # Search FRED series
+    "bundle",     # Economic bundles (inflation, employment, etc.)
+    "news",       # Coming soon
+    "bulk",       # Coming soon
+    "calendar",   # Coming soon
 ]
 
 def market_data(
     type: str = "economics",
     series: str = None,
-    ticker: str = None
+    bundle: str = None,
+    search: str = None,
+    start_date: str = None,
+    end_date: str = None
 ) -> dict:
     """
     Market-wide and macroeconomic data.
     
     Args:
-        type: news | economics | treasury | bulk | calendar
-        series: For economics (FRED series like "GDP", "UNRATE")
-        ticker: For company-specific news
+        type: economics | treasury | search | bundle | news | bulk | calendar
+        series: FRED series ID (e.g., "GDP", "UNRATE", "CPIAUCSL")
+        bundle: Bundle name (e.g., "inflation", "employment", "rates")
+        search: Search term to find FRED series
+        start_date: Optional start date (YYYY-MM-DD)
+        end_date: Optional end date (YYYY-MM-DD)
     """
+    from eugene.sources.fred import get_economic_data, get_economic_bundle, search_fred_series
+    
     if type == "economics":
-        from eugene.sources.fred import get_fred_series
-        return get_fred_series(series)
+        if not series:
+            return {"error": "series required. Example: GDP, UNRATE, CPIAUCSL"}
+        return get_economic_data(series, start_date, end_date)
     
     elif type == "treasury":
-        from eugene.sources.fred import get_treasury_yields
-        return get_treasury_yields()
+        treasury_series = ["DGS1", "DGS2", "DGS5", "DGS10", "DGS30"]
+        results = {}
+        for s in treasury_series:
+            data = get_economic_data(s)
+            if "observations" in data and data["observations"]:
+                latest = data["observations"][-1]
+                results[s] = {"rate": latest.get("value"), "date": latest.get("date")}
+        return {"type": "treasury_yields", "source": "FRED", "yields": results}
+    
+    elif type == "search":
+        if not search:
+            return {"error": "search term required"}
+        return search_fred_series(search)
+    
+    elif type == "bundle":
+        if not bundle:
+            return {"error": "bundle name required. Options: inflation, employment, rates, housing, gdp"}
+        return get_economic_bundle(bundle, start_date, end_date)
     
     elif type == "news":
         return {"status": "coming_soon", "message": "News feed coming soon"}
@@ -218,6 +250,8 @@ def market_data(
     
     else:
         return {"error": f"Unknown type: {type}. Valid: {MARKET_DATA_TYPES}"}
+# ============================================
+
 
 
 # ============================================
