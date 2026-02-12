@@ -497,3 +497,69 @@ def sec_enforcement(
     
     else:
         return {"error": f"Unknown type: {type}. Valid: {SEC_ENFORCEMENT_TYPES}"}
+
+
+# ============================================
+# ECONOMIC DATA — Full FRED coverage
+# ============================================
+
+ECONOMIC_TYPES = [
+    "inflation",      # CPI, PCE
+    "employment",     # Jobs, unemployment
+    "gdp",           # GDP growth
+    "housing",       # Starts, permits, prices
+    "consumer",      # Retail, sentiment
+    "manufacturing", # Industrial production
+    "rates",         # Fed funds, treasuries
+    "money",         # M1, M2
+    "all",           # Everything
+]
+
+def economic_data(category: str = "all") -> dict:
+    """
+    Get latest economic indicators from FRED.
+    
+    Args:
+        category: inflation | employment | gdp | housing | consumer | manufacturing | rates | money | all
+    """
+    from eugene.sources.fred import get_latest_indicators
+    return get_latest_indicators(category)
+
+
+# ============================================
+# GOVERNMENT DATA — Fed, Treasury, Forex
+# ============================================
+
+GOVERNMENT_TYPES = [
+    "fed_speeches",
+    "fed_press",
+    "fomc",
+    "treasury_debt",
+    "treasury_auctions",
+    "forex",
+]
+
+def government_data(type: str = "fed_speeches", limit: int = 10) -> dict:
+    """
+    Government and central bank data.
+    
+    Args:
+        type: fed_speeches | fed_press | fomc | treasury_debt | treasury_auctions | forex
+        limit: Number of items (for feeds)
+    """
+    from eugene.sources.government import get_fed_data, get_treasury_data, get_forex_rates
+    
+    if type == "fed_speeches":
+        return get_fed_data("speeches", limit)
+    elif type == "fed_press":
+        return get_fed_data("press", limit)
+    elif type == "fomc":
+        return get_fed_data("fomc", limit)
+    elif type == "treasury_debt":
+        return get_treasury_data("debt")
+    elif type == "treasury_auctions":
+        return get_treasury_data("auctions")
+    elif type == "forex":
+        return get_forex_rates()
+    else:
+        return {"error": f"Unknown type: {type}. Valid: {GOVERNMENT_TYPES}"}

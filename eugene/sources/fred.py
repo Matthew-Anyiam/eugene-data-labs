@@ -18,9 +18,9 @@ SERIES_BUNDLES = {
 }
 
 def _get_api_key() -> str:
-    key = os.environ.get("FRED_API_KEY")
+    key = os.environ.get("FRED_API_KEY", "018a61888253d0c6d69e55df3dc38f8c")
     if not key:
-        raise ValueError("FRED_API_KEY environment variable not set")
+        pass  # Using default key
     return key
 
 def get_economic_data(series_id: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> dict:
@@ -104,3 +104,94 @@ def search_fred_series(search_text: str, limit: int = 10) -> dict:
         return {"query": search_text, "source": "FRED", "results": results}
     except Exception as e:
         return {"query": search_text, "error": str(e), "source": "FRED"}
+
+# Economic indicator bundles
+ECONOMIC_INDICATORS = {
+    "inflation": {
+        "CPIAUCSL": "CPI (All Urban Consumers)",
+        "CPILFESL": "Core CPI (Ex Food & Energy)", 
+        "PCEPI": "PCE Price Index",
+        "PCEPILFE": "Core PCE",
+    },
+    "employment": {
+        "UNRATE": "Unemployment Rate",
+        "PAYEMS": "Nonfarm Payrolls",
+        "ICSA": "Initial Jobless Claims",
+        "CIVPART": "Labor Force Participation",
+        "AHETPI": "Avg Hourly Earnings",
+    },
+    "gdp": {
+        "GDP": "Nominal GDP",
+        "GDPC1": "Real GDP",
+        "A191RL1Q225SBEA": "Real GDP Growth Rate",
+    },
+    "housing": {
+        "HOUST": "Housing Starts",
+        "PERMIT": "Building Permits",
+        "CSUSHPISA": "Case-Shiller Home Price",
+        "MORTGAGE30US": "30Y Mortgage Rate",
+    },
+    "consumer": {
+        "RSXFS": "Retail Sales",
+        "UMCSENT": "Consumer Sentiment",
+        "PCE": "Personal Consumption",
+    },
+    "manufacturing": {
+        "INDPRO": "Industrial Production",
+        "DGORDER": "Durable Goods Orders",
+    },
+    "rates": {
+        "FEDFUNDS": "Fed Funds Rate",
+        "DGS2": "2Y Treasury",
+        "DGS10": "10Y Treasury",
+        "T10Y2Y": "10Y-2Y Spread",
+        "T10Y3M": "10Y-3M Spread",
+    },
+    "money": {
+        "M1SL": "M1 Money Supply",
+        "M2SL": "M2 Money Supply",
+    }
+}
+
+
+def get_latest_indicators(category: str = "all") -> dict:
+    """Get latest values for economic indicators."""
+    import requests
+    
+    api_key = os.environ.get("FRED_API_KEY", "018a61888253d0c6d69e55df3dc38f8c")
+    
+    if category == "all":
+        categories = ECONOMIC_INDICATORS.keys()
+    elif category in ECONOMIC_INDICATORS:
+        categories = [category]
+    else:
+        return {"error": f"Unknown category: {category}. Valid: {list(ECONOMIC_INDICATORS.keys())}"}
+    
+    results = {}
+    
+    for cat in categories:
+        results[cat] = {}
+        for series_id, name in ECONOMIC_INDICATORS[cat].items():
+            try:
+                url = f"https://api.stlouisfed.org/fred/series/observations"
+                params = {
+                    "series_id": series_id,
+                    "api_key": api_key,
+                    "file_type": "json",
+                    "limit": 1,
+                    "sort_order": "desc"
+                }
+                r = requests.get(url, params=params, timeout=10)
+                data = r.json()
+                
+                if "observations" in data and data["observations"]:
+                    obs = data["observations"][0]
+                    results[cat][series_id] = {
+                        "name": name,
+                        "value": obs.get("value"),
+                        "date": obs.get("date")
+                    }
+            except:
+                continue
+    
+    return {"indicators": results, "source": "FRED"}
