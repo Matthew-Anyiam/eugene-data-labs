@@ -1,3 +1,5 @@
+import os
+import os
 """
 Eugene Intelligence — Robust Data Fetcher
 """
@@ -8,7 +10,8 @@ from typing import Dict
 DEFAULT_TIMEOUT = 10
 MAX_RETRIES = 3
 RETRY_BACKOFF = [1, 2, 4]
-HEADERS = {"User-Agent": "Eugene Intelligence (matthew@eugeneintelligence.com)"}
+SEC_USER_AGENT = os.environ.get("SEC_USER_AGENT", "Eugene Intelligence (matthew@eugeneintelligence.com)")
+HEADERS = {"User-Agent": SEC_USER_AGENT}
 
 
 class FetchError(Exception):

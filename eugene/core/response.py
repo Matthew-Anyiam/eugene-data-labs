@@ -84,4 +84,7 @@ def format_percentage(value: float, decimals: int = 2) -> dict:
 def format_number(value: float, unit: str = None) -> dict:
     if value is None:
         return {"value": None, "formatted": "N/A", "unit": unit}
-    return {"value": value, "formatted": f"{value:,}", "unit": unit}
+    # Round to 2 decimals for ratios
+    if unit == "ratio":
+        return {"value": round(value, 2), "formatted": f"{value:.2f}x", "unit": unit}
+    return {"value": value, "formatted": f"{value:,.0f}", "unit": unit}

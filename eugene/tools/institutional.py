@@ -12,6 +12,10 @@ from eugene.core.response import (
 from eugene.core.fetcher import fetch_with_retry, FetchError
 from datetime import datetime, timezone
 
+# CIK Cache - loaded once, reused
+_CIK_CACHE = {}
+_COMPANY_FACTS_CACHE = {}
+
 
 # ============================================
 # COMPANY — Institutional Grade
@@ -563,11 +567,23 @@ def _get_insider(ticker: str) -> dict:
 
 def _get_cik(ticker: str) -> str:
     """Get CIK from ticker with caching."""
-    try:
-        data = fetch_with_retry("https://www.sec.gov/files/company_tickers.json")
-        for item in data.values():
-            if item.get("ticker", "").upper() == ticker.upper():
-                return str(item.get("cik_str", "")).zfill(10)
-        return None
-    except:
-        return None
+    global _CIK_CACHE
+    
+    ticker = ticker.upper()
+    
+    # Return from cache if available
+    if ticker in _CIK_CACHE:
+        return _CIK_CACHE[ticker]
+    
+    # Load full mapping if cache is empty
+    if not _CIK_CACHE:
+        try:
+            data = fetch_with_retry("https://www.sec.gov/files/company_tickers.json")
+            for item in data.values():
+                t = item.get("ticker", "").upper()
+                cik = str(item.get("cik_str", "")).zfill(10)
+                _CIK_CACHE[t] = cik
+        except:
+            pass
+    
+    return _CIK_CACHE.get(ticker)
