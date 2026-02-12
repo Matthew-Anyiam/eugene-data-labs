@@ -408,3 +408,92 @@ if __name__ == "__main__":
     # result = company_data(ticker="AAPL", type="health")
     # print(result)
     print("Tools defined:", [t["name"] for t in TOOLS])
+
+
+# ============================================
+# SEC REGULATORY — Speeches, rules, press releases
+# ============================================
+
+SEC_REGULATORY_TYPES = [
+    "speeches",           # SEC commissioner speeches
+    "press_releases",     # SEC press releases
+    "litigation",         # Litigation releases
+    "admin_proceedings",  # Administrative proceedings
+    "suspensions",        # Trading suspensions
+    "search",             # Full-text search
+]
+
+def sec_regulatory(
+    type: str = "press_releases",
+    keyword: str = None,
+    limit: int = 20
+) -> dict:
+    """
+    SEC regulatory updates: speeches, press releases, rules.
+    
+    Args:
+        type: speeches | press_releases | litigation | admin_proceedings | suspensions | search
+        keyword: Optional keyword filter
+        limit: Number of results
+    """
+    from eugene.sources.sec_regulatory import get_sec_feed, search_sec_filings
+    
+    if type == "search":
+        if not keyword:
+            return {"error": "keyword required for search"}
+        return search_sec_filings(keyword, limit=limit)
+    
+    elif type in ["speeches", "press_releases", "litigation", "admin_proceedings"]:
+        return get_sec_feed(type, limit=limit, keyword=keyword)
+    
+    elif type == "suspensions":
+        return get_sec_feed("trading_suspensions", limit=limit, keyword=keyword)
+    
+    else:
+        return {"error": f"Unknown type: {type}. Valid: {SEC_REGULATORY_TYPES}"}
+
+
+# ============================================
+# SEC ENFORCEMENT — Actions, risk checks
+# ============================================
+
+SEC_ENFORCEMENT_TYPES = [
+    "recent",       # Recent enforcement actions
+    "company",      # Check specific company
+    "search",       # Search by name/keyword
+]
+
+def sec_enforcement(
+    type: str = "recent",
+    ticker: str = None,
+    company_name: str = None,
+    keyword: str = None,
+    days_back: int = 30
+) -> dict:
+    """
+    SEC enforcement actions and company risk checks.
+    
+    Args:
+        type: recent | company | search
+        ticker: Company ticker (for company check)
+        company_name: Company name to search
+        keyword: Search term
+        days_back: Days of history for recent actions
+    """
+    from eugene.sources.sec_regulatory import get_enforcement_actions, check_company_enforcement, search_sec_filings
+    
+    if type == "recent":
+        return get_enforcement_actions(days_back=days_back, keyword=keyword)
+    
+    elif type == "company":
+        if not ticker:
+            return {"error": "ticker required for company check"}
+        return check_company_enforcement(ticker, company_name)
+    
+    elif type == "search":
+        if not keyword:
+            return {"error": "keyword required for search"}
+        return search_sec_filings(keyword, filing_type="LIT", limit=20)
+    
+    else:
+        return {"error": f"Unknown type: {type}. Valid: {SEC_ENFORCEMENT_TYPES}"}
