@@ -17,6 +17,18 @@ _CIK_CACHE = {}
 _COMPANY_FACTS_CACHE = {}
 
 
+def _get_company_facts(cik: str) -> dict:
+    """Get company facts with caching."""
+    global _COMPANY_FACTS_CACHE
+    
+    if cik in _COMPANY_FACTS_CACHE:
+        return _COMPANY_FACTS_CACHE[cik]
+    
+    data = fetch_with_retry(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json")
+    _COMPANY_FACTS_CACHE[cik] = data
+    return data
+
+
 # ============================================
 # COMPANY — Institutional Grade
 # ============================================
@@ -106,7 +118,10 @@ def _get_prices(ticker: str) -> dict:
         data={
             "price": format_currency(quote.get("price")),
             "change": format_currency(quote.get("change")),
-            "change_percent": format_percentage(quote.get("changesPercentage")),
+            "change_percent": format_percentage(
+            (quote.get("change", 0) / (quote.get("price", 1) - quote.get("change", 0)) * 100) 
+            if quote.get("price") and quote.get("change") else None
+        ),
             "volume": format_number(quote.get("volume"), "shares"),
             "market_cap": format_currency(quote.get("marketCap")),
             "day_high": format_currency(quote.get("dayHigh")),
@@ -183,9 +198,7 @@ def _get_financials(ticker: str) -> dict:
             error=f"CIK not found for {ticker}. Company may not be SEC-registered."
         )
     
-    data = fetch_with_retry(
-        f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-    )
+    data = _get_company_facts(cik)
     
     us_gaap = data.get("facts", {}).get("us-gaap", {})
     
@@ -454,9 +467,7 @@ def _get_earnings(ticker: str) -> dict:
             error="CIK not found"
         )
     
-    data = fetch_with_retry(
-        f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-    )
+    data = _get_company_facts(cik)
     
     us_gaap = data.get("facts", {}).get("us-gaap", {})
     
