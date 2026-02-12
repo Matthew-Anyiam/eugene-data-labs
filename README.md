@@ -1,22 +1,39 @@
 # Eugene Intelligence
 
+[![PyPI version](https://badge.fury.io/py/eugene-intelligence.svg)](https://pypi.org/project/eugene-intelligence/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Data Infrastructure for AI Agents**
 
 ---
 
-## What is Eugene?
+## Install
+```bash
+pip install eugene-intelligence
+```
 
-Eugene provides verified financial data for AI agents — SEC filings, market data, economic indicators, regulatory news — through one MCP server.
+## Quick Start
+```python
+from eugene.tools.institutional import company
 
-Every number traced to source. No hallucination.
+# Stock quote
+result = company("AAPL", "prices")
+print(result["data"]["price"]["formatted"])  # $270.58
+
+# SEC financials with full provenance
+result = company("AAPL", "financials")
+print(result["data"]["revenue"]["formatted"])  # $416.16B
+print(result["data"]["revenue"]["sec_concept"])  # RevenueFromContractWithCustomerExcludingAssessedTax
+print(result["data"]["revenue"]["accession_number"])  # 0000320193-25-000079
+
+# Financial health ratios
+result = company("AAPL", "health")
+print(result["data"]["roe"]["formatted"])  # 151.91%
+```
 
 ---
 
-## Quick Start
-
-### MCP Server (Claude Desktop)
-
-Add to your Claude config:
+## MCP Server (Claude Desktop)
 ```json
 {
   "mcpServers": {
@@ -29,40 +46,24 @@ Add to your Claude config:
 }
 ```
 
-### Python
-```python
-from eugene.tools.institutional import company
-
-# Get stock price
-result = company("AAPL", "prices")
-print(result["data"]["price"]["formatted"])  # $275.50
-
-# Get SEC financials
-result = company("AAPL", "financials")
-print(result["data"]["revenue"]["formatted"])  # $416.16B
-```
-
----
-
-## MCP Tools (4)
-
-| Tool | Description | Types |
-|------|-------------|-------|
-| `company` | Company data | prices, profile, financials, health, earnings, insider |
-| `economy_data` | Economic indicators | inflation, employment, gdp, housing, treasury, forex |
-| `regulatory_data` | Government & regulatory | sec_press, fed_speeches, fomc, treasury_debt |
-| `research_report` | AI-powered analysis | equity, credit |
+**4 Tools:**
+- `company(ticker, type)` — prices, profile, financials, health, earnings, insider
+- `economy_data(category)` — inflation, employment, gdp, housing, treasury, forex
+- `regulatory_data(type)` — sec_press, fed_speeches, fomc, treasury_debt
+- `research_report(ticker, type)` — equity, credit
 
 ---
 
 ## Data Sources
 
-- **SEC XBRL** — Financial statements (10-K, 10-Q)
-- **SEC EDGAR** — Insider trades (Form 4), 13F holdings
-- **FRED** — 400K+ economic series
-- **FMP** — Real-time stock prices
-- **Fed RSS** — Speeches, FOMC statements
-- **Treasury** — National debt, yields
+| Source | Data |
+|--------|------|
+| **SEC XBRL** | Financial statements (10-K, 10-Q) with accession numbers |
+| **SEC EDGAR** | Insider trades (Form 4), 13F holdings |
+| **FRED** | 400K+ economic series |
+| **FMP** | Real-time stock prices |
+| **Fed RSS** | Speeches, FOMC statements |
+| **Treasury** | National debt, yields |
 
 ---
 
@@ -72,17 +73,20 @@ Try it: [huggingface.co/spaces/Rex165/eugene-intelligence](https://huggingface.c
 
 ---
 
-## Project Structure
-```
-eugene/
-├── eugene/                 # Core package
-│   ├── core/              # Response formatting, HTTP client
-│   ├── sources/           # Data sources (SEC, FRED, FMP)
-│   ├── tools/             # MCP tools
-│   └── agents/            # AI research agents
-├── api/                   # REST API (FastAPI)
-├── mcp_server.py          # MCP server entry point
-└── requirements.txt
+## Why Eugene?
+
+Every number traced to source. No hallucination.
+```json
+{
+  "revenue": {
+    "value": 416161000000,
+    "formatted": "$416.16B",
+    "period_end": "2025-09-27",
+    "filed_date": "2025-10-31",
+    "sec_concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "accession_number": "0000320193-25-000079"
+  }
+}
 ```
 
 ---
