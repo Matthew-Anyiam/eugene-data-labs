@@ -1,51 +1,29 @@
 # Eugene Intelligence
 
-<p align="center">
-  <strong>🔍 Financial context for AI. The data layer for agents that need to get finance right.</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/Matthew-Anyiam/eugene-data-labs/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License"></a>
-  <a href="https://github.com/Matthew-Anyiam/eugene-data-labs/stargazers"><img src="https://img.shields.io/github/stars/Matthew-Anyiam/eugene-data-labs?style=for-the-badge" alt="Stars"></a>
-</p>
-
-<p align="center">
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-tools">Tools</a> •
-  <a href="#-why-eugene">Why Eugene</a> •
-  <a href="#-data-sources">Data Sources</a>
-</p>
+**Data Infrastructure for AI Agents**
 
 ---
 
-## 🎯 What is Eugene?
+## What is Eugene?
 
-Eugene provides **verified, source-traced financial data** through one MCP server — fundamentals, prices, earnings, insider trades, institutional holdings, and macro data.
+Eugene provides verified financial data for AI agents — SEC filings, market data, economic indicators, regulatory news — through one MCP server.
 
-**Every number traced to SEC filings. No hallucination.**
-
-|  |  |  |  |
-|--|--|--|--|
-| ✅ **SEC XBRL Data** | 🔍 **Source Traced** | 🤖 **MCP Ready** | ⚡ **Real-time Prices** |
+Every number traced to source. No hallucination.
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
-### Claude Desktop (MCP)
+### MCP Server (Claude Desktop)
 
-Add to `claude_desktop_config.json`:
+Add to your Claude config:
 ```json
 {
   "mcpServers": {
     "eugene": {
       "command": "python",
-      "args": ["-m", "mcp.mcp_server"],
-      "cwd": "/path/to/eugene-data-labs",
-      "env": {
-        "FMP_API_KEY": "your-key",
-        "FRED_API_KEY": "your-key"
-      }
+      "args": ["mcp_server.py"],
+      "cwd": "/path/to/eugene"
     }
   }
 }
@@ -53,66 +31,66 @@ Add to `claude_desktop_config.json`:
 
 ### Python
 ```python
-from eugene.tools.consolidated_tools import company_data, market_data
+from eugene.tools.institutional import company
 
-# Get company health metrics
-health = company_data(ticker="AAPL", type="health")
+# Get stock price
+result = company("AAPL", "prices")
+print(result["data"]["price"]["formatted"])  # $275.50
 
-# Get treasury yields  
-yields = market_data(type="treasury")
+# Get SEC financials
+result = company("AAPL", "financials")
+print(result["data"]["revenue"]["formatted"])  # $416.16B
 ```
 
 ---
 
-## 🛠️ Tools
+## MCP Tools (4)
 
 | Tool | Description | Types |
 |------|-------------|-------|
-| `company_data` | Everything about a company | prices, financials, health, profile, filings |
-| `earnings_data` | Earnings intelligence | history, calendar, moves, transcript |
-| `ownership_data` | Who owns what | insider trades, 13F holdings |
-| `market_data` | Macro & economics | FRED, treasury yields |
-| `research_agent` | Full equity analysis | Cited insights from SEC filings |
-| `credit_agent` | Debt & risk analysis | Covenants, maturities, risk |
+| `company` | Company data | prices, profile, financials, health, earnings, insider |
+| `economy_data` | Economic indicators | inflation, employment, gdp, housing, treasury, forex |
+| `regulatory_data` | Government & regulatory | sec_press, fed_speeches, fomc, treasury_debt |
+| `research_report` | AI-powered analysis | equity, credit |
 
 ---
 
-## 💡 Why Eugene?
+## Data Sources
 
-| Problem | Eugene Solution |
-|---------|-----------------|
-| AI hallucinates financial data | Every number traced to SEC XBRL |
-| Bloomberg costs $24K/year | Free + affordable tiers |
-| Data scattered across APIs | One MCP server |
-| Agents can't cite sources | Full source traceability |
-
----
-
-## 📊 Data Sources
-
-| Source | Data | Cost |
-|--------|------|------|
-| **SEC EDGAR** | XBRL financials, Form 4, 13F | Free |
-| **FRED** | Treasury yields, economics | Free |
-| **FMP** | Stock prices, profiles | Free tier |
+- **SEC XBRL** — Financial statements (10-K, 10-Q)
+- **SEC EDGAR** — Insider trades (Form 4), 13F holdings
+- **FRED** — 400K+ economic series
+- **FMP** — Real-time stock prices
+- **Fed RSS** — Speeches, FOMC statements
+- **Treasury** — National debt, yields
 
 ---
 
-## 🔧 Setup
-```bash
-git clone https://github.com/Matthew-Anyiam/eugene-data-labs.git
-cd eugene-data-labs
-pip install -r requirements.txt
-cp .env.example .env
-# Add: FMP_API_KEY, FRED_API_KEY
+## Demo
+
+Try it: [huggingface.co/spaces/Rex165/eugene-intelligence](https://huggingface.co/spaces/Rex165/eugene-intelligence)
+
+---
+
+## Project Structure
+```
+eugene/
+├── eugene/                 # Core package
+│   ├── core/              # Response formatting, HTTP client
+│   ├── sources/           # Data sources (SEC, FRED, FMP)
+│   ├── tools/             # MCP tools
+│   └── agents/            # AI research agents
+├── api/                   # REST API (FastAPI)
+├── mcp_server.py          # MCP server entry point
+└── requirements.txt
 ```
 
 ---
 
-## 📄 License
+## Contact
 
-MIT © [Matthew Anyiam](https://github.com/Matthew-Anyiam)
+[matthew@eugeneintelligence.com](mailto:matthew@eugeneintelligence.com)
 
-<p align="center">
-  <strong>Built for agents that need to get finance right.</strong>
-</p>
+---
+
+*Built for agents that need to get finance right.*
