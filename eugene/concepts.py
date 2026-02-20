@@ -11,7 +11,7 @@ CANONICAL_CONCEPTS = {
         "tags": [
             "RevenueFromContractWithCustomerExcludingAssessedTax",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
-            "Revenues",
+            "Revenues","Revenue",
             "SalesRevenueNet",
             "SalesRevenueGoodsNet",
             "SalesRevenueServicesNet",

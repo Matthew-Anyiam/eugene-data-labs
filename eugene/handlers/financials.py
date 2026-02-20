@@ -6,7 +6,7 @@ This is the core normalizer. It fixes the stale period bug by:
 2. Checking duration (365d for FY, 90d for Q) on income/CF
 3. Using instant-only values for balance sheet
 4. Deduping by period_end (latest filed wins)
-5. first_match tag priority (try tags in order, stop at first with data)
+5. Best-tag selection (most recent data wins, then coverage, then tag order)
 """
 from datetime import datetime
 from eugene.sources.sec_api import fetch_companyfacts
@@ -37,27 +37,60 @@ def financials_handler(resolved: dict, params: dict) -> dict:
     for concept_name, config in to_fetch.items():
         unit_key = config.get("unit", "USD")
 
+        # Pick tag with most recent data (not first match)
+        best_filtered = []
+        best_tag_name = None
+        best_taxonomy = None
+        best_latest = None
+
         for tag in config["tags"]:
-            # Check us-gaap first, then dei
-            tag_data = us_gaap.get(tag, {}) or dei.get(tag, {})
+            taxonomy = None
+            tag_data = us_gaap.get(tag)
+            if tag_data:
+                taxonomy = "us-gaap"
+            else:
+                tag_data = dei.get(tag)
+                if tag_data:
+                    taxonomy = "dei"
+            if not tag_data:
+                continue
+
             units = tag_data.get("units", {})
             values = units.get(unit_key, [])
             if not values and unit_key == "USD":
                 values = units.get("USD/shares", [])
-
             if not values:
                 continue
 
-            # Step 2: Filter by form + duration
             filtered = _filter_values(values, config["statement"], period_type)
+            if not filtered:
+                continue
 
-            if filtered:
-                concept_data[concept_name] = {
-                    "values": filtered,
-                    "source_tag": f"us-gaap:{tag}",
-                    "unit": unit_key,
-                }
-                break  # first_match: stop at first tag with data
+            ends = [v.get("end") for v in filtered if v.get("end")]
+            if not ends:
+                continue
+            latest = max(ends)
+
+            # Score: latest date > coverage > tag list order
+            better = False
+            if best_latest is None or latest > best_latest:
+                better = True
+            elif latest == best_latest:
+                if len(filtered) > len(best_filtered):
+                    better = True
+
+            if better:
+                best_latest = latest
+                best_filtered = filtered
+                best_tag_name = tag
+                best_taxonomy = taxonomy
+
+        if best_filtered:
+            concept_data[concept_name] = {
+                "values": best_filtered,
+                "source_tag": f"{best_taxonomy}:{best_tag_name}",
+                "unit": unit_key,
+            }
 
     # Step 3: Collect unique period_ends
     all_periods = set()
