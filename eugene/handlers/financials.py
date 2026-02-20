@@ -92,11 +92,23 @@ def financials_handler(resolved: dict, params: dict) -> dict:
                 "unit": unit_key,
             }
 
-    # Step 3: Collect unique period_ends
-    all_periods = set()
-    for data in concept_data.values():
-        for v in data["values"]:
-            all_periods.add(v["end"])
+    # Step 2: Backbone-driven period alignment
+    # Prefer income/cash_flow concepts; never let shares_outstanding drive periods
+    if concept_data:
+        preferred = ("income", "cash_flow")
+        income_cf = {
+            k: v for k, v in concept_data.items()
+            if k != "shares_outstanding"
+            and CANONICAL_CONCEPTS.get(k, {}).get("statement") in preferred
+        }
+        if income_cf:
+            pool = income_cf
+        else:
+            pool = {k: v for k, v in concept_data.items() if k != "shares_outstanding"} or concept_data
+        backbone = max(pool, key=lambda k: len(pool[k]["values"]))
+        all_periods = set(v.get("end") for v in concept_data[backbone]["values"] if v.get("end"))
+    else:
+        all_periods = set()
     periods_sorted = sorted(all_periods, reverse=True)[:limit]
 
     # Step 4: Build period-aligned output
