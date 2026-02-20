@@ -155,6 +155,14 @@ def run_api():
         return get_news(ticker)
 
     port = int(os.environ.get("PORT", 8000))
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"Starting Eugene v0.4 on port {port}")
+    try:
+        from eugene.router import query
+        logging.info("Router imported OK")
+    except Exception as e:
+        logging.error(f"Import failed: {e}")
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 
