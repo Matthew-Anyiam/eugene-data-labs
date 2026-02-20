@@ -1,319 +1,168 @@
 """
-Eugene Intelligence — Unified Data Layer v0.3.0
-2 tools: eugene_sec + eugene_economics
-Works as both FastAPI and MCP server.
+Eugene Intelligence v0.4 — Unified SEC Data Server
+FastAPI + MCP in one file.
 
-Response envelope: {status, data, metadata, warnings, citations}
+Usage:
+  python eugene_server.py           → FastAPI on port 8000
+  python eugene_server.py --mode mcp → MCP stdio server
 """
-import sys, os, logging, time
-from datetime import datetime, timezone
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('eugene')
+import sys
+import os
+from eugene.router import query, capabilities, VALID_EXTRACTS
+from eugene.sources.fred import get_category, get_series, get_all, FRED_SERIES
+from eugene.sources.fmp import get_price, get_profile, get_earnings, get_estimates, get_news
+from eugene.concepts import VALID_CONCEPTS
 
-VERSION = '0.3.0'
-
-# =============================================
-# Response Envelope
-# =============================================
-
-def envelope(data, ticker=None, extract=None, category=None, source=None, citations=None, warnings=None):
-    """Standardized response wrapper for all endpoints."""
-    meta = {
-        'service': 'eugene-intelligence',
-        'version': VERSION,
-        'retrieved_at': datetime.now(timezone.utc).isoformat(),
-    }
-    if ticker:
-        meta['ticker'] = ticker.upper()
-    if extract:
-        meta['extract'] = extract
-    if category:
-        meta['category'] = category
-    if source:
-        meta['source'] = source
-    resp = {
-        'status': 'error' if isinstance(data, dict) and 'error' in data else 'success',
-        'data': data,
-        'metadata': meta,
-    }
-    if warnings:
-        resp['warnings'] = warnings
-    if citations:
-        resp['citations'] = citations
-    return resp
-
-
-def build_citations(data, ticker=None):
-    """Extract per-metric citations from XBRL data."""
-    citations = []
-    if isinstance(data, dict):
-        for key, val in data.items():
-            if isinstance(val, dict) and 'xbrl_tag' in val:
-                cite = {
-                    'metric': key,
-                    'xbrl_tag': val.get('xbrl_tag'),
-                    'period_end': val.get('period_end'),
-                    'filed': val.get('filed'),
-                    'form': val.get('form'),
-                }
-                if ticker:
-                    cite['sec_url'] = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}&type={val.get('form', '10-K')}&dateb=&owner=include&count=10"
-                citations.append(cite)
-    return citations if citations else None
-
-
-# =============================================
-# CORE: eugene_sec
-# =============================================
-
-SEC_EXTRACTS = [
-    'prices', 'profile', 'financials', 'health', 'earnings',
-    'insider', 'institutional', 'filings', 'estimates', 'news'
-]
-
-def eugene_sec(ticker: str, extract: str = 'financials', filing_type: str = None, institution: str = None, limit: int = 10) -> dict:
-    """
-    All SEC and company data in one call.
-
-    Args:
-        ticker: Stock symbol (AAPL, NVDA, TSLA, JPM, etc.)
-        extract: What to get — prices | profile | financials | health | earnings | insider | institutional | filings | estimates | news
-        filing_type: For filings — 10-K, 10-Q, 8-K (optional)
-        institution: For institutional — BERKSHIRE, BLACKROCK, etc. (optional)
-        limit: Number of results (default 10)
-    """
-    ticker = ticker.upper().strip()
-    try:
-        if extract == 'prices':
-            from eugene.sources.fmp import get_stock_price
-            raw = get_stock_price(ticker)
-            return envelope(raw, ticker=ticker, extract='prices', source='FMP')
-
-        elif extract == 'profile':
-            from eugene.sources.fmp import get_company_profile
-            raw = get_company_profile(ticker)
-            return envelope(raw, ticker=ticker, extract='profile', source='FMP')
-
-        elif extract == 'financials':
-            from eugene.sources.xbrl import XBRLClient
-            raw = XBRLClient().get_financials(ticker).to_dict()
-            data = raw.get('data', raw)
-            citations = build_citations(data, ticker)
-            return envelope(data, ticker=ticker, extract='financials', source='SEC XBRL',
-                          citations=citations)
-
-        elif extract == 'health':
-            from eugene.agents.health import HealthMonitor
-            from eugene.config import Config
-            result = HealthMonitor(Config()).analyze(ticker)
-            raw = result.to_dict() if hasattr(result, 'to_dict') else result
-            return envelope(raw, ticker=ticker, extract='health', source='SEC XBRL')
-
-        elif extract == 'earnings':
-            from eugene.sources.fmp import get_earnings
-            raw = get_earnings(ticker)
-            return envelope(raw, ticker=ticker, extract='earnings', source='FMP')
-
-        elif extract == 'insider':
-            from eugene.sources.insider import get_insider_transactions
-            raw = get_insider_transactions(ticker)
-            return envelope(raw, ticker=ticker, extract='insider', source='SEC EDGAR Form 4')
-
-        elif extract == 'institutional':
-            if institution:
-                from eugene.sources.holdings_13f import get_whale_holdings
-                raw = get_whale_holdings(institution)
-                return envelope(raw, ticker=ticker, extract='institutional', source='SEC 13F-HR')
-            from eugene.sources.holdings_13f import get_whale_holdings
-            raw = get_whale_holdings(ticker)
-            return envelope(raw, ticker=ticker, extract='institutional', source='SEC 13F-HR')
-
-        elif extract == 'filings':
-            from eugene.sources.edgar import EDGARClient
-            from eugene.config import Config
-            client = EDGARClient(Config())
-            filings = client.get_filings(ticker, filing_type=filing_type, limit=limit)
-            data = [{'type': f.filing_type, 'date': f.filing_date, 'accession': f.accession_number, 'url': f.filing_url} for f in filings]
-            return envelope(data, ticker=ticker, extract='filings', source='SEC EDGAR')
-
-        elif extract == 'estimates':
-            from eugene.sources.fmp import get_analyst_estimates
-            raw = get_analyst_estimates(ticker)
-            return envelope(raw, ticker=ticker, extract='estimates', source='FMP')
-
-        elif extract == 'news':
-            from eugene.sources.fmp import get_stock_news
-            raw = get_stock_news(ticker, limit)
-            return envelope(raw, ticker=ticker, extract='news', source='FMP')
-
-        else:
-            return envelope({'error': f'Unknown extract: {extract}', 'valid_extracts': SEC_EXTRACTS},
-                          ticker=ticker, extract=extract)
-
-    except Exception as e:
-        logger.error(f'eugene_sec({ticker}, {extract}) failed: {e}')
-        return envelope({'error': str(e)}, ticker=ticker, extract=extract)
-
-
-# =============================================
-# CORE: eugene_economics
-# =============================================
-
-ECON_CATEGORIES = [
-    'inflation', 'employment', 'gdp', 'housing', 'consumer',
-    'manufacturing', 'rates', 'money', 'treasury', 'all'
-]
-
-def eugene_economics(category: str = 'all', series: str = None) -> dict:
-    """
-    All economic and market data in one call.
-
-    Args:
-        category: inflation | employment | gdp | housing | consumer | manufacturing | rates | money | treasury | all
-        series: Specific FRED series ID (e.g. GDP, UNRATE, CPIAUCSL) — overrides category
-    """
-    try:
-        if series:
-            from eugene.sources.fred import get_economic_data
-            raw = get_economic_data(series)
-            return envelope(raw, category=series, source='FRED')
-
-        if category == 'treasury':
-            from eugene.sources.fred import get_economic_data
-            yields = {}
-            for s in ['DGS1', 'DGS2', 'DGS5', 'DGS10', 'DGS30']:
-                data = get_economic_data(s)
-                if 'observations' in data and data['observations']:
-                    yields[s] = {'rate': data['observations'][-1].get('value'), 'date': data['observations'][-1].get('date')}
-            return envelope(yields, category='treasury', source='FRED')
-
-        from eugene.sources.fred import get_latest_indicators
-        raw = get_latest_indicators(category)
-        return envelope(raw, category=category, source='FRED')
-
-    except Exception as e:
-        logger.error(f'eugene_economics({category}) failed: {e}')
-        return envelope({'error': str(e)}, category=category)
-
-
-# =============================================
-# Capabilities (for agent discovery)
-# =============================================
-
-def capabilities() -> dict:
-    """List all available tools, extracts, and categories."""
-    return {
-        'service': 'eugene-intelligence',
-        'version': VERSION,
-        'tools': {
-            'eugene_sec': {
-                'description': 'All SEC and company data in one call',
-                'parameters': {
-                    'ticker': 'Stock symbol (required)',
-                    'extract': SEC_EXTRACTS,
-                    'filing_type': '10-K, 10-Q, 8-K (optional, for filings)',
-                    'institution': 'Fund name (optional, for institutional)',
-                    'limit': 'Number of results (default 10)',
-                },
-            },
-            'eugene_economics': {
-                'description': 'All economic data from FRED in one call',
-                'parameters': {
-                    'category': ECON_CATEGORIES,
-                    'series': 'Any FRED series ID (overrides category)',
-                },
-            },
-        },
-    }
-
-
-# =============================================
-# FastAPI Server
-# =============================================
-
-def create_api():
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
-
-    app = FastAPI(
-        title='Eugene Intelligence API',
-        description='Financial context for AI agents. 2 endpoints. Every number traced to source.',
-        version=VERSION,
-        docs_url='/',
-        redoc_url='/redoc',
-        openapi_url='/openapi.json',
-    )
-    app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
-
-    @app.get('/v1/sec/{ticker}')
-    def sec_endpoint(ticker: str, extract: str = 'financials', filing_type: str = None, institution: str = None, limit: int = 10):
-        return eugene_sec(ticker, extract, filing_type, institution, limit)
-
-    @app.get('/v1/economics')
-    def economics_endpoint(category: str = 'all', series: str = None):
-        return eugene_economics(category, series)
-
-    @app.get('/v1/economics/{category}')
-    def economics_category_endpoint(category: str, series: str = None):
-        return eugene_economics(category, series)
-
-    @app.get('/v1/capabilities')
-    def capabilities_endpoint():
-        return capabilities()
-
-    @app.get('/health')
-    def health():
-        return {'status': 'ok', 'service': 'eugene-intelligence', 'version': VERSION, 'tools': ['eugene_sec', 'eugene_economics']}
-
-    return app
-
-
-# =============================================
-# MCP Server
-# =============================================
-
-def create_mcp():
+# ---------------------------------------------------------------------------
+# MCP MODE
+# ---------------------------------------------------------------------------
+def run_mcp():
     from mcp.server.fastmcp import FastMCP
-
-    mcp = FastMCP(
-        name='eugene-intelligence',
-        instructions='Eugene Intelligence: Financial context for AI agents. 2 tools: eugene_sec (all company/SEC data) and eugene_economics (all FRED/macro data). Every number traced to source.',
-    )
+    mcp = FastMCP("eugene-intelligence")
 
     @mcp.tool()
-    def sec(ticker: str, extract: str = 'financials', filing_type: str = None, institution: str = None, limit: int = 10) -> dict:
-        """All SEC and company data. extract: prices|profile|financials|health|earnings|insider|institutional|filings|estimates|news"""
-        return eugene_sec(ticker, extract, filing_type, institution, limit)
+    def sec(
+        identifier: str,
+        extract: str = "financials",
+        period: str = "FY",
+        concept: str = None,
+        form: str = None,
+        section: str = None,
+        date_from: str = None,
+        date_to: str = None,
+        limit: int = 10,
+    ) -> dict:
+        """All SEC EDGAR data in one tool.
+
+        identifier: ticker (AAPL), CIK (320193), or accession number
+        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits (comma-separated)
+        period: FY|Q (for financials)
+        concept: canonical concept (revenue,net_income,...) or raw XBRL tag
+        form: 10-K|10-Q|8-K|4|13F-HR (filter)
+        section: mdna|risk_factors|business|legal (for sections)
+        limit: max results (default 10)
+        """
+        params = {
+            "period": period, "concept": concept, "form": form,
+            "section": section, "from": date_from, "to": date_to,
+            "limit": limit,
+        }
+        return query(identifier, extract, **{k: v for k, v in params.items() if v is not None})
 
     @mcp.tool()
-    def economics(category: str = 'all', series: str = None) -> dict:
-        """All economic data from FRED. category: inflation|employment|gdp|housing|consumer|manufacturing|rates|money|treasury|all"""
-        return eugene_economics(category, series)
+    def economics(category: str = "all", series: str = None) -> dict:
+        """All economic data from FRED.
+
+        category: inflation|employment|gdp|housing|consumer|manufacturing|rates|money|treasury|all
+        series: specific FRED series ID (e.g. CPIAUCSL)
+        """
+        if series:
+            return get_series(series)
+        if category == "all":
+            return get_all()
+        return get_category(category)
 
     @mcp.tool()
     def caps() -> dict:
-        """List all available Eugene tools, extracts, and categories for agent discovery."""
+        """List all available Eugene tools, extracts, and capabilities."""
         return capabilities()
 
-    return mcp
+    mcp.run()
 
 
-# =============================================
-# Entry point
-# =============================================
+# ---------------------------------------------------------------------------
+# FASTAPI MODE
+# ---------------------------------------------------------------------------
+def run_api():
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    import uvicorn
 
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description='Eugene Intelligence')
-    parser.add_argument('--mode', choices=['api', 'mcp'], default='api', help='Run as API server or MCP server')
-    parser.add_argument('--port', type=int, default=8000)
-    args = parser.parse_args()
+    app = FastAPI(
+        title="Eugene Intelligence",
+        description="Financial context for AI. SEC EDGAR + FRED. Every number traced to source.",
+        version="0.4.0",
+        docs_url="/",
+        redoc_url="/redoc",
+    )
 
-    if args.mode == 'mcp':
-        mcp = create_mcp()
-        mcp.run()
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "version": "0.4.0"}
+
+    @app.get("/v1/capabilities")
+    def caps_endpoint():
+        return capabilities()
+
+    @app.get("/v1/concepts")
+    def concepts_list():
+        from eugene.concepts import CANONICAL_CONCEPTS
+        return {
+            "concepts": {
+                name: {
+                    "description": c.get("description", ""),
+                    "statement": c.get("statement", ""),
+                    "derived": c.get("derived", False),
+                }
+                for name, c in CANONICAL_CONCEPTS.items()
+            }
+        }
+
+    @app.get("/v1/sec/{identifier}")
+    def sec_endpoint(
+        identifier: str,
+        extract: str = "financials",
+        period: str = "FY",
+        concept: str = None,
+        form: str = None,
+        section: str = None,
+        limit: int = 10,
+        
+    ):
+        params = {
+            "period": period, "concept": concept, "form": form,
+            "section": section, "limit": limit,
+        }
+        return query(identifier, extract, **{k: v for k, v in params.items() if v is not None})
+
+    @app.get("/v1/economics/{category}")
+    def economics_endpoint(category: str = "all", series: str = None):
+        if series:
+            return get_series(series)
+        if category == "all":
+            return get_all()
+        return get_category(category)
+
+    # Keep v0.3 routes for backward compatibility
+    @app.get("/v1/sec/{ticker}/prices")
+    def prices_compat(ticker: str):
+        return get_price(ticker)
+
+    @app.get("/v1/sec/{ticker}/profile")
+    def profile_compat(ticker: str):
+        return get_profile(ticker)
+
+    @app.get("/v1/sec/{ticker}/earnings")
+    def earnings_compat(ticker: str):
+        return get_earnings(ticker)
+
+    @app.get("/v1/sec/{ticker}/estimates")
+    def estimates_compat(ticker: str):
+        return get_estimates(ticker)
+
+    @app.get("/v1/sec/{ticker}/news")
+    def news_compat(ticker: str):
+        return get_news(ticker)
+
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+# ---------------------------------------------------------------------------
+# ENTRY POINT
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    if "--mode" in sys.argv and "mcp" in sys.argv:
+        run_mcp()
     else:
-        import uvicorn
-        app = create_api()
-        uvicorn.run(app, host='0.0.0.0', port=args.port)
+        run_api()

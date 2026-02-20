@@ -1,151 +1,153 @@
-# Eugene Intelligence
+# Eugene Intelligence v0.4
 
-**Financial context for AI. The data layer for agents that need to get finance right.**
+**Financial context for AI. Every number traced to source.**
 
----
-
-## What is Eugene?
-
-Eugene provides verified, structured financial data for AI agents — fundamentals, prices, earnings, insider trades, institutional holdings, economic indicators — through a unified API and MCP server.
-
-Every number traced to its source. No hallucination.
-
-## 2 Tools. Complete Coverage.
-
-| Tool | What It Covers | Sources |
-|------|---------------|---------|
-| `eugene_sec` | Company financials, prices, health ratios, earnings, insider trades, 13F holdings, SEC filings, analyst estimates, news | SEC XBRL, EDGAR, FMP |
-| `eugene_economics` | Inflation, employment, GDP, housing, rates, yield curve, money supply | FRED |
+One endpoint. All SEC EDGAR data. Clean, normalized, source-traceable.
 
 ## Quick Start
 
-### Install
 ```bash
-pip install eugene-intelligence
+pip install -r requirements.txt
+python eugene_server.py           # API on port 8000
+python eugene_server.py --mode mcp  # MCP server
 ```
 
-### API
+## API
+
+### One Endpoint
+
+```
+GET /v1/sec/{identifier}?extract=financials&period=FY&limit=5
+```
+
+Identifier: ticker (`AAPL`), CIK (`320193`), or accession number.
+
+### Extracts
+
+| Extract | Description | Source |
+|---------|-------------|--------|
+| `financials` | Normalized fundamentals with provenance | SEC XBRL CompanyFacts |
+| `profile` | Company name, CIK, SIC, address | SEC Submissions |
+| `filings` | Filing list with accession + URL | SEC Submissions |
+| `concepts` | Raw XBRL concept time series | SEC CompanyFacts |
+| `insiders` | Form 4 insider trade filings | SEC EDGAR |
+| `ownership` | 13F institutional holdings | SEC EDGAR |
+| `events` | 8-K material events | SEC EDGAR |
+| `sections` | MD&A, risk factors, business text | Filing HTML |
+| `exhibits` | Exhibit list with URLs | Filing Index |
+
+### Canonical Concepts (financials)
+
+revenue, net_income, operating_income, gross_profit, eps_basic, eps_diluted,
+operating_cf, capex, free_cf (derived), total_assets, total_liabilities,
+stockholders_equity, cash, total_debt, shares_outstanding
+
+### Examples
+
 ```bash
-python eugene_server.py
-# Open http://localhost:8000 for Swagger docs
-```
-```bash
-# Company financials from SEC XBRL
-curl "http://localhost:8000/v1/sec/AAPL?extract=financials"
+# Company fundamentals (FY, 5 years)
+curl "localhost:8000/v1/sec/AAPL?extract=financials&period=FY&limit=5"
 
-# Stock price
-curl "http://localhost:8000/v1/sec/AAPL?extract=prices"
+# Quarterly data
+curl "localhost:8000/v1/sec/MSFT?extract=financials&period=Q&limit=8"
 
-# Treasury yield curve
-curl "http://localhost:8000/v1/economics/treasury"
+# Just revenue
+curl "localhost:8000/v1/sec/NVDA?extract=financials&concept=revenue&limit=10"
 
-# Insider trades
-curl "http://localhost:8000/v1/sec/TSLA?extract=insider"
+# Company profile
+curl "localhost:8000/v1/sec/TSLA?extract=profile"
 
-# All economic indicators
-curl "http://localhost:8000/v1/economics/all"
-```
+# Filing list (10-Ks only)
+curl "localhost:8000/v1/sec/JPM?extract=filings&form=10-K"
 
-### Python
-```python
-from eugene_server import eugene_sec, eugene_economics
+# MD&A + risk factors
+curl "localhost:8000/v1/sec/BA?extract=sections&section=mdna,risk_factors"
 
-# SEC XBRL financials — traced to exact filing
-financials = eugene_sec("AAPL", extract="financials")
-print(financials["revenue"])  # value, xbrl_tag, period_end, filed date
+# Multiple extracts at once
+curl "localhost:8000/v1/sec/AAPL?extract=profile,financials,filings"
 
-# Stock price
-price = eugene_sec("NVDA", extract="prices")
-
-# Financial health ratios
-health = eugene_sec("BA", extract="health")
-
-# Treasury yield curve
-yields = eugene_economics("treasury")
-
-# Insider trades
-insider = eugene_sec("TSLA", extract="insider")
-
-# 13F institutional holdings
-holdings = eugene_sec("AAPL", extract="institutional")
+# Economics
+curl "localhost:8000/v1/economics/treasury"
+curl "localhost:8000/v1/economics/all"
 ```
 
-### MCP Server (for Claude, Cursor, etc.)
-```bash
-python eugene_server.py --mode mcp
+### Response Shape
+
+Every response:
+
+```json
+{
+  "status": "success",
+  "identifier": "AAPL",
+  "resolved": {"ticker": "AAPL", "cik": "0000320193", "company": "Apple Inc."},
+  "data": { ... },
+  "provenance": [{"source": "SEC CompanyFacts (XBRL)", "url": "..."}],
+  "metadata": {"service": "eugene-intelligence", "version": "0.4.0"}
+}
 ```
 
-Claude Desktop config:
+Every financial metric:
+
+```json
+{
+  "revenue": {
+    "value": 391035000000,
+    "unit": "USD",
+    "source_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+  }
+}
+```
+
+### MCP (Claude Desktop)
+
 ```json
 {
   "mcpServers": {
     "eugene": {
       "command": "python3",
-      "args": ["eugene_server.py", "--mode", "mcp"],
-      "cwd": "/path/to/eugene"
+      "args": ["eugene_server.py", "--mode", "mcp"]
     }
   }
 }
 ```
 
-## API Reference
+Tools: `sec`, `economics`, `caps`
 
-### `eugene_sec` — Company & SEC Data
+## Architecture
+
 ```
-GET /v1/sec/{ticker}?extract={type}
+eugene_server.py              → FastAPI + MCP entry point
+eugene/
+  router.py                   → Request parsing, routing, envelope
+  resolver.py                 → ticker/CIK/accession → identity
+  concepts.py                 → Canonical concept mapping (XBRL → stable keys)
+  cache.py                    → In-memory TTL cache
+  handlers/
+    financials.py             → Normalized fundamentals (THE core normalizer)
+    filings.py                → Filing list
+    profile.py                → Company profile
+    concepts_raw.py           → Raw XBRL concept series
+    sections.py               → MD&A, risk factors text extraction
+    insiders.py               → Form 4 filings
+    ownership.py              → 13F filings
+    events.py                 → 8-K events
+    exhibits.py               → Exhibit list
+  sources/
+    sec_api.py                → All SEC HTTP calls (one place)
+    fmp.py                    → Market data (prices, earnings)
+    fred.py                   → Economic data (FRED)
 ```
 
-| Extract | Description | Source |
-|---------|-------------|--------|
-| `financials` | Balance sheet, income statement, cash flow | SEC XBRL |
-| `prices` | Current quote, day range, 52-week, moving averages | FMP |
-| `profile` | Company overview, sector, CEO, employees | FMP |
-| `health` | D/E, ROE, ROA, margins, interest coverage | SEC XBRL |
-| `earnings` | EPS actuals vs estimates | FMP |
-| `insider` | Form 4 insider trades | SEC EDGAR |
-| `institutional` | 13F holdings (Berkshire, BlackRock, etc.) | SEC 13F-HR |
-| `filings` | 10-K, 10-Q, 8-K filing list | SEC EDGAR |
-| `estimates` | Analyst price targets | FMP |
-| `news` | Recent company news | FMP |
+## Environment Variables
 
-### `eugene_economics` — Macro & Market Data
 ```
-GET /v1/economics/{category}
+SEC_USER_AGENT=Eugene Intelligence (you@email.com)
+SEC_CONTACT_NAME=Eugene Intelligence
+SEC_CONTACT_EMAIL=matthew@eugeneintelligence.com
+FMP_API_KEY=your_fmp_key
+FRED_API_KEY=your_fred_key
+PORT=8000
 ```
-
-| Category | Data |
-|----------|------|
-| `treasury` | Full yield curve (1Y-30Y) |
-| `inflation` | CPI, PCE |
-| `employment` | Unemployment, payrolls, claims |
-| `gdp` | GDP growth |
-| `housing` | Starts, permits, mortgage rates |
-| `rates` | Fed funds, spreads |
-| `all` | Everything |
-
-## Why Eugene?
-
-- **Source-traced**: Every number links to exact SEC filing, XBRL tag, and accession number
-- **Deterministic**: No LLM in the data layer. Pure extraction
-- **Agent-native**: Built for MCP and API consumption, not human terminals
-- **XBRL-native**: Direct SEC XBRL parsing, not scraped tables
-
-## Demo
-
-Try it: [huggingface.co/spaces/Rex165/eugene-intelligence](https://huggingface.co/spaces/Rex165/eugene-intelligence)
-
-## Products
-
-| Product | Status | Description |
-|---------|--------|-------------|
-| **Eugene Data** | Live | API + MCP — this repo |
-| **Eugene Agents** | Q2 2026 | Credit analysis, equity research, Excel agent |
-| **TerminalX** | Q3 2026 | Free Bloomberg alternative |
-| **Eugene Extract** | Q4 2026 | Financial document parsing (Reducto competitor) |
-
-## Contact
-
-[matthew@eugeneintelligence.com](mailto:matthew@eugeneintelligence.com)
 
 ---
 

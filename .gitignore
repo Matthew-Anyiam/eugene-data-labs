@@ -64,3 +64,13 @@ htmlcov/
 
 # Build artifacts
 *.tar.gz
+data/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+upload_pypi.py
+eugene_server_v03.py
+eugene_server_backup.py
+test_*.py
