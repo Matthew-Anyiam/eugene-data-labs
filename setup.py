@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="eugene-intelligence",
-    version="0.1.0",
+    version="0.5.0",
     author="Matthew Anyiam",
     author_email="matthew@eugeneintelligence.com",
     description="Data Infrastructure for AI Agents — SEC, FRED, FMP",
