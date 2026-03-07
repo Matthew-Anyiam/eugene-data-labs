@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pip install -r requirements.txt && pip install --no-cache-dir -e ."
+buildCommand = "pip install -r requirements.txt && pip install --no-cache-dir --force-reinstall --no-deps ."
 
 [deploy]
 startCommand = "python eugene_server.py"
