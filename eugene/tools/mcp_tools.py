@@ -8,11 +8,11 @@ COMPANY_TYPES = ["prices", "profile", "financials", "health", "earnings", "insid
 def company(ticker: str, type: str = "prices") -> dict:
     ticker = ticker.upper().strip()
     if type == "prices":
-        from eugene.sources.fmp import get_stock_price
-        return get_stock_price(ticker)
+        from eugene.sources.fmp import get_price
+        return get_price(ticker)
     elif type == "profile":
-        from eugene.sources.fmp import get_company_profile
-        return get_company_profile(ticker)
+        from eugene.sources.fmp import get_profile
+        return get_profile(ticker)
     elif type == "financials":
         from eugene.sources.xbrl import XBRLClient
         client = XBRLClient()

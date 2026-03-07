@@ -44,7 +44,32 @@ def fetch_filing_html(cik: str, accession: str, primary_doc: str) -> str:
     """Fetch a specific filing document (HTML)."""
     cik = cik.lstrip("0") or "0"
     accession_flat = accession.replace("-", "")
-    url = f"{BASE}/Archives/edgar/data/{cik}/{accession_flat}/{primary_doc}"
+    url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_flat}/{primary_doc}"
+    r = requests.get(url, headers=SEC_HEADERS, timeout=30)
+    r.raise_for_status()
+    return r.text
+
+
+def _filer_cik(accession: str) -> str:
+    """Extract filer CIK from accession number (first 10 digits)."""
+    return accession.split("-")[0].lstrip("0") or "0"
+
+
+def fetch_filing_index(cik: str, accession: str) -> dict:
+    """Fetch the filing index JSON to discover all documents in a filing."""
+    cik_num = cik.lstrip("0") or "0"
+    accession_flat = accession.replace("-", "")
+    url = f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{accession_flat}/index.json"
+    r = requests.get(url, headers=SEC_HEADERS, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def fetch_filing_xml(cik: str, accession: str, filename: str) -> str:
+    """Fetch a specific filing document (XML)."""
+    cik_num = cik.lstrip("0") or "0"
+    accession_flat = accession.replace("-", "")
+    url = f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{accession_flat}/{filename}"
     r = requests.get(url, headers=SEC_HEADERS, timeout=30)
     r.raise_for_status()
     return r.text

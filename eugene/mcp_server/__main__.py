@@ -3,6 +3,9 @@ Eugene Intelligence MCP Server
 Data Infrastructure for AI Agents
 4 tools: company, economy, regulatory, research
 """
+from dotenv import load_dotenv
+load_dotenv()
+
 from mcp.server.fastmcp import FastMCP
 from eugene.tools.institutional import company as inst_company
 from eugene.tools.mcp_tools import economy, regulatory, research

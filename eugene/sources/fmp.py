@@ -13,9 +13,11 @@ def _key():
 @cached(ttl=60)
 def get_price(ticker: str) -> dict:
     r = requests.get(f"{FMP_BASE}/quote?symbol={ticker}&apikey={_key()}", timeout=15)
+    r.raise_for_status()
     data = r.json()
-    if data and len(data) > 0:
-        q = data[0]
+    # Handle both list and dict responses
+    q = data[0] if isinstance(data, list) and data else data if isinstance(data, dict) and "price" in data else None
+    if q:
         return {
             "ticker": ticker, "price": q.get("price"), "change": q.get("change"),
             "change_percent": q.get("changePercentage"), "volume": q.get("volume"),
@@ -30,9 +32,10 @@ def get_price(ticker: str) -> dict:
 @cached(ttl=3600)
 def get_profile(ticker: str) -> dict:
     r = requests.get(f"{FMP_BASE}/profile?symbol={ticker}&apikey={_key()}", timeout=15)
+    r.raise_for_status()
     data = r.json()
-    if data and len(data) > 0:
-        p = data[0]
+    p = data[0] if isinstance(data, list) and data else data if isinstance(data, dict) and "companyName" in data else None
+    if p:
         return {
             "ticker": ticker, "name": p.get("companyName"), "sector": p.get("sector"),
             "industry": p.get("industry"), "description": p.get("description"),
