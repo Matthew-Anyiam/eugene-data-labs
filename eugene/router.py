@@ -12,7 +12,7 @@ from eugene.handlers.sections import sections_handler
 from eugene.handlers.exhibits import exhibits_handler
 from eugene.concepts import VALID_CONCEPTS
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 EXTRACT_HANDLERS = {
     "profile": profile_handler,
