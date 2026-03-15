@@ -1,7 +1,6 @@
 """Eugene Intelligence CLI."""
 import os
 import json
-import sys
 
 import click
 from dotenv import load_dotenv

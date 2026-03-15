@@ -127,11 +127,13 @@ def _roic(m):
 def _liquidity(m):
     ca = _v(m, "current_assets")
     cl = _v(m, "current_liabilities")
-    inv = _v(m, "inventory") or 0
-    cash = _v(m, "cash") or 0
+    inv = _v(m, "inventory")
+    cash = _v(m, "cash")
+    # quick_ratio: inventory defaults to 0 when missing (service companies)
+    inv_adj = inv if inv is not None else 0
     return {
         "current_ratio": _div(ca, cl),
-        "quick_ratio": _div((ca - inv) if ca is not None else None, cl),
+        "quick_ratio": _div((ca - inv_adj) if ca is not None else None, cl),
         "cash_ratio": _div(cash, cl),
     }
 
@@ -147,8 +149,15 @@ def _leverage(m):
         "debt_to_assets": _div(td, ta),
         "equity_multiplier": _div(ta, eq),
         "interest_coverage": _div(oi, ie),
-        "net_debt": (td - (_v(m, "cash") or 0)) if td is not None else None,
+        "net_debt": _net_debt(td, _v(m, "cash")),
     }
+
+
+def _net_debt(debt, cash):
+    """Net debt = total_debt - cash. None if either is missing."""
+    if debt is None or cash is None:
+        return None
+    return debt - cash
 
 
 def _efficiency(m):
@@ -169,17 +178,18 @@ def _efficiency(m):
 
 
 def _valuation(m, market):
-    price = market.get("price")
     mcap = market.get("market_cap")
-    shares = _v(m, "shares_outstanding")
     ni = _v(m, "net_income")
     rev = _v(m, "revenue")
     eq = _v(m, "stockholders_equity")
     fcf = _v(m, "free_cf")
     ebitda = _v(m, "ebitda")
-    td = _v(m, "total_debt") or 0
-    cash = _v(m, "cash") or 0
-    ev = (mcap + td - cash) if mcap is not None else None
+    td = _v(m, "total_debt")
+    cash = _v(m, "cash")
+    # EV = market_cap + debt - cash; omit components that are None
+    td_adj = td if td is not None else 0
+    cash_adj = cash if cash is not None else 0
+    ev = (mcap + td_adj - cash_adj) if mcap is not None else None
     divs = _v(m, "dividends_paid")
 
     return {

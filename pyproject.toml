@@ -4,20 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eugene-intelligence"
-version = "0.5.0"
+version = "0.6.0"
 description = "Financial context for AI. The data layer for agents that need to get finance right."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Matthew Anyiam", email = "matthew@eugeneintelligence.com" }]
 dependencies = [
-  "requests>=2.28.0",
-  "fredapi>=0.5.0",
-  "fastapi>=0.100.0",
-  "uvicorn>=0.20.0",
-  "mcp>=0.1.0",
-  "click>=8.0.0",
-  "python-dotenv>=1.0.0",
+  "requests>=2.28.0,<3",
+  "fredapi>=0.5.0,<1",
+  "fastapi>=0.100.0,<1",
+  "uvicorn>=0.20.0,<1",
+  "mcp>=0.1.0,<2",
+  "click>=8.0.0,<9",
+  "python-dotenv>=1.0.0,<2",
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -27,6 +27,14 @@ classifiers = [
 ]
 keywords = ["finance", "sec", "xbrl", "fred", "mcp", "api", "ai-agents", "financial-data"]
 
+[project.optional-dependencies]
+test = [
+  "pytest>=7.0,<9",
+  "pytest-cov>=4.0,<6",
+  "httpx>=0.24,<1",
+  "ruff>=0.4,<1",
+]
+
 [project.scripts]
 eugene = "eugene.cli:main"
 
@@ -34,3 +42,35 @@ eugene = "eugene.cli:main"
 Homepage = "https://github.com/Matthew-Anyiam/eugene-data-labs"
 Documentation = "https://eugene-data-labs-production.up.railway.app/"
 Demo = "https://huggingface.co/spaces/Rex165/eugene-intelligence"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+exclude = [
+  "eugene/core/",
+  "eugene/extraction/",
+  "eugene/models/",
+  "eugene/validation/",
+  "eugene/agents/",
+  "eugene/tools/",
+  "eugene/mcp_server/",
+  "eugene/sources/validator.py",
+  "eugene/sources/thirteen_f.py",
+  "eugene/sources/transcripts.py",
+  "eugene/sources/edgar.py",
+  "eugene/sources/bulk.py",
+  "eugene/sources/yahoo.py",
+  "eugene/sources/holdings_13f.py",
+  "eugene/sources/insider.py",
+  "eugene/sources/parser.py",
+  "eugene/sources/realtime.py",
+  "eugene/sources/sec_regulatory.py",
+  "eugene/sources/xbrl.py",
+]
+
+[tool.ruff.lint]
+ignore = ["E402"]
