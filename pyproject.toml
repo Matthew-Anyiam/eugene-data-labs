@@ -16,6 +16,8 @@ dependencies = [
   "fastapi>=0.100.0",
   "uvicorn>=0.20.0",
   "mcp>=0.1.0",
+  "click>=8.0.0",
+  "python-dotenv>=1.0.0",
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -24,6 +26,9 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 keywords = ["finance", "sec", "xbrl", "fred", "mcp", "api", "ai-agents", "financial-data"]
+
+[project.scripts]
+eugene = "eugene.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Matthew-Anyiam/eugene-data-labs"

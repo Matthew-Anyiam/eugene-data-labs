@@ -1,6 +1,6 @@
 """
 Eugene Intelligence — Consolidated MCP Tools
-6 tools instead of 17. Clean. Logical. Agent-friendly.
+Data and context tools. Clean. Logical. Agent-friendly.
 """
 
 # ============================================
@@ -10,20 +10,18 @@ Eugene Intelligence — Consolidated MCP Tools
 COMPANY_DATA_TYPES = [
     "prices",      # Stock prices, quotes, technicals
     "financials",  # Balance sheet, income, cash flow
-    "health",      # Ratios, Altman Z, trends
     "history",     # Time series for any metric
     "filings",     # SEC 10-K, 10-Q, 8-K
     "compare",     # Side-by-side comparison
     "screen",      # Quick multi-stock screening
-    "report",      # Full equity report
-    "profile",     # Company overview (NEW)
-    "estimates",   # Analyst estimates (NEW)
+    "profile",     # Company overview
+    "estimates",   # Analyst estimates
 ]
 
 def company_data(
     ticker: str = None,
     tickers: list = None,
-    type: str = "health",
+    type: str = "financials",
     metric: str = None,
     years: int = 5
 ) -> dict:
@@ -33,7 +31,7 @@ def company_data(
     Args:
         ticker: Single company (e.g., "AAPL")
         tickers: Multiple companies for compare/screen
-        type: prices | financials | health | history | filings | compare | screen | report | profile | estimates
+        type: prices | financials | history | filings | compare | screen | profile | estimates
         metric: For history type (revenue, net_income, total_assets, etc.)
         years: For history type (default 5)
     """
@@ -55,10 +53,6 @@ def company_data(
         client = XBRLClient()
         return client.get_financials(ticker)
     
-    elif type == "health":
-        from mcp.mcp_server import get_health
-        return get_health().analyze(ticker).to_dict()
-    
     elif type == "history":
         client = XBRLClient()
         return client.get_metric_history(ticker, metric, years)
@@ -74,10 +68,6 @@ def company_data(
     elif type == "screen":
         from mcp.mcp_server import quick_screen
         return quick_screen(tickers or [ticker])
-    
-    elif type == "report":
-        from mcp.mcp_server import get_equity
-        return get_equity(ticker)
     
     else:
         return {"error": f"Unknown type: {type}. Valid: {COMPANY_DATA_TYPES}"}
@@ -255,56 +245,13 @@ def market_data(
 
 
 # ============================================
-# RESEARCH AGENT — Full company analysis
-# ============================================
-
-def research_agent(ticker: str) -> dict:
-    """
-    Full-spectrum company analysis combining equity research,
-    earnings intelligence, financial health, and fundamentals.
-    
-    Returns cited, source-traced insights.
-    """
-    from eugene.agents.research import ResearchAgent
-    from eugene.config import Config
-    
-    config = Config()
-    agent = ResearchAgent(config)
-    return agent.analyze(ticker)
-
-
-# ============================================
-# CREDIT AGENT — Debt and risk analysis
-# ============================================
-
-def credit_agent(ticker: str) -> dict:
-    """
-    Deep credit intelligence from SEC filing footnotes.
-    
-    Returns:
-        - Debt structure (senior, subordinated, facilities)
-        - Covenant terms and compliance
-        - Maturity schedules
-        - Liquidity analysis
-        - Credit risk signals
-        - Every number traced to exact filing section
-    """
-    from eugene.agents.credit import CreditMonitorAgent
-    from eugene.config import Config
-    
-    config = Config()
-    agent = CreditMonitorAgent(config)
-    return agent.analyze(ticker)
-
-
-# ============================================
 # MCP TOOL DEFINITIONS
 # ============================================
 
 TOOLS = [
     {
         "name": "company_data",
-        "description": "All company-level data: prices, financials, health metrics, SEC filings, comparisons",
+        "description": "All company-level data: prices, financials, SEC filings, comparisons",
         "parameters": {
             "type": "object",
             "properties": {
@@ -358,28 +305,6 @@ TOOLS = [
             "required": ["type"]
         }
     },
-    {
-        "name": "research_agent",
-        "description": "Full company analysis: equity research, earnings, health, fundamentals. Returns cited insights.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "ticker": {"type": "string", "description": "Company ticker"}
-            },
-            "required": ["ticker"]
-        }
-    },
-    {
-        "name": "credit_agent",
-        "description": "Credit analysis: debt structure, covenants, maturities, risk signals from SEC footnotes.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "ticker": {"type": "string", "description": "Company ticker"}
-            },
-            "required": ["ticker"]
-        }
-    }
 ]
 
 
@@ -393,20 +318,11 @@ def handle_tool_call(name: str, arguments: dict) -> dict:
         return ownership_data(**arguments)
     elif name == "market_data":
         return market_data(**arguments)
-    elif name == "research_agent":
-        return research_agent(**arguments)
-    elif name == "credit_agent":
-        return credit_agent(**arguments)
     else:
         return {"error": f"Unknown tool: {name}"}
 
 
 if __name__ == "__main__":
-    # Test
-    print("Testing consolidated tools...")
-    print("\ncompany_data(ticker='AAPL', type='health'):")
-    # result = company_data(ticker="AAPL", type="health")
-    # print(result)
     print("Tools defined:", [t["name"] for t in TOOLS])
 
 

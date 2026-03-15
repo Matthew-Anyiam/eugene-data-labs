@@ -3,7 +3,7 @@ Eugene Intelligence — Consolidated MCP Tools
 4 tools covering all financial data
 """
 
-COMPANY_TYPES = ["prices", "profile", "financials", "health", "earnings", "insider", "institutional", "filings"]
+COMPANY_TYPES = ["prices", "profile", "financials", "earnings", "insider", "institutional", "filings"]
 
 def company(ticker: str, type: str = "prices") -> dict:
     ticker = ticker.upper().strip()
@@ -17,11 +17,6 @@ def company(ticker: str, type: str = "prices") -> dict:
         from eugene.sources.xbrl import XBRLClient
         client = XBRLClient()
         return client.get_financials(ticker).to_dict()
-    elif type == "health":
-        from eugene.agents.health import HealthMonitor
-        from eugene.config import Config
-        result = HealthMonitor(Config()).analyze(ticker)
-        return result.to_dict() if hasattr(result, 'to_dict') else result
     elif type == "earnings":
         from eugene.sources.fmp import get_earnings
         return get_earnings(ticker)
@@ -70,23 +65,3 @@ def regulatory(type: str = "fed_funds_rate", ticker: str = None, limit: int = 10
     else:
         return {"error": f"Unknown type: {type}"}
 
-RESEARCH_TYPES = ["equity", "credit"]
-
-def research(ticker: str, type: str = "equity") -> dict:
-    ticker = ticker.upper().strip()
-    if type == "equity":
-        from eugene.agents.equity import EquityResearchAgent
-        from eugene.config import Config
-        result = EquityResearchAgent(Config()).analyze(ticker)
-        if hasattr(result, '__dict__') and not isinstance(result, dict):
-            return {"ticker": result.ticker, "data": getattr(result, 'data', {}), "summary": getattr(result, 'summary', '')}
-        return result
-    elif type == "credit":
-        from eugene.agents.credit import CreditMonitorAgent
-        from eugene.config import Config
-        result = CreditMonitorAgent(Config()).analyze(ticker)
-        if hasattr(result, '__dict__') and not isinstance(result, dict):
-            return {"ticker": result.ticker, "data": getattr(result, 'data', {}), "summary": getattr(result, 'summary', '')}
-        return result
-    else:
-        return {"error": f"Unknown type: {type}", "valid": RESEARCH_TYPES}
