@@ -1,104 +1,160 @@
-# Eugene Intelligence v0.4
+# Eugene Intelligence v0.6
 
-**Financial context for AI. Every number traced to source.**
+**Financial data infrastructure for AI agents. Every number traced to source.**
 
-One endpoint. All SEC EDGAR data. Clean, normalized, source-traceable.
+The first MCP-native financial data platform. One tool call gets you normalized SEC financials, 50+ computed ratios, live prices, technicals, crypto, and macro data — all with full provenance tracking.
 
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
-python eugene_server.py           # API on port 8000
-python eugene_server.py --mode mcp  # MCP server
+pip install -e .
+
+# Three ways to run
+eugene caps                        # CLI — list all capabilities
+python eugene_server.py            # REST API + MCP on port 8000
+python eugene_server.py --mode mcp # MCP stdio server (for Claude Desktop)
 ```
 
-## API
+## What You Can Do
 
-### One Endpoint
+```bash
+# SEC fundamentals with clean IS/BS/CF grouping
+eugene sec AAPL -e financials -l 5
 
+# 50+ financial ratios (PE, ROE, margins, leverage, growth)
+eugene sec AAPL -e metrics
+
+# Technical indicators (SMA, EMA, RSI, MACD, Bollinger, ATR, VWAP)
+eugene sec AAPL -e technicals
+
+# Daily price bars
+eugene ohlcv AAPL -i daily --from 2026-01-01 --to 2026-03-14
+
+# Live crypto quotes
+eugene crypto BTCUSD
+
+# Corporate actions (dividends + splits + 8-K events merged)
+eugene sec AAPL -e corporate_actions
+
+# Download as CSV
+eugene export AAPL -f csv
+
+# Stock screening
+eugene screener --sector Technology --market-cap-min 1000000000
 ```
-GET /v1/sec/{identifier}?extract=financials&period=FY&limit=5
-```
 
-Identifier: ticker (`AAPL`), CIK (`320193`), or accession number.
-
-### Extracts
+## 17 Extract Types
 
 | Extract | Description | Source |
 |---------|-------------|--------|
-| `financials` | Normalized fundamentals with provenance | SEC XBRL CompanyFacts |
 | `profile` | Company name, CIK, SIC, address | SEC Submissions |
 | `filings` | Filing list with accession + URL | SEC Submissions |
+| `financials` | Normalized IS/BS/CF with provenance | SEC XBRL CompanyFacts |
 | `concepts` | Raw XBRL concept time series | SEC CompanyFacts |
 | `insiders` | Form 4 insider trade filings | SEC EDGAR |
 | `ownership` | 13F institutional holdings | SEC EDGAR |
 | `events` | 8-K material events | SEC EDGAR |
 | `sections` | MD&A, risk factors, business text | Filing HTML |
 | `exhibits` | Exhibit list with URLs | Filing Index |
+| `metrics` | 50+ financial ratios (7 categories) | XBRL + FMP Market Data |
+| `ohlcv` | Daily OHLCV price bars | FMP Historical Charts |
+| `technicals` | SMA/EMA/RSI/MACD/Bollinger/ATR/VWAP | Computed from OHLCV |
+| `segments` | Business + geographic revenue segments | SEC XBRL Dimensions |
+| `float` | Float shares, outstanding, free float | FMP Shares Float |
+| `corporate_actions` | Dividends, splits, 8-K events merged | FMP + SEC EDGAR |
+| `options` | Options chains (coming soon) | — |
+| `orderbook` | Tick/order book data (coming soon) | — |
 
-### Canonical Concepts (financials)
+## 28 Canonical Concepts
 
-revenue, net_income, operating_income, gross_profit, eps_basic, eps_diluted,
-operating_cf, capex, free_cf (derived), total_assets, total_liabilities,
-stockholders_equity, cash, total_debt, shares_outstanding
+Financials are normalized into clean IS/BS/CF groupings:
+
+**Income Statement:** revenue, net_income, operating_income, gross_profit, eps_basic, eps_diluted, cost_of_revenue, ebitda (derived)
+
+**Balance Sheet:** total_assets, total_liabilities, stockholders_equity, cash, total_debt, current_assets, current_liabilities, inventory, accounts_receivable, accounts_payable, short_term_debt, long_term_debt
+
+**Cash Flow:** operating_cf, capex, free_cf (derived), depreciation_amortization, dividends_paid
+
+**Other:** shares_outstanding, interest_expense
+
+## REST API
+
+```
+GET  /                              API discovery
+GET  /health                        Health check
+GET  /v1/capabilities               All 17 extracts listed
+GET  /v1/sec/{identifier}           SEC data (any extract)
+GET  /v1/sec/{ticker}/ohlcv         OHLCV price bars
+GET  /v1/sec/{id}/export            CSV flat file download
+GET  /v1/screener                   Stock screener
+GET  /v1/crypto/{symbol}            Crypto quotes
+GET  /v1/stream/filings             SSE real-time SEC filing alerts
+GET  /v1/economics/{category}       FRED macro data
+```
 
 ### Examples
 
 ```bash
-# Company fundamentals (FY, 5 years)
+# Fundamentals (FY, 5 years)
 curl "localhost:8000/v1/sec/AAPL?extract=financials&period=FY&limit=5"
 
-# Quarterly data
-curl "localhost:8000/v1/sec/MSFT?extract=financials&period=Q&limit=8"
+# Financial ratios
+curl "localhost:8000/v1/sec/AAPL?extract=metrics&limit=1"
 
-# Just revenue
-curl "localhost:8000/v1/sec/NVDA?extract=financials&concept=revenue&limit=10"
+# OHLCV bars
+curl "localhost:8000/v1/sec/AAPL/ohlcv?from=2026-01-01&to=2026-03-14"
 
-# Company profile
-curl "localhost:8000/v1/sec/TSLA?extract=profile"
+# Crypto
+curl "localhost:8000/v1/crypto/BTCUSD"
 
-# Filing list (10-Ks only)
-curl "localhost:8000/v1/sec/JPM?extract=filings&form=10-K"
+# CSV export
+curl "localhost:8000/v1/sec/AAPL/export?format=csv&limit=3"
 
-# MD&A + risk factors
-curl "localhost:8000/v1/sec/BA?extract=sections&section=mdna,risk_factors"
-
-# Multiple extracts at once
-curl "localhost:8000/v1/sec/AAPL?extract=profile,financials,filings"
+# Real-time filing stream (SSE)
+curl "localhost:8000/v1/stream/filings"
 
 # Economics
-curl "localhost:8000/v1/economics/treasury"
-curl "localhost:8000/v1/economics/all"
+curl "localhost:8000/v1/economics/inflation"
 ```
 
 ### Response Shape
 
-Every response:
+Every response includes full provenance:
 
 ```json
 {
   "status": "success",
   "identifier": "AAPL",
   "resolved": {"ticker": "AAPL", "cik": "0000320193", "company": "Apple Inc."},
-  "data": { ... },
+  "data": {
+    "periods": [{
+      "period_end": "2025-09-27",
+      "metrics": { ... },
+      "income_statement": { ... },
+      "balance_sheet": { ... },
+      "cash_flow_statement": { ... }
+    }]
+  },
   "provenance": [{"source": "SEC CompanyFacts (XBRL)", "url": "..."}],
-  "metadata": {"service": "eugene-intelligence", "version": "0.4.0"}
+  "metadata": {"service": "eugene-intelligence", "version": "0.6.0"}
 }
 ```
 
-Every financial metric:
+Every financial metric traces back to its XBRL source:
 
 ```json
 {
   "revenue": {
-    "value": 391035000000,
+    "value": 416161000000,
     "unit": "USD",
     "source_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
   }
 }
 ```
 
-### MCP (Claude Desktop)
+## MCP (Model Context Protocol)
+
+### Claude Desktop
 
 ```json
 {
@@ -111,31 +167,50 @@ Every financial metric:
 }
 ```
 
-Tools: `sec`, `economics`, `caps`
+### 5 MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `sec` | All SEC EDGAR data — 17 extract types via one tool |
+| `economics` | FRED macro data (inflation, employment, GDP, housing, rates) |
+| `screener` | Stock screening by sector, market cap, price, volume, beta |
+| `crypto` | Live crypto quotes (BTC, ETH, SOL, etc.) |
+| `caps` | Lists all capabilities and parameters |
+
+### Streamable HTTP
+
+The server also exposes MCP via streamable HTTP at `/mcp` and SSE at `/sse`, so any MCP client can connect over the network.
 
 ## Architecture
 
 ```
-eugene_server.py              → FastAPI + MCP entry point
+eugene_server.py                  FastAPI + MCP entry point (REST + stdio + SSE + streamable HTTP)
 eugene/
-  router.py                   → Request parsing, routing, envelope
-  resolver.py                 → ticker/CIK/accession → identity
-  concepts.py                 → Canonical concept mapping (XBRL → stable keys)
-  cache.py                    → In-memory TTL cache
+  router.py                      Request parsing, routing, envelope (17 handlers)
+  resolver.py                    ticker/CIK/accession -> identity
+  concepts.py                    28 canonical concept mappings (XBRL -> stable keys)
+  cache.py                       In-memory TTL cache
+  auth.py                        API key authentication
+  cli.py                         Click CLI (eugene command)
   handlers/
-    financials.py             → Normalized fundamentals (THE core normalizer)
-    filings.py                → Filing list
-    profile.py                → Company profile
-    concepts_raw.py           → Raw XBRL concept series
-    sections.py               → MD&A, risk factors text extraction
-    insiders.py               → Form 4 filings
-    ownership.py              → 13F filings
-    events.py                 → 8-K events
-    exhibits.py               → Exhibit list
+    financials.py                Normalized IS/BS/CF with derived metrics
+    metrics.py                   50+ financial ratios (7 categories)
+    technicals.py                SMA/EMA/RSI/MACD/Bollinger/ATR/VWAP
+    ohlcv.py                     OHLCV daily price bars
+    segments.py                  XBRL dimension parsing (business/geographic)
+    float_data.py                Share float data
+    corporate_actions.py         Dividends + splits + 8-K events merged
+    export.py                    CSV flat file generation
+    filings.py, profile.py       Filing list, company profile
+    concepts_raw.py              Raw XBRL concept series
+    sections.py                  MD&A, risk factors text extraction
+    insiders.py, ownership.py    Form 4, 13F filings
+    events.py, exhibits.py       8-K events, exhibit list
+    options.py, orderbook.py     Coming soon stubs
   sources/
-    sec_api.py                → All SEC HTTP calls (one place)
-    fmp.py                    → Market data (prices, earnings)
-    fred.py                   → Economic data (FRED)
+    sec_api.py                   All SEC HTTP calls (one place)
+    fmp.py                       Market data (prices, OHLCV, screener, crypto, float)
+    fred.py                      Economic data (FRED)
 ```
 
 ## Environment Variables
@@ -143,7 +218,7 @@ eugene/
 ```
 SEC_USER_AGENT=Eugene Intelligence (you@email.com)
 SEC_CONTACT_NAME=Eugene Intelligence
-SEC_CONTACT_EMAIL=matthew@eugeneintelligence.com
+SEC_CONTACT_EMAIL=your@email.com
 FMP_API_KEY=your_fmp_key
 FRED_API_KEY=your_fred_key
 PORT=8000
