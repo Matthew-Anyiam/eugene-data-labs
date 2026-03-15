@@ -8,7 +8,7 @@ Includes prompt engineering, response parsing, and error handling.
 import json
 import logging
 import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from dataclasses import dataclass
 
 from eugene.config import Config, get_config

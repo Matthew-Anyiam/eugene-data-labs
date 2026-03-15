@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eugene-intelligence"
-version = "0.6.0"
+version = "0.7.0"
 description = "Financial context for AI. The data layer for agents that need to get finance right."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,25 +55,8 @@ pythonpath = ["."]
 target-version = "py310"
 line-length = 120
 exclude = [
-  "eugene/core/",
-  "eugene/extraction/",
-  "eugene/models/",
-  "eugene/validation/",
-  "eugene/agents/",
-  "eugene/tools/",
-  "eugene/mcp_server/",
-  "eugene/sources/validator.py",
-  "eugene/sources/thirteen_f.py",
   "eugene/sources/transcripts.py",
-  "eugene/sources/edgar.py",
-  "eugene/sources/bulk.py",
-  "eugene/sources/yahoo.py",
-  "eugene/sources/holdings_13f.py",
-  "eugene/sources/insider.py",
-  "eugene/sources/parser.py",
   "eugene/sources/realtime.py",
-  "eugene/sources/sec_regulatory.py",
-  "eugene/sources/xbrl.py",
 ]
 
 [tool.ruff.lint]

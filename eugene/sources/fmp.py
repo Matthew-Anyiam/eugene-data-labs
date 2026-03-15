@@ -2,6 +2,7 @@
 import os
 import requests
 from eugene.cache import cached
+from eugene.rate_limit import FMP_LIMITER
 
 FMP_BASE = "https://financialmodelingprep.com/stable"
 
@@ -12,6 +13,7 @@ def _key():
 
 def _safe_get(url: str, params: dict = None, timeout: int = 15) -> dict | list | None:
     """Make a GET request with graceful error handling."""
+    FMP_LIMITER.acquire()
     try:
         r = requests.get(url, params=params, timeout=timeout)
         if r.status_code == 402:

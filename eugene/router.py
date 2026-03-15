@@ -1,5 +1,7 @@
 """Central request router and envelope builder."""
+import logging
 from datetime import datetime, timezone
+from eugene.errors import EugeneError
 from eugene.resolver import resolve
 from eugene.handlers.profile import profile_handler
 from eugene.handlers.filings import filings_handler
@@ -18,9 +20,13 @@ from eugene.handlers.float_data import float_handler
 from eugene.handlers.corporate_actions import corporate_actions_handler
 from eugene.handlers.options import options_handler
 from eugene.handlers.orderbook import orderbook_handler
+from eugene.handlers.transcripts import transcripts_handler
+from eugene.handlers.peers import peers_handler
 from eugene.concepts import VALID_CONCEPTS
 
-VERSION = "0.6.0"
+VERSION = "0.7.0"
+
+logger = logging.getLogger(__name__)
 
 EXTRACT_HANDLERS = {
     "profile": profile_handler,
@@ -41,6 +47,9 @@ EXTRACT_HANDLERS = {
     "corporate_actions": corporate_actions_handler,
     "options": options_handler,
     "orderbook": orderbook_handler,
+    # --- v0.7 ---
+    "transcripts": transcripts_handler,
+    "peers": peers_handler,
 }
 
 VALID_EXTRACTS = list(EXTRACT_HANDLERS.keys())
@@ -64,6 +73,9 @@ SOURCE_MAP = {
     "corporate_actions": "FMP + SEC EDGAR 8-K",
     "options": "Coming Soon",
     "orderbook": "Coming Soon",
+    # --- v0.7 ---
+    "transcripts": "SEC EDGAR 8-K Filings",
+    "peers": "SEC XBRL + FMP Screener",
 }
 
 EXTRACT_DESCRIPTIONS = {
@@ -84,6 +96,9 @@ EXTRACT_DESCRIPTIONS = {
     "corporate_actions": "Dividends, stock splits, and 8-K events timeline",
     "options": "Options chains (coming soon)",
     "orderbook": "Tick / order book data (coming soon)",
+    # --- v0.7 ---
+    "transcripts": "Earnings call transcripts with management remarks, Q&A, guidance, and tone analysis",
+    "peers": "Relative valuation: compare metrics against sector peers with percentile rankings",
 }
 
 
@@ -122,8 +137,20 @@ def query(identifier: str, extract: str = "financials", **params) -> dict:
                 "url": _source_url(ext, resolved.get("cik", "")),
                 "retrieved_at": datetime.now(timezone.utc).isoformat(),
             })
+            # Quality scoring for data extracts
+            if ext in ("financials", "metrics") and isinstance(result, dict) and "error" not in result:
+                try:
+                    from eugene.validation.financial import validate_financials, validate_metrics
+                    vr = validate_metrics(result) if ext == "metrics" else validate_financials(result)
+                    provenance[-1]["quality"] = vr.to_dict()
+                except Exception:
+                    pass  # validation is advisory, never block
+        except EugeneError as e:
+            data[ext] = {"error": e.message, "code": e.code}
+            has_error = True
         except Exception as e:
-            data[ext] = {"error": str(e)}
+            logger.exception("Handler %s failed", ext)
+            data[ext] = {"error": str(e), "code": "INTERNAL_ERROR"}
             has_error = True
 
     # If single extract, unwrap for cleaner response
@@ -169,6 +196,8 @@ def _source_url(extract: str, cik: str) -> str:
         "technicals": "https://financialmodelingprep.com/stable",
         "float": "https://financialmodelingprep.com/stable",
         "corporate_actions": edgar_url,
+        "transcripts": edgar_url,
+        "peers": xbrl_url,
     }
     return urls.get(extract, "")
 

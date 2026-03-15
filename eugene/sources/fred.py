@@ -1,6 +1,7 @@
 """FRED economic data source."""
 import os
 from eugene.cache import cached
+from eugene.rate_limit import FRED_LIMITER
 
 FRED_SERIES = {
     "inflation": {
@@ -70,6 +71,7 @@ def get_category(category: str) -> dict:
     results = {}
     for series_id, label in series_map.items():
         try:
+            FRED_LIMITER.acquire()
             s = fred.get_series(series_id)
             if s is not None and len(s) > 0:
                 latest = s.dropna().iloc[-1]
@@ -89,6 +91,7 @@ def get_series(series_id: str) -> dict:
     """Fetch a specific FRED series."""
     fred = _get_fred()
     try:
+        FRED_LIMITER.acquire()
         s = fred.get_series(series_id)
         if s is not None and len(s) > 0:
             recent = s.dropna().tail(30)

@@ -9,7 +9,7 @@ Every data point gets a confidence score and validation check.
 
 import re
 import logging
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Dict, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 

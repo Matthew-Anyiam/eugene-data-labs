@@ -1,5 +1,6 @@
 """Insider trades from SEC Form 4 filings with full transaction parsing."""
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
 from eugene.handlers.filings import filings_handler
 from eugene.sources.sec_api import fetch_filing_index, fetch_filing_xml
 
@@ -197,6 +198,8 @@ def insiders_handler(resolved: dict, params: dict) -> dict:
             elif tx["transaction_type"] == "sale":
                 total_sells += 1
 
+    sentiment = _compute_sentiment(parsed_filings)
+
     return {
         "insider_filings": parsed_filings,
         "count": len(parsed_filings),
@@ -205,4 +208,124 @@ def insiders_handler(resolved: dict, params: dict) -> dict:
             "total_sales": total_sells,
             "net_direction": "buying" if total_buys > total_sells else "selling" if total_sells > total_buys else "neutral",
         },
+        "sentiment": sentiment,
     }
+
+
+def _compute_sentiment(parsed_filings: list) -> dict:
+    """Compute insider sentiment scoring from parsed Form 4 data.
+
+    Score: 0-100 (50 = neutral). Signal: bullish (>=65) / neutral / bearish (<=35).
+    """
+    buy_value = 0.0
+    sell_value = 0.0
+    buy_count = 0
+    sell_count = 0
+    officer_buys = 0
+    director_buys = 0
+    buy_dates: list[str] = []
+
+    for f in parsed_filings:
+        owner = f.get("owner", {})
+        is_officer = owner.get("is_officer", False)
+        is_director = owner.get("is_director", False)
+
+        for tx in f.get("transactions", []):
+            shares = tx.get("shares") or 0
+            price = tx.get("price_per_share") or 0
+            value = shares * price
+
+            if tx.get("transaction_type") == "purchase":
+                buy_value += value
+                buy_count += 1
+                if is_officer:
+                    officer_buys += 1
+                if is_director:
+                    director_buys += 1
+                if tx.get("date"):
+                    buy_dates.append(tx["date"])
+            elif tx.get("transaction_type") == "sale":
+                sell_value += value
+                sell_count += 1
+
+    net_value = buy_value - sell_value
+
+    # Buy/sell ratio
+    if sell_count > 0:
+        buy_sell_ratio = buy_count / sell_count
+    elif buy_count > 0:
+        buy_sell_ratio = None  # all buys, no sells — infinite
+    else:
+        buy_sell_ratio = 0.0
+
+    # Scoring (0-100, 50 = neutral)
+    score = 50
+
+    # Net value impact
+    if net_value > 1_000_000:
+        score += 20
+    elif net_value > 100_000:
+        score += 10
+    elif net_value < -1_000_000:
+        score -= 20
+    elif net_value < -100_000:
+        score -= 10
+
+    # Officer buys are a strong signal
+    if officer_buys >= 2:
+        score += 10
+    elif officer_buys == 1:
+        score += 5
+
+    # Buy/sell ratio (only adjust if there are actual trades)
+    if buy_sell_ratio is not None and (buy_count + sell_count) > 0:
+        if buy_sell_ratio > 2:
+            score += 5
+        elif buy_sell_ratio < 0.5:
+            score -= 5
+
+    # Cluster detection: 3+ buys within 14 days
+    has_cluster = _detect_cluster(buy_dates, window_days=14, min_count=3)
+    if has_cluster:
+        score += 10
+
+    score = max(0, min(100, score))
+    signal = "bullish" if score >= 65 else "bearish" if score <= 35 else "neutral"
+
+    return {
+        "score": score,
+        "signal": signal,
+        "buy_value": round(buy_value, 2),
+        "sell_value": round(sell_value, 2),
+        "net_value": round(net_value, 2),
+        "buy_count": buy_count,
+        "sell_count": sell_count,
+        "buy_sell_ratio": round(buy_sell_ratio, 2) if buy_sell_ratio is not None else None,
+        "officer_buys": officer_buys,
+        "director_buys": director_buys,
+        "cluster_buying_detected": has_cluster,
+    }
+
+
+def _detect_cluster(dates: list[str], window_days: int = 14, min_count: int = 3) -> bool:
+    """Detect if there are min_count buys within window_days of each other."""
+    if len(dates) < min_count:
+        return False
+
+    parsed = []
+    for d in dates:
+        try:
+            parsed.append(datetime.strptime(d, "%Y-%m-%d"))
+        except (ValueError, TypeError):
+            continue
+
+    if len(parsed) < min_count:
+        return False
+
+    parsed.sort()
+    window = timedelta(days=window_days)
+
+    for i in range(len(parsed) - min_count + 1):
+        if parsed[i + min_count - 1] - parsed[i] <= window:
+            return True
+    return False
