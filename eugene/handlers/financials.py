@@ -140,6 +140,21 @@ def financials_handler(resolved: dict, params: dict) -> dict:
         # Step 5: Derived metrics
         _compute_derived(metrics, requested)
 
+        # Step 6: Group into clean IS/BS/CF statements
+        income_statement = {}
+        balance_sheet = {}
+        cash_flow_statement = {}
+        for k, v in metrics.items():
+            if v is None:
+                continue
+            stmt = CANONICAL_CONCEPTS.get(k, {}).get("statement")
+            if stmt == "income":
+                income_statement[k] = v
+            elif stmt == "balance_sheet":
+                balance_sheet[k] = v
+            elif stmt == "cash_flow":
+                cash_flow_statement[k] = v
+
         output.append({
             "period_end": period_end,
             "period_type": period_type,
@@ -148,6 +163,9 @@ def financials_handler(resolved: dict, params: dict) -> dict:
             "accession": accession,
             "filed_date": filed_date,
             "metrics": metrics,
+            "income_statement": income_statement,
+            "balance_sheet": balance_sheet,
+            "cash_flow_statement": cash_flow_statement,
         })
 
     return {
@@ -204,10 +222,12 @@ def _best_match(values: list, period_end: str) -> dict:
 
 
 def _compute_derived(metrics: dict, requested):
-    """Compute derived metrics like free_cf."""
+    """Compute derived metrics like free_cf and ebitda."""
+    req_list = (requested if isinstance(requested, list)
+                else (requested or "").split(",")) if requested else None
+
     # Free cash flow
-    should_compute = requested is None or "free_cf" in (requested if isinstance(requested, list) else (requested or "").split(","))
-    if should_compute:
+    if req_list is None or "free_cf" in req_list:
         ocf = metrics.get("operating_cf")
         capex = metrics.get("capex")
         if ocf and capex and ocf.get("value") is not None and capex.get("value") is not None:
@@ -219,3 +239,17 @@ def _compute_derived(metrics: dict, requested):
             }
         else:
             metrics["free_cf"] = None
+
+    # EBITDA
+    if req_list is None or "ebitda" in req_list:
+        oi = metrics.get("operating_income")
+        da = metrics.get("depreciation_amortization")
+        if oi and da and oi.get("value") is not None and da.get("value") is not None:
+            metrics["ebitda"] = {
+                "value": oi["value"] + da["value"],
+                "unit": "USD",
+                "derived": True,
+                "formula": "operating_income + depreciation_amortization",
+            }
+        else:
+            metrics["ebitda"] = None
