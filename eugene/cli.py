@@ -35,6 +35,65 @@ def caps():
 
 
 @main.command()
+def info():
+    """Show Eugene version, extract types, and configuration status."""
+    from eugene.router import VERSION, VALID_EXTRACTS
+    has_fmp = bool(os.environ.get("FMP_API_KEY"))
+    has_fred = bool(os.environ.get("FRED_API_KEY"))
+    has_sec = bool(os.environ.get("SEC_USER_AGENT"))
+    has_auth = bool(os.environ.get("EUGENE_API_KEYS"))
+
+    click.echo(f"Eugene Intelligence v{VERSION}")
+    click.echo(f"  Extracts: {len(VALID_EXTRACTS)} ({', '.join(VALID_EXTRACTS)})")
+    click.echo()
+    click.echo("API Keys:")
+    click.echo(f"  SEC_USER_AGENT:  {'configured' if has_sec else 'missing (required for SEC)'}")
+    click.echo(f"  FMP_API_KEY:     {'configured' if has_fmp else 'missing (prices, screener, crypto disabled)'}")
+    click.echo(f"  FRED_API_KEY:    {'configured' if has_fred else 'missing (economics disabled)'}")
+    click.echo(f"  EUGENE_API_KEYS: {'set ({} keys)'.format(len([k for k in os.environ.get('EUGENE_API_KEYS', '').split(',') if k.strip()])) if has_auth else 'not set (open mode)'}")
+
+
+@main.command()
+def status():
+    """Quick health check — test connectivity to all data sources."""
+    from eugene.router import VERSION
+    click.echo(f"Eugene Intelligence v{VERSION}\n")
+
+    # SEC
+    click.echo("SEC EDGAR ... ", nl=False)
+    try:
+        from eugene.sources.sec_api import fetch_submissions
+        data = fetch_submissions("0000320193")
+        click.echo(f"ok ({data.get('name', 'Apple Inc.')})")
+    except Exception as e:
+        click.echo(f"FAIL ({e})")
+
+    # FMP
+    click.echo("FMP (quote) ... ", nl=False)
+    try:
+        from eugene.sources.fmp import get_price
+        p = get_price("AAPL")
+        if "error" in p:
+            click.echo(f"error ({p['error']})")
+        else:
+            click.echo(f"ok (AAPL ${p.get('price', '?')})")
+    except Exception as e:
+        click.echo(f"FAIL ({e})")
+
+    # FRED
+    click.echo("FRED ........ ", nl=False)
+    try:
+        from eugene.sources.fred import get_category
+        data = get_category("rates")
+        if "error" in data:
+            click.echo(f"error ({data['error']})")
+        else:
+            click.echo(f"ok ({len(data.get('data', []))} series)")
+    except Exception as e:
+        click.echo(f"FAIL ({e})")
+
+
+@main.command()
 @click.argument("identifier")
 @click.option("-e", "--extract", default="financials",
               help="Extract type(s): profile,filings,financials,concepts,insiders,ownership,"
