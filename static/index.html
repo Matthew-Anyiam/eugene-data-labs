@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eugene Intelligence</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #1e1e2e;
+            --text: #e4e4ef;
+            --muted: #6b6b80;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        header {
+            text-align: center;
+            padding: 3rem 0 2rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+        header h1 span { color: var(--accent); }
+        header p { color: var(--muted); font-size: 0.85rem; }
+
+        .search-bar {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 600px;
+            margin: 2rem auto;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-bar input:focus { border-color: var(--accent); }
+        .search-bar input::placeholder { color: var(--muted); }
+        .search-bar button {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .search-bar button:hover { opacity: 0.9; }
+        .search-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .quick-picks {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .quick-picks span { color: var(--muted); font-size: 0.75rem; margin-right: 0.5rem; }
+        .quick-picks button {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin: 0.2rem;
+            transition: border-color 0.2s;
+        }
+        .quick-picks button:hover { border-color: var(--accent); }
+
+        #status {
+            text-align: center;
+            padding: 1rem;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+        #status.error { color: var(--red); }
+
+        .dashboard { display: none; }
+        .dashboard.active { display: block; }
+
+        .company-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        .company-name { font-size: 1.5rem; font-weight: 600; }
+        .company-meta { color: var(--muted); font-size: 0.8rem; margin-top: 0.3rem; }
+        .company-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-bullish { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+        .badge-bearish { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+        .badge-neutral { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .card-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-bottom: 1rem;
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-label { color: var(--muted); font-size: 0.8rem; }
+        .metric-value { font-size: 0.9rem; font-weight: 500; }
+        .metric-value.positive { color: var(--green); }
+        .metric-value.negative { color: var(--red); }
+
+        .sentiment-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-top: 0.75rem;
+            overflow: hidden;
+            position: relative;
+        }
+        .sentiment-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .insider-list { max-height: 300px; overflow-y: auto; }
+        .insider-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+        .insider-item:last-child { border-bottom: none; }
+        .insider-name { font-weight: 500; }
+        .insider-title { color: var(--muted); font-size: 0.7rem; }
+
+        .ratio-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        .ratio-item {
+            padding: 0.5rem;
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 6px;
+        }
+        .ratio-label { font-size: 0.7rem; color: var(--muted); }
+        .ratio-value { font-size: 1rem; font-weight: 600; margin-top: 0.2rem; }
+
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: var(--muted);
+            font-size: 0.7rem;
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .loading { animation: pulse 1.5s infinite; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span>eugene</span> intelligence</h1>
+            <p>MCP-native financial data infrastructure &mdash; v0.7.0</p>
+        </header>
+
+        <div class="search-bar">
+            <input type="text" id="ticker-input" placeholder="Enter ticker (e.g. AAPL, TSLA, NVDA)" autofocus>
+            <button id="analyze-btn" onclick="analyze()">Analyze</button>
+        </div>
+
+        <div class="quick-picks">
+            <span>Quick:</span>
+            <button onclick="quickPick('AAPL')">AAPL</button>
+            <button onclick="quickPick('TSLA')">TSLA</button>
+            <button onclick="quickPick('NVDA')">NVDA</button>
+            <button onclick="quickPick('MSFT')">MSFT</button>
+            <button onclick="quickPick('GOOG')">GOOG</button>
+            <button onclick="quickPick('AMZN')">AMZN</button>
+            <button onclick="quickPick('META')">META</button>
+            <button onclick="quickPick('JPM')">JPM</button>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="dashboard" class="dashboard">
+            <div class="company-header">
+                <div>
+                    <div class="company-name" id="company-name"></div>
+                    <div class="company-meta" id="company-meta"></div>
+                </div>
+                <div id="sentiment-badge" class="company-badge"></div>
+            </div>
+
+            <div class="grid" id="metrics-grid"></div>
+
+            <div class="grid">
+                <div class="card" id="insider-card" style="display:none">
+                    <div class="card-title">Insider Sentiment</div>
+                    <div id="insider-content"></div>
+                </div>
+                <div class="card" id="technicals-card" style="display:none">
+                    <div class="card-title">Technical Indicators</div>
+                    <div id="technicals-content"></div>
+                </div>
+            </div>
+
+            <div class="card" id="financials-card" style="display:none; margin-bottom: 1rem;">
+                <div class="card-title">Financial Summary (Latest FY)</div>
+                <div id="financials-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        eugene intelligence &mdash; SEC EDGAR + FMP + FRED &mdash; 19 extract types, 27 canonical concepts, 38 financial ratios
+    </footer>
+
+    <script>
+        const API = window.location.origin;
+
+        function quickPick(ticker) {
+            document.getElementById('ticker-input').value = ticker;
+            analyze();
+        }
+
+        document.getElementById('ticker-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') analyze();
+        });
+
+        async function analyze() {
+            const ticker = document.getElementById('ticker-input').value.trim().toUpperCase();
+            if (!ticker) return;
+
+            const btn = document.getElementById('analyze-btn');
+            const status = document.getElementById('status');
+            const dashboard = document.getElementById('dashboard');
+
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            status.className = '';
+            status.textContent = 'Fetching data from SEC EDGAR + FMP...';
+            dashboard.classList.remove('active');
+
+            try {
+                const [profileRes, metricsRes, insidersRes, techRes, financialsRes] = await Promise.all([
+                    fetch(`${API}/v1/sec/${ticker}?extract=profile`).then(r => r.json()),
+                    fetch(`${API}/v1/sec/${ticker}?extract=metrics&period=FY&limit=3`).then(r => r.json()),
+                    fetch(`${API}/v1/sec/${ticker}?extract=insiders&limit=10`).then(r => r.json()),
+                    fetch(`${API}/v1/sec/${ticker}?extract=technicals&limit=1`).then(r => r.json()),
+                    fetch(`${API}/v1/sec/${ticker}?extract=financials&period=FY&limit=1`).then(r => r.json()),
+                ]);
+
+                if (profileRes.status === 'error') {
+                    throw new Error(profileRes.data?.error || 'Company not found');
+                }
+
+                renderDashboard(ticker, profileRes, metricsRes, insidersRes, techRes, financialsRes);
+                status.textContent = '';
+                dashboard.classList.add('active');
+            } catch (err) {
+                status.className = 'error';
+                status.textContent = `Error: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Analyze';
+            }
+        }
+
+        function renderDashboard(ticker, profile, metrics, insiders, technicals, financials) {
+            const p = profile.data;
+            document.getElementById('company-name').textContent = `${p.name || p.ticker || ticker}`;
+            document.getElementById('company-meta').textContent =
+                `${ticker} | CIK ${p.cik || ''} | SIC ${p.sic_description || p.sic || ''} | FY ends ${p.fiscal_year_end || ''}`;
+
+            // Sentiment badge
+            const sentiment = insiders.data?.sentiment;
+            const badge = document.getElementById('sentiment-badge');
+            if (sentiment) {
+                const cls = sentiment.signal === 'bullish' ? 'badge-bullish' :
+                           sentiment.signal === 'bearish' ? 'badge-bearish' : 'badge-neutral';
+                badge.className = `company-badge ${cls}`;
+                badge.textContent = `Insider: ${sentiment.signal.toUpperCase()} (${sentiment.score}/100)`;
+            } else {
+                badge.textContent = '';
+            }
+
+            // Metrics
+            renderMetrics(metrics);
+
+            // Insiders
+            renderInsiders(insiders);
+
+            // Technicals
+            renderTechnicals(technicals);
+
+            // Financials
+            renderFinancials(financials);
+        }
+
+        function renderMetrics(metrics) {
+            const grid = document.getElementById('metrics-grid');
+            grid.innerHTML = '';
+
+            const data = metrics.data;
+            if (!data?.periods?.length) return;
+
+            const latest = data.periods[0]?.ratios;
+            if (!latest) return;
+
+            const sections = [
+                { title: 'Profitability', key: 'profitability', items: [
+                    ['Gross Margin', 'gross_margin', true],
+                    ['Net Margin', 'net_margin', true],
+                    ['ROE', 'roe', true],
+                    ['ROA', 'roa', true],
+                    ['ROIC', 'roic', true],
+                ]},
+                { title: 'Valuation', key: 'valuation', items: [
+                    ['P/E Ratio', 'pe_ratio', false],
+                    ['P/B Ratio', 'pb_ratio', false],
+                    ['EV/EBITDA', 'ev_to_ebitda', false],
+                    ['FCF Yield', 'fcf_yield', true],
+                    ['Earnings Yield', 'earnings_yield', true],
+                ]},
+                { title: 'Growth', key: 'growth', items: [
+                    ['Revenue Growth', 'revenue_growth', true],
+                    ['Earnings Growth', 'earnings_growth', true],
+                    ['FCF Growth', 'fcf_growth', true],
+                    ['Asset Growth', 'asset_growth', false],
+                ]},
+                { title: 'Leverage & Liquidity', key: null, items: [
+                    ['Current Ratio', 'current_ratio', false, 'liquidity'],
+                    ['Quick Ratio', 'quick_ratio', false, 'liquidity'],
+                    ['D/E Ratio', 'debt_to_equity', false, 'leverage'],
+                    ['Interest Coverage', 'interest_coverage', false, 'leverage'],
+                ]},
+            ];
+
+            for (const section of sections) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                let html = `<div class="card-title">${section.title}</div>`;
+
+                for (const [label, key, pctFormat, overrideKey] of section.items) {
+                    const cat = overrideKey || section.key;
+                    const val = latest[cat]?.[key];
+                    if (val == null) continue;
+                    const formatted = pctFormat ? `${(val * 100).toFixed(1)}%` : val.toFixed(2);
+                    const cls = pctFormat ? (val > 0 ? 'positive' : val < 0 ? 'negative' : '') : '';
+                    html += `<div class="metric-row">
+                        <span class="metric-label">${label}</span>
+                        <span class="metric-value ${cls}">${formatted}</span>
+                    </div>`;
+                }
+                card.innerHTML = html;
+                grid.appendChild(card);
+            }
+        }
+
+        function renderInsiders(insiders) {
+            const card = document.getElementById('insider-card');
+            const content = document.getElementById('insider-content');
+            const data = insiders.data;
+            if (!data) { card.style.display = 'none'; return; }
+
+            card.style.display = 'block';
+            let html = '';
+
+            const s = data.sentiment;
+            if (s) {
+                const barColor = s.signal === 'bullish' ? 'var(--green)' :
+                                s.signal === 'bearish' ? 'var(--red)' : 'var(--yellow)';
+                html += `
+                    <div class="metric-row">
+                        <span class="metric-label">Score</span>
+                        <span class="metric-value">${s.score}/100</span>
+                    </div>
+                    <div class="sentiment-bar">
+                        <div class="sentiment-fill" style="width: ${s.score}%; background: ${barColor}"></div>
+                    </div>
+                    <div style="margin-top: 0.75rem">
+                        <div class="metric-row">
+                            <span class="metric-label">Buys</span>
+                            <span class="metric-value positive">${s.buy_count}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Sales</span>
+                            <span class="metric-value negative">${s.sell_count}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Net Value</span>
+                            <span class="metric-value ${s.net_value >= 0 ? 'positive' : 'negative'}">$${formatNum(s.net_value)}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Officer Buys</span>
+                            <span class="metric-value">${s.officer_buys}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Cluster Buying</span>
+                            <span class="metric-value">${s.cluster_buying_detected ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Recent filings
+            const filings = data.insider_filings?.slice(0, 5) || [];
+            if (filings.length > 0) {
+                html += '<div style="margin-top: 1rem"><div class="card-title">Recent Filings</div>';
+                for (const f of filings) {
+                    const sales = f.transactions?.filter(t => t.transaction_type === 'sale') || [];
+                    const buys = f.transactions?.filter(t => t.transaction_type === 'purchase') || [];
+                    const totalSaleVal = sales.reduce((s, t) => s + (t.shares || 0) * (t.price_per_share || 0), 0);
+                    const type = sales.length > 0 ? 'sale' : buys.length > 0 ? 'purchase' : 'other';
+                    const typeColor = type === 'sale' ? 'var(--red)' : type === 'purchase' ? 'var(--green)' : 'var(--muted)';
+
+                    html += `<div class="insider-item">
+                        <div>
+                            <div class="insider-name">${f.owner?.name || 'Unknown'}</div>
+                            <div class="insider-title">${f.owner?.title || (f.owner?.is_director ? 'Director' : '')}</div>
+                        </div>
+                        <div style="text-align: right">
+                            <div style="color: ${typeColor}; font-weight: 600">${type.toUpperCase()}</div>
+                            <div style="color: var(--muted); font-size: 0.7rem">${f.filed_date || ''}</div>
+                        </div>
+                    </div>`;
+                }
+                html += '</div>';
+            }
+
+            content.innerHTML = html;
+        }
+
+        function renderTechnicals(technicals) {
+            const card = document.getElementById('technicals-card');
+            const content = document.getElementById('technicals-content');
+            const data = technicals.data;
+            if (!data?.indicators) { card.style.display = 'none'; return; }
+
+            card.style.display = 'block';
+            const ind = data.indicators;
+            let html = '';
+
+            html += `<div class="metric-row">
+                <span class="metric-label">Close</span>
+                <span class="metric-value">$${data.latest_close?.toFixed(2) || 'N/A'}</span>
+            </div>`;
+
+            if (ind.rsi != null) {
+                const rsiColor = ind.rsi > 70 ? 'var(--red)' : ind.rsi < 30 ? 'var(--green)' : 'var(--text)';
+                html += `<div class="metric-row">
+                    <span class="metric-label">RSI (14)</span>
+                    <span class="metric-value" style="color: ${rsiColor}">${ind.rsi?.toFixed(1)}</span>
+                </div>`;
+            }
+
+            if (ind.sma) {
+                for (const [period, val] of Object.entries(ind.sma)) {
+                    html += `<div class="metric-row">
+                        <span class="metric-label">SMA ${period}</span>
+                        <span class="metric-value">$${val?.toFixed(2)}</span>
+                    </div>`;
+                }
+            }
+
+            if (ind.macd) {
+                html += `<div class="metric-row">
+                    <span class="metric-label">MACD</span>
+                    <span class="metric-value ${ind.macd.histogram > 0 ? 'positive' : 'negative'}">${ind.macd.macd_line?.toFixed(2)}</span>
+                </div>`;
+            }
+
+            if (ind.atr != null) {
+                html += `<div class="metric-row">
+                    <span class="metric-label">ATR (14)</span>
+                    <span class="metric-value">$${ind.atr?.toFixed(2)}</span>
+                </div>`;
+            }
+
+            if (ind.bollinger) {
+                html += `<div class="metric-row">
+                    <span class="metric-label">BB Upper</span>
+                    <span class="metric-value">$${ind.bollinger.upper?.toFixed(2)}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">BB Lower</span>
+                    <span class="metric-value">$${ind.bollinger.lower?.toFixed(2)}</span>
+                </div>`;
+            }
+
+            content.innerHTML = html;
+        }
+
+        function renderFinancials(financials) {
+            const card = document.getElementById('financials-card');
+            const content = document.getElementById('financials-content');
+            const data = financials.data;
+            if (!data?.periods?.length) { card.style.display = 'none'; return; }
+
+            card.style.display = 'block';
+            const p = data.periods[0];
+            const is = p.income_statement || {};
+            const bs = p.balance_sheet || {};
+            const cf = p.cash_flow_statement || {};
+
+            const items = [
+                ['Revenue', is.revenue, true],
+                ['Gross Profit', is.gross_profit, true],
+                ['Operating Income', is.operating_income, true],
+                ['Net Income', is.net_income, true],
+                ['Total Assets', bs.total_assets, true],
+                ['Total Equity', bs.stockholders_equity, true],
+                ['Operating CF', cf.operating_cf, true],
+                ['Free Cash Flow', cf.free_cf, true],
+            ];
+
+            let html = '<div class="ratio-grid">';
+            for (const [label, obj, isCurrency] of items) {
+                const val = obj?.value;
+                if (val == null) continue;
+                const formatted = isCurrency ? `$${formatNum(val)}` : formatNum(val);
+                html += `<div class="ratio-item">
+                    <div class="ratio-label">${label}</div>
+                    <div class="ratio-value">${formatted}</div>
+                </div>`;
+            }
+            html += '</div>';
+
+            // Quality score
+            const quality = financials.provenance?.[0]?.quality;
+            if (quality) {
+                html += `<div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border)">
+                    <div class="metric-row">
+                        <span class="metric-label">Data Quality</span>
+                        <span class="metric-value" style="color: ${quality.confidence_score >= 0.8 ? 'var(--green)' : quality.confidence_score >= 0.5 ? 'var(--yellow)' : 'var(--red)'}">
+                            ${(quality.confidence_score * 100).toFixed(0)}% (${quality.checks_passed}/${quality.checks_total} checks)
+                        </span>
+                    </div>
+                </div>`;
+            }
+
+            content.innerHTML = html;
+        }
+
+        function formatNum(n) {
+            if (n == null) return 'N/A';
+            const abs = Math.abs(n);
+            const sign = n < 0 ? '-' : '';
+            if (abs >= 1e12) return sign + (abs / 1e12).toFixed(1) + 'T';
+            if (abs >= 1e9) return sign + (abs / 1e9).toFixed(1) + 'B';
+            if (abs >= 1e6) return sign + (abs / 1e6).toFixed(1) + 'M';
+            if (abs >= 1e3) return sign + (abs / 1e3).toFixed(1) + 'K';
+            return sign + abs.toFixed(0);
+        }
+    </script>
+</body>
+</html>

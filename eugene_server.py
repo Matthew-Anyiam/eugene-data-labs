@@ -135,7 +135,12 @@ def _build_mcp(include_rest: bool = False):
                 return JSONResponse({"error": f"Invalid number for '{name}': {value}"}, status_code=400)
 
         @mcp.custom_route("/", methods=["GET"])
-        async def root(request: Request) -> JSONResponse:
+        async def root(request: Request) -> Response:
+            # Serve the dashboard
+            import pathlib
+            html_path = pathlib.Path(__file__).parent / "static" / "index.html"
+            if html_path.exists():
+                return Response(content=html_path.read_text(), media_type="text/html")
             return JSONResponse({
                 "service": "Eugene Intelligence",
                 "version": VERSION,
@@ -152,12 +157,31 @@ def _build_mcp(include_rest: bool = False):
                     "crypto": "/v1/crypto/{symbol}",
                     "export": "/v1/sec/{identifier}/export?format=csv",
                     "stream": "/v1/stream/filings",
-                    "prices": "/v1/sec/{ticker}/prices",
-                    "profile": "/v1/sec/{ticker}/profile",
-                    "ohlcv": "/v1/sec/{ticker}/ohlcv",
-                    "earnings": "/v1/sec/{ticker}/earnings",
-                    "estimates": "/v1/sec/{ticker}/estimates",
-                    "news": "/v1/sec/{ticker}/news",
+                },
+                "mcp": {
+                    "streamable_http": "/mcp",
+                    "sse": "/sse",
+                },
+            })
+
+        @mcp.custom_route("/api", methods=["GET"])
+        async def api_info(request: Request) -> JSONResponse:
+            return JSONResponse({
+                "service": "Eugene Intelligence",
+                "version": VERSION,
+                "status": "ok",
+                "docs": {
+                    "health": "/health",
+                    "capabilities": "/v1/capabilities",
+                    "concepts": "/v1/concepts",
+                },
+                "endpoints": {
+                    "sec_data": "/v1/sec/{identifier}?extract=financials",
+                    "economics": "/v1/economics/{category}",
+                    "screener": "/v1/screener?sector=Technology",
+                    "crypto": "/v1/crypto/{symbol}",
+                    "export": "/v1/sec/{identifier}/export?format=csv",
+                    "stream": "/v1/stream/filings",
                 },
                 "mcp": {
                     "streamable_http": "/mcp",
