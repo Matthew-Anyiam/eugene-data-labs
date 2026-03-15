@@ -1,5 +1,4 @@
 """Tests for transcripts handler."""
-import pytest
 
 
 MOCK_SUBMISSIONS = {

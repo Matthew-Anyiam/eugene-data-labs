@@ -1,6 +1,7 @@
 """Resolve ticker / CIK / accession → full company identity."""
 import re
 from eugene.cache import cached
+from eugene.errors import NotFoundError
 from eugene.sources.sec_api import fetch_tickers, fetch_submissions
 
 ACCESSION_RE = re.compile(r"^\d{10}-\d{2}-\d{6}$")
@@ -46,7 +47,7 @@ def resolve(identifier: str) -> dict:
                 "accession": identifier,
             }
         except Exception as e:
-            return {"error": f"Could not resolve accession {identifier}: {e}"}
+            raise NotFoundError(f"Could not resolve accession {identifier}: {e}")
 
     # --- CIK (pure digits) ---
     if CIK_RE.match(identifier):
@@ -62,13 +63,13 @@ def resolve(identifier: str) -> dict:
                 "fiscal_year_end": subs.get("fiscalYearEnd", ""),
             }
         except Exception as e:
-            return {"error": f"Could not resolve CIK {identifier}: {e}"}
+            raise NotFoundError(f"Could not resolve CIK {identifier}: {e}")
 
     # --- Ticker ---
     ticker = identifier.upper().replace(" ", "")
     ticker_map = _load_ticker_map()
     if ticker not in ticker_map:
-        return {"error": f"Unknown ticker: {ticker}"}
+        raise NotFoundError(f"Unknown ticker: {ticker}")
 
     entry = ticker_map[ticker]
     cik = entry["cik"]

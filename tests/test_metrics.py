@@ -1,8 +1,6 @@
 """Tests for eugene.handlers.metrics — financial ratio computation."""
-import pytest
 from eugene.handlers.metrics import (
-    _profitability, _liquidity, _leverage, _efficiency,
-    _valuation, _growth, _per_share, _v, _div, _pct, _net_debt,
+    _profitability, _liquidity, _valuation, _growth, _per_share, _v, _div, _pct, _net_debt,
 )
 
 

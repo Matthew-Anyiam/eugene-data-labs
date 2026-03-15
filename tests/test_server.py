@@ -1,7 +1,6 @@
 """Tests for eugene_server — input validation, auth enforcement, health."""
-import os
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 
 def _make_request(path="/", query_params=None, headers=None):

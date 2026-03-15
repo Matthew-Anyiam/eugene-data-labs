@@ -24,7 +24,7 @@ from eugene.handlers.transcripts import transcripts_handler
 from eugene.handlers.peers import peers_handler
 from eugene.concepts import VALID_CONCEPTS
 
-VERSION = "0.7.0"
+VERSION = "0.8.0"
 
 logger = logging.getLogger(__name__)
 
@@ -109,9 +109,10 @@ def query(identifier: str, extract: str = "financials", **params) -> dict:
     This function is used by both the FastAPI endpoint and the MCP tool.
     """
     # Resolve identifier
-    resolved = resolve(identifier)
-    if "error" in resolved:
-        return _envelope(identifier, {}, params, {"error": resolved["error"]}, [], status="error")
+    try:
+        resolved = resolve(identifier)
+    except EugeneError as e:
+        return _envelope(identifier, {}, params, {"error": e.message, "code": e.code}, [], status="error")
 
     # Parse extracts
     extracts = [e.strip() for e in extract.split(",")]

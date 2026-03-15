@@ -1,7 +1,6 @@
 """Tests for eugene.auth — API key validation."""
-import os
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from eugene.auth import require_api_key, _get_valid_keys
 
 

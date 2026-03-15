@@ -1,4 +1,5 @@
 """Raw XBRL concept time series from SEC companyfacts."""
+from eugene.errors import ValidationError
 from eugene.sources.sec_api import fetch_companyfacts
 
 
@@ -7,7 +8,7 @@ def concepts_handler(resolved: dict, params: dict) -> dict:
     cik = resolved["cik"]
     concept = params.get("concept")
     if not concept:
-        return {"error": "concept parameter required (e.g. concept=Revenues)"}
+        raise ValidationError("concept parameter required (e.g. concept=Revenues)")
 
     tags = [t.strip() for t in concept.split(",")]
     limit = int(params.get("limit", 20))
