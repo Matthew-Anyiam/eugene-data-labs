@@ -144,6 +144,86 @@ CANONICAL_CONCEPTS = {
         "description": "Common shares outstanding",
     },
 
+    # === Additional Balance Sheet (for ratios) ===
+    "current_assets": {
+        "tags": ["AssetsCurrent"],
+        "statement": "balance_sheet",
+        "unit": "USD",
+        "description": "Total current assets",
+    },
+    "current_liabilities": {
+        "tags": ["LiabilitiesCurrent"],
+        "statement": "balance_sheet",
+        "unit": "USD",
+        "description": "Total current liabilities",
+    },
+    "inventory": {
+        "tags": ["InventoryNet", "InventoryFinishedGoodsNetOfReserves"],
+        "statement": "balance_sheet",
+        "unit": "USD",
+        "description": "Inventory",
+    },
+    "accounts_receivable": {
+        "tags": [
+            "AccountsReceivableNetCurrent",
+            "AccountsReceivableNet",
+            "ReceivablesNetCurrent",
+        ],
+        "statement": "balance_sheet",
+        "unit": "USD",
+        "description": "Accounts receivable",
+    },
+    "accounts_payable": {
+        "tags": ["AccountsPayableCurrent", "AccountsPayable"],
+        "statement": "balance_sheet",
+        "unit": "USD",
+        "description": "Accounts payable",
+    },
+    "short_term_debt": {
+        "tags": ["ShortTermBorrowings", "CommercialPaper", "LongTermDebtCurrent"],
+        "statement": "balance_sheet",
+        "unit": "USD",
+        "description": "Short-term debt and current portion of long-term debt",
+    },
+    "long_term_debt": {
+        "tags": ["LongTermDebtNoncurrent", "LongTermDebt"],
+        "statement": "balance_sheet",
+        "unit": "USD",
+        "description": "Long-term debt (non-current)",
+    },
+
+    # === Additional Income Statement (for ratios) ===
+    "cost_of_revenue": {
+        "tags": ["CostOfRevenue", "CostOfGoodsAndServicesSold", "CostOfGoodsSold"],
+        "statement": "income",
+        "unit": "USD",
+        "description": "Cost of revenue / COGS",
+    },
+    "interest_expense": {
+        "tags": ["InterestExpense", "InterestExpenseDebt", "InterestIncomeExpenseNet"],
+        "statement": "income",
+        "unit": "USD",
+        "description": "Interest expense",
+    },
+
+    # === Additional Cash Flow (for ratios) ===
+    "depreciation_amortization": {
+        "tags": [
+            "DepreciationDepletionAndAmortization",
+            "DepreciationAndAmortization",
+            "Depreciation",
+        ],
+        "statement": "cash_flow",
+        "unit": "USD",
+        "description": "Depreciation and amortization",
+    },
+    "dividends_paid": {
+        "tags": ["PaymentsOfDividendsCommonStock", "PaymentsOfDividends", "Dividends"],
+        "statement": "cash_flow",
+        "unit": "USD",
+        "description": "Dividends paid",
+    },
+
     # === Derived (computed, not fetched) ===
     "free_cf": {
         "derived": True,
@@ -151,6 +231,13 @@ CANONICAL_CONCEPTS = {
         "statement": "cash_flow",
         "unit": "USD",
         "description": "Free cash flow (OCF minus capex)",
+    },
+    "ebitda": {
+        "derived": True,
+        "formula": "operating_income + depreciation_amortization",
+        "statement": "income",
+        "unit": "USD",
+        "description": "Earnings before interest, taxes, depreciation, and amortization",
     },
 }
 
