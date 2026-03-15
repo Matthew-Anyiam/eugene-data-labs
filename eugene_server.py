@@ -82,6 +82,32 @@ def _build_mcp(include_rest: bool = False):
         from starlette.requests import Request
         from starlette.responses import JSONResponse
 
+        @mcp.custom_route("/", methods=["GET"])
+        async def root(request: Request) -> JSONResponse:
+            return JSONResponse({
+                "service": "Eugene Intelligence",
+                "version": "0.5.0",
+                "status": "ok",
+                "docs": {
+                    "health": "/health",
+                    "capabilities": "/v1/capabilities",
+                    "concepts": "/v1/concepts",
+                },
+                "endpoints": {
+                    "sec_data": "/v1/sec/{identifier}?extract=financials",
+                    "economics": "/v1/economics/{category}",
+                    "prices": "/v1/sec/{ticker}/prices",
+                    "profile": "/v1/sec/{ticker}/profile",
+                    "earnings": "/v1/sec/{ticker}/earnings",
+                    "estimates": "/v1/sec/{ticker}/estimates",
+                    "news": "/v1/sec/{ticker}/news",
+                },
+                "mcp": {
+                    "streamable_http": "/mcp",
+                    "sse": "/sse",
+                },
+            })
+
         @mcp.custom_route("/health", methods=["GET"])
         async def health(request: Request) -> JSONResponse:
             return JSONResponse({"status": "ok", "version": "0.5.0"})
