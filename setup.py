@@ -22,6 +22,13 @@ setup(
     install_requires=[
         "requests>=2.28.0",
         "feedparser>=6.0.0",
+        "click>=8.0.0",
+        "python-dotenv>=1.0.0",
     ],
+    entry_points={
+        "console_scripts": [
+            "eugene=eugene.cli:main",
+        ],
+    },
     license="MIT",
 )

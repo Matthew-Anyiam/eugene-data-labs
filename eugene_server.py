@@ -15,6 +15,7 @@ from eugene.router import query, capabilities, VALID_EXTRACTS
 from eugene.sources.fred import get_category, get_series, get_all, FRED_SERIES
 from eugene.sources.fmp import get_price, get_profile, get_earnings, get_estimates, get_news
 from eugene.concepts import VALID_CONCEPTS
+from eugene.auth import require_api_key
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +105,7 @@ def _build_mcp(include_rest: bool = False):
             })
 
         @mcp.custom_route("/v1/sec/{identifier}", methods=["GET"])
+        @require_api_key
         async def sec_endpoint(request: Request) -> JSONResponse:
             identifier = request.path_params["identifier"]
             extract = request.query_params.get("extract", "financials")
@@ -117,6 +119,7 @@ def _build_mcp(include_rest: bool = False):
             return JSONResponse(query(identifier, extract, **{k: v for k, v in params.items() if v is not None}))
 
         @mcp.custom_route("/v1/economics/{category}", methods=["GET"])
+        @require_api_key
         async def economics_endpoint(request: Request) -> JSONResponse:
             category = request.path_params["category"]
             series_param = request.query_params.get("series")
@@ -127,22 +130,27 @@ def _build_mcp(include_rest: bool = False):
             return JSONResponse(get_category(category))
 
         @mcp.custom_route("/v1/sec/{ticker}/prices", methods=["GET"])
+        @require_api_key
         async def prices_compat(request: Request) -> JSONResponse:
             return JSONResponse(get_price(request.path_params["ticker"]))
 
         @mcp.custom_route("/v1/sec/{ticker}/profile", methods=["GET"])
+        @require_api_key
         async def profile_compat(request: Request) -> JSONResponse:
             return JSONResponse(get_profile(request.path_params["ticker"]))
 
         @mcp.custom_route("/v1/sec/{ticker}/earnings", methods=["GET"])
+        @require_api_key
         async def earnings_compat(request: Request) -> JSONResponse:
             return JSONResponse(get_earnings(request.path_params["ticker"]))
 
         @mcp.custom_route("/v1/sec/{ticker}/estimates", methods=["GET"])
+        @require_api_key
         async def estimates_compat(request: Request) -> JSONResponse:
             return JSONResponse(get_estimates(request.path_params["ticker"]))
 
         @mcp.custom_route("/v1/sec/{ticker}/news", methods=["GET"])
+        @require_api_key
         async def news_compat(request: Request) -> JSONResponse:
             return JSONResponse(get_news(request.path_params["ticker"]))
 

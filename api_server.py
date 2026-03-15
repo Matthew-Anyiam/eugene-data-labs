@@ -30,13 +30,6 @@ def company_financials(ticker: str):
     from eugene.sources.xbrl import XBRLClient
     return XBRLClient().get_financials(ticker.upper()).to_dict()
 
-@app.get("/v1/company/{ticker}/health")
-def company_health(ticker: str):
-    from eugene.agents.health import HealthMonitor
-    from eugene.config import Config
-    result = HealthMonitor(Config()).analyze(ticker.upper())
-    return result.to_dict() if hasattr(result, "to_dict") else result
-
 @app.get("/v1/company/{ticker}/earnings")
 def company_earnings(ticker: str):
     from eugene.sources.fmp import get_earnings
@@ -91,24 +84,6 @@ def fed_funds_rate():
         latest = data["observations"][-1]
         return {"rate": latest.get("value"), "date": latest.get("date"), "source": "FRED"}
     return {"error": "No data"}
-
-@app.get("/v1/research/{ticker}/equity")
-def research_equity(ticker: str):
-    from eugene.agents.equity import EquityResearchAgent
-    from eugene.config import Config
-    result = EquityResearchAgent(Config()).analyze(ticker.upper())
-    if hasattr(result, "__dict__") and not isinstance(result, dict):
-        return {"ticker": result.ticker, "data": getattr(result, "data", {}), "summary": getattr(result, "summary", "")}
-    return result
-
-@app.get("/v1/research/{ticker}/credit")
-def research_credit(ticker: str):
-    from eugene.agents.credit import CreditMonitorAgent
-    from eugene.config import Config
-    result = CreditMonitorAgent(Config()).analyze(ticker.upper())
-    if hasattr(result, "__dict__") and not isinstance(result, dict):
-        return {"ticker": result.ticker, "data": getattr(result, "data", {}), "summary": getattr(result, "summary", "")}
-    return result
 
 @app.get("/v1/health")
 def api_health():

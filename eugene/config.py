@@ -14,19 +14,19 @@ from functools import lru_cache
 
 @dataclass
 class APIConfig:
-    """API-related configuration"""
-    anthropic_api_key: Optional[str] = None
-    anthropic_model: str = "claude-sonnet-4-20250514"
-    anthropic_max_tokens: int = 4096
-    anthropic_temperature: float = 0.0  # Deterministic for extraction
-    
+    """API key configuration for external data sources"""
+    fred_api_key: Optional[str] = None
+    fmp_api_key: Optional[str] = None
+
     def __post_init__(self):
-        if self.anthropic_api_key is None:
-            self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-    
+        if self.fred_api_key is None:
+            self.fred_api_key = os.getenv("FRED_API_KEY")
+        if self.fmp_api_key is None:
+            self.fmp_api_key = os.getenv("FMP_API_KEY")
+
     @property
     def is_configured(self) -> bool:
-        return self.anthropic_api_key is not None
+        return self.sec_is_valid if hasattr(self, 'sec_is_valid') else True
 
 
 @dataclass
@@ -118,7 +118,6 @@ class Config:
         
         # Or override specific values:
         config = Config(
-            api=APIConfig(anthropic_api_key="sk-..."),
             sec=SECConfig(user_agent="My App (me@email.com)")
         )
     """
@@ -147,33 +146,36 @@ class Config:
     @property
     def is_ready(self) -> bool:
         """Check if configuration is ready for production use"""
-        return self.api.is_configured and self.sec.is_valid
-    
+        return self.sec.is_valid
+
     def validate(self) -> list[str]:
         """Return list of configuration issues"""
         issues = []
-        
-        if not self.api.anthropic_api_key:
-            issues.append("ANTHROPIC_API_KEY not set")
-        
+
         if "@" not in self.sec.user_agent:
             issues.append("SEC user agent must include contact email")
-        
+
+        if not self.api.fred_api_key:
+            issues.append("FRED_API_KEY not set (needed for economic data)")
+
+        if not self.api.fmp_api_key:
+            issues.append("FMP_API_KEY not set (needed for market data)")
+
         if not self.cache.directory.exists():
             issues.append(f"Cache directory does not exist: {self.cache.directory}")
-        
+
         return issues
-    
+
     def summary(self) -> str:
         """Return configuration summary"""
         return f"""
 Eugene Intelligence Configuration
 =================================
-API Key: {'✓ Set' if self.api.is_configured else '✗ Not set'}
+FRED API Key: {'✓ Set' if self.api.fred_api_key else '✗ Not set'}
+FMP API Key: {'✓ Set' if self.api.fmp_api_key else '✗ Not set'}
 SEC User Agent: {self.sec.user_agent}
 Cache: {'Enabled' if self.cache.enabled else 'Disabled'} ({self.cache.directory})
 Log Level: {self.log.level}
-Validation Threshold: {self.validation.min_confidence_threshold}
 Server: {self.server.host}:{self.server.port}
 Ready: {'✓ Yes' if self.is_ready else '✗ No'}
 """
@@ -195,7 +197,7 @@ def load_config(**overrides) -> Config:
     Load configuration with optional overrides.
     
     Usage:
-        config = load_config(api=APIConfig(anthropic_api_key="sk-..."))
+        config = load_config(sec=SECConfig(user_agent="My App (me@email.com)"))
     """
     return Config(**overrides)
 
