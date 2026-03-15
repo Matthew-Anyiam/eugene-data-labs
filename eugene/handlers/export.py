@@ -1,7 +1,6 @@
 """CSV/JSON export of financial data."""
 import csv
 import io
-import json
 
 
 def export_financials_csv(identifier: str, extract: str = "financials", **params) -> str:

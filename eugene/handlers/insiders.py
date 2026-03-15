@@ -1,7 +1,7 @@
 """Insider trades from SEC Form 4 filings with full transaction parsing."""
 import xml.etree.ElementTree as ET
 from eugene.handlers.filings import filings_handler
-from eugene.sources.sec_api import fetch_submissions, fetch_filing_index, fetch_filing_xml
+from eugene.sources.sec_api import fetch_filing_index, fetch_filing_xml
 
 
 def _find_xml_doc(cik: str, accession: str) -> str | None:

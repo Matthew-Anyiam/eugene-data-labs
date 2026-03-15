@@ -28,10 +28,9 @@ def _safe_get(url: str, params: dict = None, timeout: int = 15) -> dict | list |
 
 @cached(ttl=60)
 def get_price(ticker: str) -> dict:
-    r = requests.get(f"{FMP_BASE}/quote?symbol={ticker}&apikey={_key()}", timeout=15)
-    r.raise_for_status()
-    data = r.json()
-    # Handle both list and dict responses
+    data = _safe_get(f"{FMP_BASE}/quote", params={"symbol": ticker, "apikey": _key()})
+    if isinstance(data, dict) and "error" in data:
+        return {"ticker": ticker, **data}
     q = data[0] if isinstance(data, list) and data else data if isinstance(data, dict) and "price" in data else None
     if q:
         return {
@@ -47,9 +46,9 @@ def get_price(ticker: str) -> dict:
 
 @cached(ttl=3600)
 def get_profile(ticker: str) -> dict:
-    r = requests.get(f"{FMP_BASE}/profile?symbol={ticker}&apikey={_key()}", timeout=15)
-    r.raise_for_status()
-    data = r.json()
+    data = _safe_get(f"{FMP_BASE}/profile", params={"symbol": ticker, "apikey": _key()})
+    if isinstance(data, dict) and "error" in data:
+        return {"ticker": ticker, **data}
     p = data[0] if isinstance(data, list) and data else data if isinstance(data, dict) and "companyName" in data else None
     if p:
         return {
@@ -64,10 +63,11 @@ def get_profile(ticker: str) -> dict:
 
 @cached(ttl=3600)
 def get_earnings(ticker: str) -> dict:
-    r = requests.get(f"{FMP_BASE}/earning-calendar-historical?symbol={ticker}&apikey={_key()}", timeout=15)
-    data = r.json()
+    data = _safe_get(f"{FMP_BASE}/earning-calendar-historical", params={"symbol": ticker, "apikey": _key()})
+    if isinstance(data, dict) and "error" in data:
+        return {"ticker": ticker, "earnings": [], **data}
     earnings = []
-    if data:
+    if isinstance(data, list):
         for e in data[:12]:
             earnings.append({
                 "date": e.get("date"), "eps_actual": e.get("eps"),
@@ -79,10 +79,11 @@ def get_earnings(ticker: str) -> dict:
 
 @cached(ttl=3600)
 def get_estimates(ticker: str) -> dict:
-    r = requests.get(f"{FMP_BASE}/price-target?symbol={ticker}&apikey={_key()}", timeout=15)
-    data = r.json()
+    data = _safe_get(f"{FMP_BASE}/price-target", params={"symbol": ticker, "apikey": _key()})
+    if isinstance(data, dict) and "error" in data:
+        return {"ticker": ticker, "price_targets": [], **data}
     targets = []
-    if data:
+    if isinstance(data, list):
         for t in data[:10]:
             targets.append({
                 "analyst": t.get("analystName"), "company": t.get("analystCompany"),
@@ -93,10 +94,11 @@ def get_estimates(ticker: str) -> dict:
 
 @cached(ttl=300)
 def get_news(ticker: str, limit: int = 10) -> dict:
-    r = requests.get(f"{FMP_BASE}/news?symbol={ticker}&limit={limit}&apikey={_key()}", timeout=15)
-    data = r.json()
+    data = _safe_get(f"{FMP_BASE}/news", params={"symbol": ticker, "limit": limit, "apikey": _key()})
+    if isinstance(data, dict) and "error" in data:
+        return {"ticker": ticker, "articles": [], **data}
     articles = []
-    if data:
+    if isinstance(data, list):
         for a in data[:limit]:
             articles.append({
                 "title": a.get("title"), "date": a.get("publishedDate"),
@@ -194,9 +196,9 @@ def get_screener(market_cap_min: int = None, market_cap_max: int = None,
 @cached(ttl=60)
 def get_crypto_quote(symbol: str) -> dict:
     """Get crypto quote. symbol: BTCUSD, ETHUSD, etc."""
-    r = requests.get(f"{FMP_BASE}/quote?symbol={symbol}&apikey={_key()}", timeout=15)
-    r.raise_for_status()
-    data = r.json()
+    data = _safe_get(f"{FMP_BASE}/quote", params={"symbol": symbol, "apikey": _key()})
+    if isinstance(data, dict) and "error" in data:
+        return {"symbol": symbol, **data}
     q = data[0] if isinstance(data, list) and data else None
     if q:
         return {

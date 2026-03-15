@@ -73,4 +73,3 @@ build/
 upload_pypi.py
 eugene_server_v03.py
 eugene_server_backup.py
-test_*.py

@@ -1,12 +1,16 @@
 """Unified corporate actions: dividends, splits, 8-K events."""
+import logging
 from eugene.sources.fmp import get_dividends, get_splits
 from eugene.handlers.events import events_handler
+
+logger = logging.getLogger(__name__)
 
 
 def corporate_actions_handler(resolved: dict, params: dict) -> dict:
     """Merge dividends + splits + 8-K events into a unified timeline."""
     ticker = resolved.get("ticker")
     actions = []
+    warnings = []
 
     # FMP dividends
     if ticker:
@@ -18,7 +22,8 @@ def corporate_actions_handler(resolved: dict, params: dict) -> dict:
                     "details": d, "source": "FMP",
                 })
         except Exception:
-            pass
+            logger.exception("Failed to fetch dividends for %s", ticker)
+            warnings.append("Could not fetch dividend data")
 
         # FMP splits
         try:
@@ -29,7 +34,8 @@ def corporate_actions_handler(resolved: dict, params: dict) -> dict:
                     "details": s, "source": "FMP",
                 })
         except Exception:
-            pass
+            logger.exception("Failed to fetch splits for %s", ticker)
+            warnings.append("Could not fetch stock split data")
 
     # SEC 8-K events
     try:
@@ -40,13 +46,17 @@ def corporate_actions_handler(resolved: dict, params: dict) -> dict:
                 "details": e, "source": "SEC EDGAR",
             })
     except Exception:
-        pass
+        logger.exception("Failed to fetch 8-K events for %s", ticker)
+        warnings.append("Could not fetch 8-K event data")
 
     # Sort by date descending
     actions.sort(key=lambda x: x.get("date") or "", reverse=True)
 
-    return {
+    result = {
         "ticker": ticker,
         "actions": actions,
         "count": len(actions),
     }
+    if warnings:
+        result["warnings"] = warnings
+    return result

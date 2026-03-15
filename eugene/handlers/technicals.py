@@ -151,11 +151,11 @@ def _vwap(highs, lows, closes, volumes, period=20):
     if not volumes or len(volumes) < period:
         return None
     h = highs[-period:]
-    l = lows[-period:]
+    lo_s = lows[-period:]
     c = closes[-period:]
     v = volumes[-period:]
     cum_vol = sum(v)
     if cum_vol == 0:
         return None
-    cum_tp_vol = sum((hi + lo + cl) / 3 * vol for hi, lo, cl, vol in zip(h, l, c, v))
+    cum_tp_vol = sum((hi + lo + cl) / 3 * vol for hi, lo, cl, vol in zip(h, lo_s, c, v))
     return round(cum_tp_vol / cum_vol, 4)

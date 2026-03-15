@@ -8,16 +8,18 @@ Usage:
 """
 import sys
 import os
+import logging
 from dotenv import load_dotenv
 load_dotenv()
 
-from eugene.router import query, capabilities, VALID_EXTRACTS, VERSION
-from eugene.sources.fred import get_category, get_series, get_all, FRED_SERIES
+logger = logging.getLogger(__name__)
+
+from eugene.router import query, capabilities, VERSION
+from eugene.sources.fred import get_category, get_series, get_all
 from eugene.sources.fmp import (
     get_price, get_profile, get_earnings, get_estimates, get_news,
-    get_historical_bars, get_screener, get_crypto_quote, get_shares_float,
+    get_historical_bars, get_screener, get_crypto_quote,
 )
-from eugene.concepts import VALID_CONCEPTS
 from eugene.auth import require_api_key
 
 
@@ -118,6 +120,20 @@ def _build_mcp(include_rest: bool = False):
         import asyncio
         import json as json_mod
 
+        def _safe_int(value: str, default: int, name: str) -> int | JSONResponse:
+            """Parse int from query param, return JSONResponse on failure."""
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return JSONResponse({"error": f"Invalid integer for '{name}': {value}"}, status_code=400)
+
+        def _safe_float(value: str, default: float, name: str) -> float | JSONResponse:
+            """Parse float from query param, return JSONResponse on failure."""
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return JSONResponse({"error": f"Invalid number for '{name}': {value}"}, status_code=400)
+
         @mcp.custom_route("/", methods=["GET"])
         async def root(request: Request) -> JSONResponse:
             return JSONResponse({
@@ -154,10 +170,12 @@ def _build_mcp(include_rest: bool = False):
             return JSONResponse({"status": "ok", "version": VERSION})
 
         @mcp.custom_route("/v1/capabilities", methods=["GET"])
+        @require_api_key
         async def caps_endpoint(request: Request) -> JSONResponse:
             return JSONResponse(capabilities())
 
         @mcp.custom_route("/v1/concepts", methods=["GET"])
+        @require_api_key
         async def concepts_list(request: Request) -> JSONResponse:
             from eugene.concepts import CANONICAL_CONCEPTS
             return JSONResponse({
@@ -176,6 +194,9 @@ def _build_mcp(include_rest: bool = False):
         async def sec_endpoint(request: Request) -> JSONResponse:
             identifier = request.path_params["identifier"]
             extract = request.query_params.get("extract", "financials")
+            limit = _safe_int(request.query_params.get("limit", "10"), 10, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
             params = {
                 "period": request.query_params.get("period", "FY"),
                 "concept": request.query_params.get("concept"),
@@ -184,7 +205,7 @@ def _build_mcp(include_rest: bool = False):
                 "interval": request.query_params.get("interval"),
                 "from": request.query_params.get("from"),
                 "to": request.query_params.get("to"),
-                "limit": int(request.query_params.get("limit", "10")),
+                "limit": limit,
             }
             return JSONResponse(query(identifier, extract, **{k: v for k, v in params.items() if v is not None}))
 
@@ -205,17 +226,26 @@ def _build_mcp(include_rest: bool = False):
         @require_api_key
         async def screener_endpoint(request: Request) -> JSONResponse:
             p = request.query_params
+            parsed = {}
+            for name, conv, key in [
+                ("marketCapMin", _safe_int, "market_cap_min"),
+                ("marketCapMax", _safe_int, "market_cap_max"),
+                ("priceMin", _safe_float, "price_min"),
+                ("priceMax", _safe_float, "price_max"),
+                ("volumeMin", _safe_int, "volume_min"),
+                ("betaMin", _safe_float, "beta_min"),
+                ("betaMax", _safe_float, "beta_max"),
+            ]:
+                if name in p:
+                    val = conv(p[name], 0, name)
+                    if isinstance(val, JSONResponse):
+                        return val
+                    parsed[key] = val
+            limit = _safe_int(p.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
             return JSONResponse(get_screener(
-                market_cap_min=int(p["marketCapMin"]) if "marketCapMin" in p else None,
-                market_cap_max=int(p["marketCapMax"]) if "marketCapMax" in p else None,
-                price_min=float(p["priceMin"]) if "priceMin" in p else None,
-                price_max=float(p["priceMax"]) if "priceMax" in p else None,
-                volume_min=int(p["volumeMin"]) if "volumeMin" in p else None,
-                sector=p.get("sector"),
-                country=p.get("country"),
-                beta_min=float(p["betaMin"]) if "betaMin" in p else None,
-                beta_max=float(p["betaMax"]) if "betaMax" in p else None,
-                limit=int(p.get("limit", "50")),
+                **parsed, sector=p.get("sector"), country=p.get("country"), limit=limit,
             ))
 
         @mcp.custom_route("/v1/crypto/{symbol}", methods=["GET"])
@@ -267,9 +297,12 @@ def _build_mcp(include_rest: bool = False):
             identifier = request.path_params["identifier"]
             fmt = request.query_params.get("format", "json")
             extract = request.query_params.get("extract", "financials")
+            limit = _safe_int(request.query_params.get("limit", "10"), 10, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
             params = {
                 "period": request.query_params.get("period", "FY"),
-                "limit": int(request.query_params.get("limit", "10")),
+                "limit": limit,
             }
             if fmt == "csv":
                 from eugene.handlers.export import export_financials_csv
@@ -282,6 +315,7 @@ def _build_mcp(include_rest: bool = False):
                 return JSONResponse(query(identifier, extract, **params))
 
         @mcp.custom_route("/v1/stream/filings", methods=["GET"])
+        @require_api_key
         async def stream_filings(request: Request) -> StreamingResponse:
             """SSE endpoint for real-time SEC filing alerts."""
             form_filter = request.query_params.get("form")
@@ -309,6 +343,7 @@ def _build_mcp(include_rest: bool = False):
                     except asyncio.CancelledError:
                         break
                     except Exception:
+                        logger.exception("SSE filing stream error")
                         await asyncio.sleep(60)
 
             return StreamingResponse(
