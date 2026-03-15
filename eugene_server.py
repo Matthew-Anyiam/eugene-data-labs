@@ -50,7 +50,7 @@ def _build_mcp(include_rest: bool = False):
         """All SEC EDGAR data in one tool.
 
         identifier: ticker (AAPL), CIK (320193), or accession number
-        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions (comma-separated)
+        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers (comma-separated)
         period: FY|Q (for financials)
         concept: canonical concept (revenue,net_income,...) or raw XBRL tag
         form: 10-K|10-Q|8-K|4|13F-HR (filter)
