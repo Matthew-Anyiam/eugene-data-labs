@@ -211,7 +211,7 @@
     <div class="container">
         <header>
             <h1><span>eugene</span> intelligence</h1>
-            <p>MCP-native financial data infrastructure &mdash; v0.7.0</p>
+            <p>MCP-native financial data infrastructure &mdash; v0.8.0</p>
         </header>
 
         <div class="search-bar">
@@ -293,12 +293,14 @@
             dashboard.classList.remove('active');
 
             try {
+                const safeFetch = (url) => fetch(url).then(r => r.json()).catch(() => ({status: 'error', data: {error: 'Request failed'}}));
+
                 const [profileRes, metricsRes, insidersRes, techRes, financialsRes] = await Promise.all([
-                    fetch(`${API}/v1/sec/${ticker}?extract=profile`).then(r => r.json()),
-                    fetch(`${API}/v1/sec/${ticker}?extract=metrics&period=FY&limit=3`).then(r => r.json()),
-                    fetch(`${API}/v1/sec/${ticker}?extract=insiders&limit=10`).then(r => r.json()),
-                    fetch(`${API}/v1/sec/${ticker}?extract=technicals&limit=1`).then(r => r.json()),
-                    fetch(`${API}/v1/sec/${ticker}?extract=financials&period=FY&limit=1`).then(r => r.json()),
+                    safeFetch(`${API}/v1/sec/${ticker}?extract=profile`),
+                    safeFetch(`${API}/v1/sec/${ticker}?extract=metrics&period=FY&limit=3`),
+                    safeFetch(`${API}/v1/sec/${ticker}?extract=insiders&limit=10`),
+                    safeFetch(`${API}/v1/sec/${ticker}?extract=technicals&limit=1`),
+                    safeFetch(`${API}/v1/sec/${ticker}?extract=financials&period=FY&limit=1`),
                 ]);
 
                 if (profileRes.status === 'error') {
@@ -306,7 +308,13 @@
                 }
 
                 renderDashboard(ticker, profileRes, metricsRes, insidersRes, techRes, financialsRes);
-                status.textContent = '';
+                const warnings = [metricsRes, insidersRes, techRes, financialsRes].filter(r => r.status === 'error').length;
+                if (warnings > 0) {
+                    status.className = '';
+                    status.textContent = `Loaded with ${warnings} data source(s) unavailable. Some cards may be empty.`;
+                } else {
+                    status.textContent = '';
+                }
                 dashboard.classList.add('active');
             } catch (err) {
                 status.className = 'error';
@@ -353,7 +361,7 @@
             grid.innerHTML = '';
 
             const data = metrics.data;
-            if (!data?.periods?.length) return;
+            if (!data || data.error || !data.periods?.length) return;
 
             const latest = data.periods[0]?.ratios;
             if (!latest) return;
@@ -412,7 +420,7 @@
             const card = document.getElementById('insider-card');
             const content = document.getElementById('insider-content');
             const data = insiders.data;
-            if (!data) { card.style.display = 'none'; return; }
+            if (!data || data.error) { card.style.display = 'none'; return; }
 
             card.style.display = 'block';
             let html = '';
@@ -486,7 +494,7 @@
             const card = document.getElementById('technicals-card');
             const content = document.getElementById('technicals-content');
             const data = technicals.data;
-            if (!data?.indicators) { card.style.display = 'none'; return; }
+            if (!data || data.error || !data.indicators) { card.style.display = 'none'; return; }
 
             card.style.display = 'block';
             const ind = data.indicators;
@@ -546,7 +554,7 @@
             const card = document.getElementById('financials-card');
             const content = document.getElementById('financials-content');
             const data = financials.data;
-            if (!data?.periods?.length) { card.style.display = 'none'; return; }
+            if (!data || data.error || !data.periods?.length) { card.style.display = 'none'; return; }
 
             card.style.display = 'block';
             const p = data.periods[0];
