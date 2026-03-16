@@ -2,6 +2,7 @@
 import os
 import requests
 from eugene.cache import cached
+from eugene.errors import SourceError
 from eugene.rate_limit import SEC_LIMITER
 
 SEC_HEADERS = {
@@ -20,7 +21,10 @@ def fetch_tickers() -> dict:
     """SEC company tickers JSON → {ticker: {cik_str, title}}."""
     SEC_LIMITER.acquire()
     r = requests.get("https://www.sec.gov/files/company_tickers.json", headers=SEC_HEADERS, timeout=15)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise SourceError("SEC EDGAR", f"HTTP {r.status_code} fetching tickers")
     return r.json()
 
 
@@ -30,7 +34,10 @@ def fetch_submissions(cik: str) -> dict:
     SEC_LIMITER.acquire()
     cik = cik.zfill(10)
     r = requests.get(f"{BASE}/submissions/CIK{cik}.json", headers=SEC_HEADERS, timeout=15)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise SourceError("SEC EDGAR", f"HTTP {r.status_code} for CIK {cik}")
     return r.json()
 
 
@@ -40,7 +47,10 @@ def fetch_companyfacts(cik: str) -> dict:
     SEC_LIMITER.acquire()
     cik = cik.zfill(10)
     r = requests.get(f"{BASE}/api/xbrl/companyfacts/CIK{cik}.json", headers=SEC_HEADERS, timeout=30)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise SourceError("SEC EDGAR", f"HTTP {r.status_code} for companyfacts CIK {cik}")
     return r.json()
 
 
@@ -51,7 +61,10 @@ def fetch_filing_html(cik: str, accession: str, primary_doc: str) -> str:
     accession_flat = accession.replace("-", "")
     url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_flat}/{primary_doc}"
     r = requests.get(url, headers=SEC_HEADERS, timeout=30)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise SourceError("SEC EDGAR", f"HTTP {r.status_code} fetching filing {accession}")
     return r.text
 
 
@@ -67,7 +80,10 @@ def fetch_filing_index(cik: str, accession: str) -> dict:
     accession_flat = accession.replace("-", "")
     url = f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{accession_flat}/index.json"
     r = requests.get(url, headers=SEC_HEADERS, timeout=15)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise SourceError("SEC EDGAR", f"HTTP {r.status_code} fetching index {accession}")
     return r.json()
 
 
@@ -78,7 +94,10 @@ def fetch_filing_xml(cik: str, accession: str, filename: str) -> str:
     accession_flat = accession.replace("-", "")
     url = f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{accession_flat}/{filename}"
     r = requests.get(url, headers=SEC_HEADERS, timeout=30)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise SourceError("SEC EDGAR", f"HTTP {r.status_code} fetching {filename}")
     return r.text
 
 
@@ -92,5 +111,8 @@ def search_fulltext(query: str, forms: list = None, date_from: str = None, date_
     params = {k: v for k, v in params.items() if v}
     SEC_LIMITER.acquire()
     r = requests.get(f"{EFTS_BASE}/LATEST/search-index", headers=SEC_HEADERS, params=params, timeout=15)
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError:
+        raise SourceError("SEC EDGAR", f"HTTP {r.status_code} on fulltext search")
     return r.json()

@@ -17,12 +17,19 @@ class APIConfig:
     """API key configuration for external data sources"""
     fred_api_key: Optional[str] = None
     fmp_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    anthropic_model: str = "claude-sonnet-4-20250514"
 
     def __post_init__(self):
         if self.fred_api_key is None:
             self.fred_api_key = os.getenv("FRED_API_KEY")
         if self.fmp_api_key is None:
             self.fmp_api_key = os.getenv("FMP_API_KEY")
+        if self.anthropic_api_key is None:
+            self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        env_model = os.getenv("ANTHROPIC_MODEL")
+        if env_model:
+            self.anthropic_model = env_model
 
     @property
     def is_configured(self) -> bool:

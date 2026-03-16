@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from eugene.router import VERSION  # noqa: E402
+
 
 def _api_headers():
     """Build headers with API key if set."""
@@ -21,7 +23,7 @@ def _print_json(data):
 
 
 @click.group()
-@click.version_option(version="0.6.0", prog_name="eugene")
+@click.version_option(version=VERSION, prog_name="eugene")
 def main():
     """Eugene Intelligence — financial data for AI agents."""
     pass

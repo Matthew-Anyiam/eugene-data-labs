@@ -1,59 +1,13 @@
 """
-Eugene Intelligence - Earnings Transcripts
-Parse 8-K filings for earnings call transcripts and management guidance.
+Eugene Intelligence - Earnings Transcript Helpers
+Parse 8-K filing text for earnings call transcripts and management guidance.
 """
 import re
 import logging
-from typing import Optional, Dict, List
-from eugene.config import Config, get_config
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
-def get_earnings_transcript(ticker: str, quarter: str = None) -> Optional[Dict]:
-    """
-    Get earnings transcript from SEC 8-K filings.
-
-    Args:
-        ticker: Stock ticker symbol
-        quarter: Specific quarter (optional)
-
-    Returns:
-        Dictionary with transcript data or None if not found
-    """
-    try:
-        from eugene.sources.edgar import EDGARClient
-
-        config = get_config()
-        edgar = EDGARClient(config)
-
-        # Get company info
-        company = edgar.get_company(ticker)
-
-        # Search recent 8-K filings for transcripts
-        filings_8k = edgar.get_filings(ticker, filing_type="8-K", limit=10)
-
-        for filing in filings_8k:
-            try:
-                # Get filing content
-                html_content = edgar.get_filing_content(filing)
-                text_content = edgar.extract_text_from_html(html_content)
-
-                # Check if this filing contains a transcript
-                if _contains_transcript(text_content):
-                    return _parse_transcript(
-                        text_content, ticker, company.name, filing
-                    )
-
-            except Exception as e:
-                logger.warning(f"Failed to process filing {filing.accession_number}: {e}")
-                continue
-
-        logger.info(f"No earnings transcript found for {ticker}")
-        return None
-
-    except Exception as e:
-        logger.error(f"Failed to get earnings transcript for {ticker}: {e}")
-        return None
 
 def _contains_transcript(text: str) -> bool:
     """Check if filing text contains a transcript."""
@@ -76,11 +30,12 @@ def _contains_transcript(text: str) -> bool:
 
     return False
 
+
 def _parse_transcript(text: str, ticker: str, company_name: str, filing) -> Dict:
     """Parse transcript content from filing text."""
     try:
         # Extract quarter information
-        quarter = _extract_quarter(text, filing.filing_date)
+        quarter = _extract_quarter(text, filing.get("filing_date", ""))
 
         # Parse management remarks
         management_remarks = _extract_management_remarks(text)
@@ -101,9 +56,9 @@ def _parse_transcript(text: str, ticker: str, company_name: str, filing) -> Dict
             "ticker": ticker,
             "company_name": company_name,
             "quarter": quarter,
-            "filing_date": filing.filing_date,
-            "source_url": filing.filing_url,
-            "accession_number": filing.accession_number,
+            "filing_date": filing.get("filing_date", ""),
+            "source_url": filing.get("filing_url", ""),
+            "accession_number": filing.get("accession_number", ""),
             "management_remarks": management_remarks,
             "qa_section": qa_section,
             "guidance_statements": guidance_statements,
@@ -117,6 +72,7 @@ def _parse_transcript(text: str, ticker: str, company_name: str, filing) -> Dict
     except Exception as e:
         logger.error(f"Failed to parse transcript: {e}")
         return {}
+
 
 def _extract_quarter(text: str, filing_date: str) -> str:
     """Extract quarter information."""
@@ -141,8 +97,9 @@ def _extract_quarter(text: str, filing_date: str) -> str:
             return f"Q2 {year}"
         else:
             return f"Q3 {year}"
-    except:
+    except Exception:
         return "Unknown"
+
 
 def _extract_management_remarks(text: str) -> List[Dict]:
     """Extract management prepared remarks."""
@@ -164,6 +121,7 @@ def _extract_management_remarks(text: str) -> List[Dict]:
             })
 
     return remarks
+
 
 def _extract_qa_section(text: str) -> List[Dict]:
     """Extract Q&A exchanges."""
@@ -189,6 +147,7 @@ def _extract_qa_section(text: str) -> List[Dict]:
 
     return qa_exchanges
 
+
 def _extract_guidance(text: str) -> List[str]:
     """Extract forward-looking guidance statements."""
     guidance_statements = []
@@ -211,6 +170,7 @@ def _extract_guidance(text: str) -> List[str]:
 
     return guidance_statements
 
+
 def _extract_key_metrics(text: str) -> Dict[str, str]:
     """Extract key financial metrics mentioned."""
     metrics = {}
@@ -231,6 +191,7 @@ def _extract_key_metrics(text: str) -> Dict[str, str]:
         metrics['margin'] = margin_match.group(0)
 
     return metrics
+
 
 def _analyze_tone(text: str) -> Dict:
     """Analyze overall tone and sentiment."""
