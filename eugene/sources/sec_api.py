@@ -18,14 +18,22 @@ EFTS_BASE = "https://efts.sec.gov"
 
 @cached(ttl=86400, disk=True, disk_ttl=604800)
 def fetch_tickers() -> dict:
-    """SEC company tickers JSON → {ticker: {cik_str, title}}."""
+    """SEC company tickers JSON → {ticker: {cik_str, title}}.
+
+    The full map contains ~14,000 entries.  If the response has fewer
+    than 1,000 we raise so the result is NOT cached (protects against
+    partial responses or rate-limit pages getting persisted to disk).
+    """
     SEC_LIMITER.acquire()
-    r = requests.get("https://www.sec.gov/files/company_tickers.json", headers=SEC_HEADERS, timeout=15)
+    r = requests.get("https://www.sec.gov/files/company_tickers.json", headers=SEC_HEADERS, timeout=30)
     try:
         r.raise_for_status()
     except requests.exceptions.HTTPError:
         raise SourceError("SEC EDGAR", f"HTTP {r.status_code} fetching tickers")
-    return r.json()
+    data = r.json()
+    if len(data) < 1000:
+        raise SourceError("SEC EDGAR", f"Ticker map too small ({len(data)} entries), likely partial response")
+    return data
 
 
 @cached(ttl=3600, disk=True, disk_ttl=86400)

@@ -426,6 +426,14 @@ def run_api():
         logging.info(f"Disk cache: evicted {expired} expired entries")
     logging.info(f"Disk cache: {dc.size()} entries in {dc.cache_dir}")
 
+    # Pre-load SEC ticker map so first request doesn't wait
+    try:
+        from eugene.sources.sec_api import fetch_tickers
+        tickers = fetch_tickers()
+        logging.info(f"Ticker map: {len(tickers)} companies loaded")
+    except Exception as e:
+        logging.warning(f"Ticker map warmup failed (will retry on first request): {e}")
+
     logging.info(f"Starting Eugene v{VERSION} on port {port}")
     logging.info(f"REST API: http://0.0.0.0:{port}/health")
     logging.info(f"MCP (streamable HTTP): http://0.0.0.0:{port}/mcp")

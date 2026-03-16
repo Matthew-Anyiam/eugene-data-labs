@@ -9,10 +9,15 @@ from eugene.errors import SourceError
 
 
 @pytest.fixture(autouse=True)
-def clear_cache():
+def clear_cache(tmp_path):
+    """Clear L1 cache and swap L2 disk cache to a temp dir for test isolation."""
+    import eugene.cache as cache_mod
     cache_clear()
+    old_dc = cache_mod._disk_cache
+    cache_mod._disk_cache = cache_mod.DiskCache(str(tmp_path / "test_cache"))
     yield
     cache_clear()
+    cache_mod._disk_cache = old_dc
 
 
 class TestFetchTickers:
@@ -20,14 +25,27 @@ class TestFetchTickers:
     @patch("eugene.sources.sec_api.requests.get")
     def test_success(self, mock_get, mock_limiter):
         from eugene.sources.sec_api import fetch_tickers
+        # Must return ≥1000 entries to pass the validation guard
+        big_map = {str(i): {"cik_str": str(i), "ticker": f"T{i}", "title": f"Co {i}"} for i in range(1100)}
+        big_map["0"] = {"cik_str": "320193", "ticker": "AAPL", "title": "Apple Inc"}
+        mock_get.return_value = MagicMock(status_code=200, json=lambda: big_map)
+
+        result = fetch_tickers()
+        assert "0" in result
+        assert result["0"]["ticker"] == "AAPL"
+        assert len(result) >= 1000
+
+    @patch("eugene.sources.sec_api.SEC_LIMITER")
+    @patch("eugene.sources.sec_api.requests.get")
+    def test_rejects_partial_response(self, mock_get, mock_limiter):
+        from eugene.sources.sec_api import fetch_tickers
         mock_get.return_value = MagicMock(
             status_code=200,
             json=lambda: {"0": {"cik_str": "320193", "ticker": "AAPL", "title": "Apple Inc"}},
         )
 
-        result = fetch_tickers()
-        assert "0" in result
-        assert result["0"]["ticker"] == "AAPL"
+        with pytest.raises(SourceError, match="too small"):
+            fetch_tickers()
 
     def test_uses_disk_cache(self):
         """fetch_tickers is configured with disk caching."""
