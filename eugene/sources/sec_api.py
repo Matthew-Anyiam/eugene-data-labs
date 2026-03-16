@@ -16,7 +16,7 @@ BASE = "https://data.sec.gov"
 EFTS_BASE = "https://efts.sec.gov"
 
 
-@cached(ttl=86400)
+@cached(ttl=86400, disk=True, disk_ttl=604800)
 def fetch_tickers() -> dict:
     """SEC company tickers JSON → {ticker: {cik_str, title}}."""
     SEC_LIMITER.acquire()
@@ -28,7 +28,7 @@ def fetch_tickers() -> dict:
     return r.json()
 
 
-@cached(ttl=3600)
+@cached(ttl=3600, disk=True, disk_ttl=86400)
 def fetch_submissions(cik: str) -> dict:
     """SEC submissions (filings metadata + company info)."""
     SEC_LIMITER.acquire()
@@ -41,7 +41,7 @@ def fetch_submissions(cik: str) -> dict:
     return r.json()
 
 
-@cached(ttl=3600)
+@cached(ttl=3600, disk=True, disk_ttl=604800)
 def fetch_companyfacts(cik: str) -> dict:
     """SEC XBRL companyfacts (all concepts, all periods)."""
     SEC_LIMITER.acquire()
