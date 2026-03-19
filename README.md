@@ -43,7 +43,7 @@ eugene export AAPL -f csv
 eugene screener --sector Technology --market-cap-min 1000000000
 ```
 
-## 19 Extract Types
+## 17 Extract Types
 
 | Extract | Description | Source |
 |---------|-------------|--------|
@@ -64,8 +64,6 @@ eugene screener --sector Technology --market-cap-min 1000000000
 | `corporate_actions` | Dividends, splits, 8-K events merged | FMP + SEC EDGAR |
 | `transcripts` | Earnings call transcripts with Q&A | SEC EDGAR 8-K |
 | `peers` | Relative valuation vs sector peers | SEC XBRL + FMP |
-| `options` | Options chains (coming soon) | — |
-| `orderbook` | Tick/order book data (coming soon) | — |
 
 ## 28 Canonical Concepts
 
