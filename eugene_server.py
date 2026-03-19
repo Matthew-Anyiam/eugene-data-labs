@@ -449,6 +449,19 @@ def run_api():
     mcp.settings.port = port
     mcp.settings.host = "0.0.0.0"
 
+    # CORS — allow browser clients from any origin
+    from starlette.middleware.cors import CORSMiddleware
+    mcp._mcp_server  # ensure internal app exists
+    if hasattr(mcp, '_app') and mcp._app is not None:
+        mcp._app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining",
+                           "X-RateLimit-Reset", "X-Request-Count"],
+        )
+
     # Warm up disk cache (evict expired entries on startup)
     dc = get_disk_cache()
     expired = dc.evict_expired()
