@@ -18,8 +18,6 @@ from eugene.handlers.technicals import technicals_handler
 from eugene.handlers.segments import segments_handler
 from eugene.handlers.float_data import float_handler
 from eugene.handlers.corporate_actions import corporate_actions_handler
-from eugene.handlers.options import options_handler
-from eugene.handlers.orderbook import orderbook_handler
 from eugene.handlers.transcripts import transcripts_handler
 from eugene.handlers.peers import peers_handler
 from eugene.concepts import VALID_CONCEPTS
@@ -45,8 +43,6 @@ EXTRACT_HANDLERS = {
     "segments": segments_handler,
     "float": float_handler,
     "corporate_actions": corporate_actions_handler,
-    "options": options_handler,
-    "orderbook": orderbook_handler,
     # --- v0.7 ---
     "transcripts": transcripts_handler,
     "peers": peers_handler,
@@ -71,8 +67,6 @@ SOURCE_MAP = {
     "segments": "SEC CompanyFacts (XBRL Dimensions)",
     "float": "FMP Shares Float",
     "corporate_actions": "FMP + SEC EDGAR 8-K",
-    "options": "Coming Soon",
-    "orderbook": "Coming Soon",
     # --- v0.7 ---
     "transcripts": "SEC EDGAR 8-K Filings",
     "peers": "SEC XBRL + FMP Screener",
@@ -94,8 +88,6 @@ EXTRACT_DESCRIPTIONS = {
     "segments": "Segmented revenues (business + geographic breakdowns)",
     "float": "Share float, outstanding shares, free float",
     "corporate_actions": "Dividends, stock splits, and 8-K events timeline",
-    "options": "Options chains (coming soon)",
-    "orderbook": "Tick / order book data (coming soon)",
     # --- v0.7 ---
     "transcripts": "Earnings call transcripts with management remarks, Q&A, guidance, and tone analysis",
     "peers": "Relative valuation: compare metrics against sector peers with percentile rankings",

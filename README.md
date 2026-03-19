@@ -1,8 +1,8 @@
-# Eugene Intelligence v0.6
+# Eugene Intelligence v0.8
 
 **Financial data infrastructure for AI agents. Every number traced to source.**
 
-The first MCP-native financial data platform. One tool call gets you normalized SEC financials, 50+ computed ratios, live prices, technicals, crypto, and macro data — all with full provenance tracking.
+The first MCP-native financial data platform. One tool call gets you normalized SEC financials, 50+ computed ratios, live prices, technicals, crypto, and macro data — all with full provenance tracking. Built with async HTTP, persistent disk caching, and comprehensive error handling.
 
 ## Quick Start
 
@@ -62,8 +62,8 @@ eugene screener --sector Technology --market-cap-min 1000000000
 | `segments` | Business + geographic revenue segments | SEC XBRL Dimensions |
 | `float` | Float shares, outstanding, free float | FMP Shares Float |
 | `corporate_actions` | Dividends, splits, 8-K events merged | FMP + SEC EDGAR |
-| `options` | Options chains (coming soon) | — |
-| `orderbook` | Tick/order book data (coming soon) | — |
+| `transcripts` | Earnings call transcripts with Q&A | SEC EDGAR 8-K |
+| `peers` | Relative valuation vs sector peers | SEC XBRL + FMP |
 
 ## 28 Canonical Concepts
 
@@ -82,7 +82,7 @@ Financials are normalized into clean IS/BS/CF groupings:
 ```
 GET  /                              API discovery
 GET  /health                        Health check
-GET  /v1/capabilities               All 17 extracts listed
+GET  /v1/capabilities               All 19 extracts listed
 GET  /v1/sec/{identifier}           SEC data (any extract)
 GET  /v1/sec/{ticker}/ohlcv         OHLCV price bars
 GET  /v1/sec/{id}/export            CSV flat file download
@@ -136,7 +136,7 @@ Every response includes full provenance:
     }]
   },
   "provenance": [{"source": "SEC CompanyFacts (XBRL)", "url": "..."}],
-  "metadata": {"service": "eugene-intelligence", "version": "0.6.0"}
+  "metadata": {"service": "eugene-intelligence", "version": "0.8.0"}
 }
 ```
 
@@ -171,7 +171,7 @@ Every financial metric traces back to its XBRL source:
 
 | Tool | Description |
 |------|-------------|
-| `sec` | All SEC EDGAR data — 17 extract types via one tool |
+| `sec` | All SEC EDGAR data — 19 extract types via one tool |
 | `economics` | FRED macro data (inflation, employment, GDP, housing, rates) |
 | `screener` | Stock screening by sector, market cap, price, volume, beta |
 | `crypto` | Live crypto quotes (BTC, ETH, SOL, etc.) |
@@ -186,10 +186,12 @@ The server also exposes MCP via streamable HTTP at `/mcp` and SSE at `/sse`, so 
 ```
 eugene_server.py                  FastAPI + MCP entry point (REST + stdio + SSE + streamable HTTP)
 eugene/
-  router.py                      Request parsing, routing, envelope (17 handlers)
+  router.py                      Request parsing, routing, envelope (19 handlers)
   resolver.py                    ticker/CIK/accession -> identity
   concepts.py                    28 canonical concept mappings (XBRL -> stable keys)
-  cache.py                       In-memory TTL cache
+  cache.py                       L1 in-memory + L2 persistent disk cache
+  rate_limit.py                  Sync + async rate limiters
+  errors.py                      Error taxonomy (NotFound, Source, Validation, RateLimit)
   auth.py                        API key authentication
   cli.py                         Click CLI (eugene command)
   handlers/

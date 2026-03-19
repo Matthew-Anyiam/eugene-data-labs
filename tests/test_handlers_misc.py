@@ -1,4 +1,4 @@
-"""Tests for misc handlers: segments, options, orderbook, export."""
+"""Tests for misc handlers: segments, export."""
 from unittest.mock import patch
 
 
@@ -132,38 +132,6 @@ class TestSegmentsHandler:
 
         assert result["period_type"] == "Q"
         assert "2024-06-29" in result["business_segments"]
-
-
-# ===== Options Handler (stub) =====
-
-class TestOptionsHandler:
-    def test_options_returns_coming_soon(self):
-        from eugene.handlers.options import options_handler
-
-        result = options_handler({"ticker": "AAPL"}, {})
-
-        assert result["status"] == "coming_soon"
-        assert result["ticker"] == "AAPL"
-
-    def test_options_has_alternatives(self):
-        from eugene.handlers.options import options_handler
-
-        result = options_handler({"ticker": "AAPL"}, {})
-
-        assert "alternatives" in result
-        assert len(result["alternatives"]) > 0
-
-
-# ===== Orderbook Handler (stub) =====
-
-class TestOrderbookHandler:
-    def test_orderbook_returns_coming_soon(self):
-        from eugene.handlers.orderbook import orderbook_handler
-
-        result = orderbook_handler({"ticker": "AAPL"}, {})
-
-        assert result["status"] == "coming_soon"
-        assert result["ticker"] == "AAPL"
 
 
 # ===== Export Handler =====

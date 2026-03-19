@@ -54,7 +54,7 @@ def _build_mcp(include_rest: bool = False):
         """All SEC EDGAR data in one tool.
 
         identifier: ticker (AAPL), CIK (320193), or accession number
-        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers (comma-separated)
+        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers
         period: FY|Q (for financials)
         concept: canonical concept (revenue,net_income,...) or raw XBRL tag
         form: 10-K|10-Q|8-K|4|13F-HR (filter)
@@ -196,6 +196,36 @@ def _build_mcp(include_rest: bool = False):
         @mcp.custom_route("/health", methods=["GET"])
         async def health(request: Request) -> JSONResponse:
             return JSONResponse({"status": "ok", "version": VERSION})
+
+        @mcp.custom_route("/docs", methods=["GET"])
+        async def openapi_docs(request: Request) -> Response:
+            """Serve Swagger UI for interactive API exploration."""
+            html = """<!DOCTYPE html>
+<html><head><title>Eugene Intelligence API Docs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+</head><body>
+<div id="swagger-ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>SwaggerUIBundle({url:'/openapi.json',dom_id:'#swagger-ui',deepLinking:true})</script>
+</body></html>"""
+            return Response(content=html, media_type="text/html")
+
+        @mcp.custom_route("/openapi.json", methods=["GET"])
+        async def openapi_json(request: Request) -> JSONResponse:
+            from eugene.openapi import openapi_spec
+            return JSONResponse(openapi_spec())
+
+        @mcp.custom_route("/v1/usage", methods=["GET"])
+        @require_api_key
+        async def usage_endpoint(request: Request) -> JSONResponse:
+            """Per-key usage stats."""
+            from eugene.usage import usage_tracker
+            key = request.headers.get("x-api-key") or request.query_params.get("api_key")
+            if key:
+                stats = usage_tracker.get_stats(key)
+            else:
+                stats = {"message": "No key provided (open mode)"}
+            return JSONResponse(stats)
 
         @mcp.custom_route("/v1/capabilities", methods=["GET"])
         @require_api_key
@@ -425,6 +455,14 @@ def run_api():
     if expired:
         logging.info(f"Disk cache: evicted {expired} expired entries")
     logging.info(f"Disk cache: {dc.size()} entries in {dc.cache_dir}")
+
+    # Pre-load SEC ticker map so first request doesn't wait
+    try:
+        from eugene.sources.sec_api import fetch_tickers
+        tickers = fetch_tickers()
+        logging.info(f"Ticker map: {len(tickers)} companies loaded")
+    except Exception as e:
+        logging.warning(f"Ticker map warmup failed (will retry on first request): {e}")
 
     logging.info(f"Starting Eugene v{VERSION} on port {port}")
     logging.info(f"REST API: http://0.0.0.0:{port}/health")
