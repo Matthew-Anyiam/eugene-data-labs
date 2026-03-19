@@ -197,7 +197,7 @@ def _build_mcp(include_rest: bool = False):
         async def health(request: Request) -> JSONResponse:
             return JSONResponse({"status": "ok", "version": VERSION})
 
-        @mcp.custom_route("/docs", methods=["GET"])
+        @mcp.custom_route("/v1/docs", methods=["GET"])
         async def openapi_docs(request: Request) -> Response:
             """Serve Swagger UI for interactive API exploration."""
             html = """<!DOCTYPE html>
@@ -206,11 +206,11 @@ def _build_mcp(include_rest: bool = False):
 </head><body>
 <div id="swagger-ui"></div>
 <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-<script>SwaggerUIBundle({url:'/openapi.json',dom_id:'#swagger-ui',deepLinking:true})</script>
+<script>SwaggerUIBundle({url:'/v1/openapi.json',dom_id:'#swagger-ui',deepLinking:true})</script>
 </body></html>"""
             return Response(content=html, media_type="text/html")
 
-        @mcp.custom_route("/openapi.json", methods=["GET"])
+        @mcp.custom_route("/v1/openapi.json", methods=["GET"])
         async def openapi_json(request: Request) -> JSONResponse:
             from eugene.openapi import openapi_spec
             return JSONResponse(openapi_spec())
