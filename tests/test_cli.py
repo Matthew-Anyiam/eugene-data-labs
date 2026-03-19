@@ -11,13 +11,13 @@ class TestCLIVersion:
     def test_version_flag(self):
         result = runner.invoke(main, ["--version"])
         assert result.exit_code == 0
-        assert "0.8.0" in result.output
+        assert "0.8.1" in result.output
 
 
 class TestCLICaps:
     @patch("eugene.router.capabilities")
     def test_caps_command(self, mock_caps):
-        mock_caps.return_value = {"service": "eugene-intelligence", "version": "0.8.0"}
+        mock_caps.return_value = {"service": "eugene-intelligence", "version": "0.8.1"}
 
         result = runner.invoke(main, ["caps"])
 

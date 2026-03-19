@@ -22,7 +22,7 @@ from eugene.handlers.transcripts import transcripts_handler
 from eugene.handlers.peers import peers_handler
 from eugene.concepts import VALID_CONCEPTS
 
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 
 logger = logging.getLogger(__name__)
 
