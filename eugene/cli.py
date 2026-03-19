@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from eugene.router import VERSION  # noqa: E402
+from eugene.formatter import format_output  # noqa: E402
 
 
 def _api_headers():
@@ -18,8 +19,12 @@ def _api_headers():
     return {}
 
 
-def _print_json(data):
-    click.echo(json.dumps(data, indent=2, default=str))
+def _output(data, fmt="json", extract=None):
+    """Output data in the requested format."""
+    if fmt == "json":
+        click.echo(json.dumps(data, indent=2, default=str))
+    else:
+        click.echo(format_output(data, fmt=fmt, extract=extract))
 
 
 @click.group()
@@ -33,7 +38,7 @@ def main():
 def caps():
     """List all available tools, extracts, and capabilities."""
     from eugene.router import capabilities
-    _print_json(capabilities())
+    _output(capabilities(), fmt="table")
 
 
 @main.command()
@@ -52,7 +57,8 @@ def info():
     click.echo(f"  SEC_USER_AGENT:  {'configured' if has_sec else 'missing (required for SEC)'}")
     click.echo(f"  FMP_API_KEY:     {'configured' if has_fmp else 'missing (prices, screener, crypto disabled)'}")
     click.echo(f"  FRED_API_KEY:    {'configured' if has_fred else 'missing (economics disabled)'}")
-    click.echo(f"  EUGENE_API_KEYS: {'set ({} keys)'.format(len([k for k in os.environ.get('EUGENE_API_KEYS', '').split(',') if k.strip()])) if has_auth else 'not set (open mode)'}")
+    key_count = len([k for k in os.environ.get('EUGENE_API_KEYS', '').split(',') if k.strip()])
+    click.echo(f"  EUGENE_API_KEYS: {f'set ({key_count} keys)' if has_auth else 'not set (open mode)'}")
 
 
 @main.command()
@@ -108,7 +114,9 @@ def status():
 @click.option("--from", "date_from", default=None, help="Start date YYYY-MM-DD")
 @click.option("--to", "date_to", default=None, help="End date YYYY-MM-DD")
 @click.option("-l", "--limit", default=10, type=int, help="Max results")
-def sec(identifier, extract, period, concept, form, section, interval, date_from, date_to, limit):
+@click.option("-o", "--output", "fmt", default="table", type=click.Choice(["json", "table", "csv"]),
+              help="Output format (default: table)")
+def sec(identifier, extract, period, concept, form, section, interval, date_from, date_to, limit, fmt):
     """Query SEC EDGAR data. Example: eugene sec AAPL -e profile"""
     from eugene.router import query
     params = {
@@ -117,30 +125,34 @@ def sec(identifier, extract, period, concept, form, section, interval, date_from
         "from": date_from, "to": date_to, "limit": limit,
     }
     result = query(identifier, extract, **{k: v for k, v in params.items() if v is not None})
-    _print_json(result)
+    _output(result, fmt=fmt, extract=extract.split(",")[0])
 
 
 @main.command()
 @click.option("-c", "--category", default="all",
               help="inflation, employment, gdp, housing, consumer, manufacturing, rates, money, treasury, all")
 @click.option("-s", "--series", default=None, help="Specific FRED series ID (e.g. CPIAUCSL)")
-def econ(category, series):
+@click.option("-o", "--output", "fmt", default="table", type=click.Choice(["json", "table", "csv"]),
+              help="Output format (default: table)")
+def econ(category, series, fmt):
     """Query FRED economic data. Example: eugene econ -c inflation"""
     from eugene.sources.fred import get_category, get_series, get_all
     if series:
-        _print_json(get_series(series))
+        _output(get_series(series), fmt=fmt)
     elif category == "all":
-        _print_json(get_all())
+        _output(get_all(), fmt=fmt)
     else:
-        _print_json(get_category(category))
+        _output(get_category(category), fmt=fmt)
 
 
 @main.command()
 @click.argument("ticker")
-def prices(ticker):
+@click.option("-o", "--output", "fmt", default="table", type=click.Choice(["json", "table", "csv"]),
+              help="Output format (default: table)")
+def prices(ticker, fmt):
     """Live quote from FMP. Example: eugene prices AAPL"""
     from eugene.sources.fmp import get_price
-    _print_json(get_price(ticker))
+    _output(get_price(ticker), fmt=fmt)
 
 
 @main.command()
@@ -149,10 +161,12 @@ def prices(ticker):
               help="1min, 5min, 15min, 30min, 1hour, 4hour, daily")
 @click.option("--from", "date_from", default=None, help="Start date YYYY-MM-DD")
 @click.option("--to", "date_to", default=None, help="End date YYYY-MM-DD")
-def ohlcv(ticker, interval, date_from, date_to):
+@click.option("-o", "--output", "fmt", default="table", type=click.Choice(["json", "table", "csv"]),
+              help="Output format (default: table)")
+def ohlcv(ticker, interval, date_from, date_to, fmt):
     """Historical OHLCV bars. Example: eugene ohlcv AAPL -i daily"""
     from eugene.sources.fmp import get_historical_bars
-    _print_json(get_historical_bars(ticker, interval, date_from, date_to))
+    _output(get_historical_bars(ticker, interval, date_from, date_to), fmt=fmt, extract="ohlcv")
 
 
 @main.command()
@@ -164,29 +178,33 @@ def ohlcv(ticker, interval, date_from, date_to):
 @click.option("--price-max", type=float, default=None, help="Max price")
 @click.option("--volume-min", type=int, default=None, help="Min volume")
 @click.option("-l", "--limit", default=50, type=int, help="Max results")
+@click.option("-o", "--output", "fmt", default="table", type=click.Choice(["json", "table", "csv"]),
+              help="Output format (default: table)")
 def screener(sector, country, market_cap_min, market_cap_max,
-             price_min, price_max, volume_min, limit):
+             price_min, price_max, volume_min, limit, fmt):
     """Screen stocks. Example: eugene screener --sector Technology --market-cap-min 1000000000"""
     from eugene.sources.fmp import get_screener
-    _print_json(get_screener(
+    _output(get_screener(
         sector=sector, country=country,
         market_cap_min=market_cap_min, market_cap_max=market_cap_max,
         price_min=price_min, price_max=price_max,
         volume_min=volume_min, limit=limit,
-    ))
+    ), fmt=fmt)
 
 
 @main.command()
 @click.argument("symbol")
 @click.option("-t", "--type", "data_type", default="quote",
               help="quote, daily, 1hour, 5min")
-def crypto(symbol, data_type):
+@click.option("-o", "--output", "fmt", default="table", type=click.Choice(["json", "table", "csv"]),
+              help="Output format (default: table)")
+def crypto(symbol, data_type, fmt):
     """Crypto data. Example: eugene crypto BTCUSD"""
     from eugene.sources.fmp import get_crypto_quote, get_historical_bars
     if data_type == "quote":
-        _print_json(get_crypto_quote(symbol))
+        _output(get_crypto_quote(symbol), fmt=fmt)
     else:
-        _print_json(get_historical_bars(symbol, interval=data_type))
+        _output(get_historical_bars(symbol, interval=data_type), fmt=fmt)
 
 
 @main.command(name="export")

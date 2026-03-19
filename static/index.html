@@ -194,6 +194,148 @@
         .ratio-label { font-size: 0.7rem; color: var(--muted); }
         .ratio-value { font-size: 1rem; font-weight: 600; margin-top: 0.2rem; }
 
+        /* Hero / landing section */
+        .hero {
+            text-align: center;
+            padding: 2rem 0 1rem;
+        }
+        .hero-tagline {
+            font-size: 1.1rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            font-weight: 400;
+        }
+        .hero-sub {
+            color: var(--muted);
+            font-size: 0.8rem;
+            max-width: 600px;
+            margin: 0 auto 1.5rem;
+            line-height: 1.5;
+        }
+        .install-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1rem auto;
+            max-width: 420px;
+        }
+        .install-bar code {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--green);
+            font-size: 0.85rem;
+        }
+        .install-bar button {
+            padding: 0.6rem 0.9rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--muted);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .install-bar button:hover { border-color: var(--accent); color: var(--text); }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            max-width: 800px;
+            margin: 1.5rem auto 0.5rem;
+        }
+        .feature {
+            padding: 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .feature-num {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .feature-label {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.3rem;
+        }
+
+        .api-examples {
+            max-width: 600px;
+            margin: 1.5rem auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .api-example-header {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            justify-content: space-between;
+        }
+        .api-example-tabs button {
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-family: inherit;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .api-example-tabs button.active { background: var(--accent); color: white; }
+        .api-example-body {
+            padding: 1rem;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: var(--green);
+            max-height: 120px;
+            overflow: hidden;
+        }
+        .api-example-body .comment { color: var(--muted); }
+        .api-example-body .str { color: #f0abfc; }
+
+        .section-divider {
+            text-align: center;
+            padding: 1.5rem 0 0.5rem;
+            color: var(--muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .endpoint-links {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .endpoint-links a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .endpoint-links a:hover { border-color: var(--accent); background: var(--accent-glow); }
+
         footer {
             text-align: center;
             padding: 2rem 0;
@@ -213,6 +355,56 @@
             <h1><span>eugene</span> intelligence</h1>
             <p>MCP-native financial data infrastructure &mdash; v0.8.0</p>
         </header>
+
+        <div class="hero">
+            <div class="hero-tagline">Financial data infrastructure for AI agents</div>
+            <div class="hero-sub">
+                One API call gets you normalized SEC financials, 50+ computed ratios,
+                live prices, technicals, crypto, and macro data &mdash; all with full provenance tracking.
+            </div>
+
+            <div class="install-bar">
+                <code>pip install eugene-intelligence</code>
+                <button onclick="navigator.clipboard.writeText('pip install eugene-intelligence').then(()=>this.textContent='Copied!').catch(()=>{})">Copy</button>
+            </div>
+
+            <div class="features">
+                <div class="feature"><div class="feature-num">17</div><div class="feature-label">Data Extracts</div></div>
+                <div class="feature"><div class="feature-num">50+</div><div class="feature-label">Financial Ratios</div></div>
+                <div class="feature"><div class="feature-num">10K+</div><div class="feature-label">Companies</div></div>
+                <div class="feature"><div class="feature-num">3</div><div class="feature-label">Protocols (REST, MCP, CLI)</div></div>
+            </div>
+
+            <div class="api-examples">
+                <div class="api-example-header">
+                    <span>Quick start</span>
+                    <div class="api-example-tabs">
+                        <button class="active" onclick="showExample('cli',this)">CLI</button>
+                        <button onclick="showExample('api',this)">API</button>
+                        <button onclick="showExample('mcp',this)">MCP</button>
+                    </div>
+                </div>
+                <div class="api-example-body" id="example-body">
+<span class="comment"># Financials, metrics, and technicals in one call</span>
+eugene sec AAPL -e financials,metrics,technicals
+
+<span class="comment"># Screen large-cap tech stocks</span>
+eugene screener --sector Technology --market-cap-min 1e9
+
+<span class="comment"># Live crypto quote</span>
+eugene crypto BTCUSD
+                </div>
+            </div>
+
+            <div class="endpoint-links">
+                <a href="/docs">API Docs</a>
+                <a href="/openapi.json">OpenAPI Spec</a>
+                <a href="/v1/capabilities">Capabilities</a>
+                <a href="/health">Health</a>
+            </div>
+        </div>
+
+        <div class="section-divider">&#9660; Live Analysis</div>
 
         <div class="search-bar">
             <input type="text" id="ticker-input" placeholder="Enter ticker (e.g. AAPL, TSLA, NVDA)" autofocus>
@@ -610,6 +802,16 @@
             if (abs >= 1e6) return sign + (abs / 1e6).toFixed(1) + 'M';
             if (abs >= 1e3) return sign + (abs / 1e3).toFixed(1) + 'K';
             return sign + abs.toFixed(0);
+        }
+        const examples = {
+            cli: `<span class="comment"># Financials, metrics, and technicals in one call</span>\neugene sec AAPL -e financials,metrics,technicals\n\n<span class="comment"># Screen large-cap tech stocks</span>\neugene screener --sector Technology --market-cap-min 1e9\n\n<span class="comment"># Live crypto quote</span>\neugene crypto BTCUSD`,
+            api: `<span class="comment"># Normalized financials with provenance</span>\ncurl <span class="str">/v1/sec/AAPL?extract=financials</span>\n\n<span class="comment"># 50+ ratios in 7 categories</span>\ncurl <span class="str">/v1/sec/NVDA?extract=metrics</span>\n\n<span class="comment"># FRED macro data</span>\ncurl <span class="str">/v1/economics/inflation</span>`,
+            mcp: `<span class="comment"># In any MCP-compatible AI agent</span>\nsec(<span class="str">"AAPL"</span>, extract=<span class="str">"financials,metrics"</span>)\n\n<span class="comment"># Stock screening</span>\nscreener(sector=<span class="str">"Technology"</span>, limit=10)\n\n<span class="comment"># Economic data</span>\neconomics(category=<span class="str">"inflation"</span>)`,
+        };
+        function showExample(key, btn) {
+            document.getElementById('example-body').innerHTML = examples[key];
+            document.querySelectorAll('.api-example-tabs button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
     </script>
 </body>
