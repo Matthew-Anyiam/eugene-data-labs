@@ -1,5 +1,83 @@
+import { useState } from 'react';
 import { SearchInput } from '../ui/SearchInput';
 import { Link } from 'react-router-dom';
+
+export function BetaBanner() {
+  return (
+    <div className="border-b border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40">
+      <div className="mx-auto max-w-5xl px-4 py-2.5 text-center text-sm sm:px-6">
+        <span className="mr-2 inline-block rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+          BETA
+        </span>
+        Free for everyone until July 2026. No API key required.
+      </div>
+    </div>
+  );
+}
+
+export function WaitlistForm() {
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email.');
+      return;
+    }
+    try {
+      const res = await fetch('/v1/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+      } else {
+        // Fallback: store locally if endpoint doesn't exist yet
+        const existing = JSON.parse(localStorage.getItem('eugene_waitlist') || '[]');
+        existing.push({ email, ts: new Date().toISOString() });
+        localStorage.setItem('eugene_waitlist', JSON.stringify(existing));
+        setSubmitted(true);
+      }
+    } catch {
+      // Offline fallback
+      const existing = JSON.parse(localStorage.getItem('eugene_waitlist') || '[]');
+      existing.push({ email, ts: new Date().toISOString() });
+      localStorage.setItem('eugene_waitlist', JSON.stringify(existing));
+      setSubmitted(true);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+        You're on the list. We'll notify you when paid tiers launch.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex gap-2">
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@company.com"
+        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:focus:border-slate-400 dark:focus:ring-slate-400"
+      />
+      <button
+        type="submit"
+        className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+      >
+        Join waitlist
+      </button>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </form>
+  );
+}
 
 export function Hero() {
   return (
@@ -21,6 +99,13 @@ export function Hero() {
 
         <div className="mt-8 max-w-md">
           <SearchInput large />
+        </div>
+
+        <div className="mt-6 max-w-md">
+          <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
+            Get notified when paid API tiers launch:
+          </p>
+          <WaitlistForm />
         </div>
 
         <div className="mt-12 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 dark:border-slate-800 dark:bg-slate-800">

@@ -2,11 +2,13 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
+import { BetaBanner } from './components/landing/Hero';
 import { LandingPage } from './pages/LandingPage';
 import { CompanyPage } from './pages/CompanyPage';
 import { ScreenerPage } from './pages/ScreenerPage';
 import { EconomicsPage } from './pages/EconomicsPage';
 import { DocsPage } from './pages/DocsPage';
+import { PricingPage } from './pages/PricingPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -14,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/screener': 'Screener — Eugene Intelligence',
   '/economics': 'Economics — Eugene Intelligence',
   '/docs': 'Documentation — Eugene Intelligence',
+  '/pricing': 'Pricing — Eugene Intelligence',
 };
 
 function TitleUpdater() {
@@ -38,6 +41,7 @@ export default function App() {
     <BrowserRouter>
       <TitleUpdater />
       <div className="flex min-h-screen flex-col">
+        <BetaBanner />
         <Header />
         <main className="flex-1">
           <Routes>
@@ -46,6 +50,7 @@ export default function App() {
             <Route path="/screener" element={<ScreenerPage />} />
             <Route path="/economics" element={<EconomicsPage />} />
             <Route path="/docs" element={<DocsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>

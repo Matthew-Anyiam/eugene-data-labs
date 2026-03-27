@@ -193,6 +193,24 @@ def _build_mcp(include_rest: bool = False):
                 },
             })
 
+        @mcp.custom_route("/v1/waitlist", methods=["POST"])
+        async def waitlist(request: Request) -> JSONResponse:
+            """Collect waitlist emails."""
+            import json as _json
+            import pathlib
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                email = data.get("email", "").strip()
+                if not email or "@" not in email:
+                    return JSONResponse({"error": "Invalid email"}, status_code=400)
+                waitlist_file = pathlib.Path("waitlist.jsonl")
+                with open(waitlist_file, "a") as f:
+                    f.write(_json.dumps({"email": email, "ts": __import__("datetime").datetime.utcnow().isoformat()}) + "\n")
+                return JSONResponse({"status": "ok", "message": "Added to waitlist"})
+            except Exception:
+                return JSONResponse({"error": "Failed to process request"}, status_code=500)
+
         @mcp.custom_route("/health", methods=["GET"])
         async def health(request: Request) -> JSONResponse:
             return JSONResponse({"status": "ok", "version": VERSION})
