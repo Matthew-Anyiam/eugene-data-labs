@@ -60,7 +60,7 @@ export function DataTable<T extends Record<string, unknown>>({ columns, data, on
               onClick={() => onRowClick?.(row)}
             >
               {columns.map((col) => (
-                <td key={col.key} className={`px-4 py-3 ${col.align === 'right' ? 'text-right tabular-nums' : ''}`}>
+                <td key={col.key} className={`px-4 py-3 ${col.align === 'right' ? 'whitespace-nowrap text-right tabular-nums' : 'min-w-0'}`}>
                   {col.render ? col.render(row) : String(row[col.key] ?? '—')}
                 </td>
               ))}

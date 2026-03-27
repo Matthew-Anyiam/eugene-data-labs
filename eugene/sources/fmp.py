@@ -179,6 +179,12 @@ def get_screener(market_cap_min: int = None, market_cap_max: int = None,
         params["dividendLowerThan"] = dividend_max
     data = _safe_get(f"{FMP_BASE}/company-screener", params=params)
     if isinstance(data, dict) and "error" in data:
+        if data.get("status") == 402 or "paid" in data.get("error", "").lower():
+            return {
+                "results": [], "count": 0, "source": "FMP",
+                "note": "Stock screening requires an FMP API key with a paid plan. Visit financialmodelingprep.com for pricing.",
+                "alternatives": "Use 'eugene sec <TICKER>' to look up individual companies by ticker.",
+            }
         return {"results": [], "count": 0, "source": "FMP", **data}
     results = []
     for item in (data if isinstance(data, list) else []):

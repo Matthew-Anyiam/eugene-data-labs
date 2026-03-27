@@ -15,6 +15,14 @@ export interface ScreenerFilters {
   limit?: number;
 }
 
+export interface ScreenerResponse {
+  results: ScreenerResult[];
+  count: number;
+  source: string;
+  note?: string;
+  alternatives?: string;
+}
+
 export function useScreener(filters: ScreenerFilters, enabled = true) {
   return useQuery({
     queryKey: ['screener', filters],
@@ -31,7 +39,7 @@ export function useScreener(filters: ScreenerFilters, enabled = true) {
       if (filters.betaMin) params.betaMin = filters.betaMin;
       if (filters.betaMax) params.betaMax = filters.betaMax;
       if (filters.country) params.country = filters.country;
-      return eugeneApi<ScreenerResult[]>('/v1/screener', params);
+      return eugeneApi<ScreenerResponse>('/v1/screener', params);
     },
     enabled,
     staleTime: 2 * 60 * 1000,

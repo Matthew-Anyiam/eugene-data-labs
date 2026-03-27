@@ -55,28 +55,33 @@ function GettingStartedSection() {
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
           Install Eugene from PyPI:
         </p>
-        <div className="mt-3"><CodeBlock>pip install eugene-data</CodeBlock></div>
+        <div className="mt-3"><CodeBlock>pip install eugene-intelligence</CodeBlock></div>
       </div>
 
       <div>
         <h3 className="text-lg font-semibold">2. Configure</h3>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          SEC EDGAR and XBRL data works out of the box — no API key needed. For market data
-          (quotes, screener, technicals) and economics, Eugene uses upstream providers that
-          require keys. Set them once:
+          Eugene reads configuration from environment variables. The only requirement is a
+          SEC user agent string (SEC EDGAR policy). Optional keys unlock additional data sources.
         </p>
         <div className="mt-3">
-          <CodeBlock>{`eugene config set FMP_API_KEY your-key
-eugene config set FRED_API_KEY your-key    # optional, for economics`}</CodeBlock>
+          <CodeBlock>{`# Required — SEC EDGAR needs a user-agent identifier
+export SEC_USER_AGENT="YourName your@email.com"
+
+# Optional — for market data (quotes, screener, technicals)
+export FMP_API_KEY="your-key"
+
+# Optional — for FRED economic data
+export FRED_API_KEY="your-key"`}</CodeBlock>
         </div>
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          Without these keys, SEC filings, financials, XBRL concepts, insiders, ownership, events,
-          and filing sections all still work. You only need keys for real-time prices, screener, technicals, and FRED.
+          SEC filings, financials, XBRL concepts, insiders, ownership, events, and filing
+          sections all work with just SEC_USER_AGENT. The optional keys add market data and economics.
         </p>
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold">3. Start</h3>
+        <h3 className="text-lg font-semibold">3. Run</h3>
         <div className="mt-3">
           <CodeBlock>{`# REST API server
 eugene start
@@ -144,17 +149,34 @@ curl "http://localhost:8000/v1/economics/inflation"`}</CodeBlock>
         </p>
         <div className="mt-3 space-y-3">
           <div className="rounded-md border border-slate-100 px-3 dark:border-slate-800">
-            <ParamRow name="401" desc="Missing or invalid X-API-Key header." />
+            <ParamRow name="400" desc="Bad request — invalid parameter value or missing required field." />
             <ParamRow name="404" desc="Ticker/CIK not found in SEC EDGAR." />
             <ParamRow name="422" desc="Invalid parameter (bad extract type, malformed date, etc.)." />
             <ParamRow name="429" desc="Rate limit exceeded. Default: 10 req/sec. Retry after the Retry-After header." />
-            <ParamRow name="500" desc="Internal server error. Check provenance for partial data." />
+            <ParamRow name="500" desc="Internal server error. Upstream source may be unavailable." />
           </div>
-          <CodeBlock>{`# Example error response
-{
+
+          <h4 className="pt-2 text-sm font-medium text-slate-700 dark:text-slate-300">400 Bad Request</h4>
+          <CodeBlock>{`{
+  "status": "error",
+  "error": "Invalid extract type 'foo'. Valid types: profile, filings, financials, ...",
+  "identifier": "AAPL",
+  "data": null
+}`}</CodeBlock>
+
+          <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">404 Not Found</h4>
+          <CodeBlock>{`{
   "status": "error",
   "error": "Ticker 'ZZZZZ' not found in SEC EDGAR",
   "identifier": "ZZZZZ",
+  "data": null
+}`}</CodeBlock>
+
+          <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">500 Internal Server Error</h4>
+          <CodeBlock>{`{
+  "status": "error",
+  "error": "Upstream source returned an unexpected response",
+  "identifier": "AAPL",
   "data": null
 }`}</CodeBlock>
         </div>
@@ -315,15 +337,15 @@ function MCPSection() {
   "mcpServers": {
     "eugene": {
       "command": "eugene",
-      "args": ["serve"],
-      "env": {
-        "FMP_API_KEY": "your-fmp-key",
-        "FRED_API_KEY": "your-fred-key"
-      }
+      "args": ["serve"]
     }
   }
 }`}</CodeBlock>
         </div>
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+          Add this to your Claude Desktop config (Settings &rarr; Developer &rarr; Edit Config) or
+          your MCP client's configuration file. Environment variables set in your shell will be inherited automatically.
+        </p>
       </div>
 
       <MCPTool

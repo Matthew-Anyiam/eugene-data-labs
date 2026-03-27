@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { LandingPage } from './pages/LandingPage';
@@ -6,10 +7,36 @@ import { CompanyPage } from './pages/CompanyPage';
 import { ScreenerPage } from './pages/ScreenerPage';
 import { EconomicsPage } from './pages/EconomicsPage';
 import { DocsPage } from './pages/DocsPage';
+import { NotFoundPage } from './pages/NotFoundPage';
+
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Eugene Intelligence',
+  '/screener': 'Screener — Eugene Intelligence',
+  '/economics': 'Economics — Eugene Intelligence',
+  '/docs': 'Documentation — Eugene Intelligence',
+};
+
+function TitleUpdater() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (pathname.startsWith('/company/')) {
+      const ticker = pathname.split('/')[2]?.toUpperCase();
+      document.title = ticker
+        ? `${ticker} — Eugene Intelligence`
+        : 'Company — Eugene Intelligence';
+    } else {
+      document.title = PAGE_TITLES[pathname] ?? 'Eugene Intelligence';
+    }
+  }, [pathname]);
+
+  return null;
+}
 
 export default function App() {
   return (
     <BrowserRouter>
+      <TitleUpdater />
       <div className="flex min-h-screen flex-col">
         <Header />
         <main className="flex-1">
@@ -19,11 +46,7 @@ export default function App() {
             <Route path="/screener" element={<ScreenerPage />} />
             <Route path="/economics" element={<EconomicsPage />} />
             <Route path="/docs" element={<DocsPage />} />
-            <Route path="*" element={
-              <div className="flex h-96 items-center justify-center">
-                <p className="text-lg text-slate-500">Page not found</p>
-              </div>
-            } />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
         <Footer />

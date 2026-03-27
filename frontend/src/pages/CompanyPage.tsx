@@ -148,9 +148,9 @@ export function CompanyPage() {
       {tab === 'Insiders' && (
         <div>
           {insiders.isLoading && <SkeletonTable rows={10} cols={6} />}
-          {insiders.data?.data?.transactions && (
+          {insiders.data?.data?.insider_filings && (
             <>
-              <InsidersTable transactions={insiders.data.data.transactions} />
+              <InsidersTable filings={insiders.data.data.insider_filings} />
               {insiders.data.provenance && (
                 <ProvenanceBar items={insiders.data.provenance} className="mt-4" />
               )}
