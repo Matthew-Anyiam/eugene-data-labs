@@ -1,1 +1,0 @@
-"""Eugene Intelligence REST API"""

@@ -2,6 +2,7 @@
 import os
 import requests
 from eugene.cache import cached
+from eugene.errors import SourceError
 from eugene.rate_limit import FMP_LIMITER
 
 FMP_BASE = "https://financialmodelingprep.com/stable"
@@ -23,9 +24,12 @@ def _safe_get(url: str, params: dict = None, timeout: int = 15) -> dict | list |
         r.raise_for_status()
         return r.json()
     except requests.exceptions.HTTPError as e:
-        return {"error": f"HTTP {e.response.status_code}", "status": e.response.status_code}
+        status = e.response.status_code if e.response is not None else 500
+        if status >= 500:
+            raise SourceError("FMP", f"HTTP {status}")
+        return {"error": f"HTTP {status}", "status": status}
     except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+        raise SourceError("FMP", str(e))
 
 
 @cached(ttl=60)

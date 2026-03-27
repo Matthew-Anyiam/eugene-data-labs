@@ -6,9 +6,9 @@ import re
 import time
 import logging
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Callable, Optional
+from typing import List, Dict, Callable
 from datetime import datetime, timedelta
-from eugene.config import Config, get_config
+from eugene.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def get_recent_filings(minutes: int = 60) -> List[Dict]:
         rss_url = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=&company=&dateb=&owner=include&start=0&count=40&output=atom"
 
         headers = {
-            'User-Agent': getattr(config, 'user_agent', 'Eugene Intelligence Financial Bot'),
+            'User-Agent': config.sec.user_agent,
             'Accept': 'application/atom+xml,application/xml,text/xml'
         }
 
@@ -60,6 +60,7 @@ def get_recent_filings(minutes: int = 60) -> List[Dict]:
     except Exception as e:
         logger.error(f"Failed to get recent filings: {e}")
         return []
+
 
 def start_monitor(callback: Callable[[Dict], None], poll_interval: int = 30):
     """
@@ -154,7 +155,7 @@ def _parse_filing_title(title: str) -> tuple:
             return parts[0].strip(), parts[1].strip()
         else:
             return 'Unknown', title
-    except:
+    except Exception:
         return 'Unknown', title
 
 def _parse_company_info(company_info: str) -> tuple:
@@ -170,7 +171,7 @@ def _parse_company_info(company_info: str) -> tuple:
             company_name = company_info
 
         return company_name, cik
-    except:
+    except Exception:
         return company_info, ''
 
 def _extract_accession_from_url(url: str) -> str:
@@ -182,7 +183,7 @@ def _extract_accession_from_url(url: str) -> str:
         for part in parts:
             if '-' in part and len(part) >= 18:
                 return part.split('-index')[0]
-    except:
+    except Exception:
         pass
     return ''
 

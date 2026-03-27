@@ -1,5 +1,4 @@
 """Tests for peer comparison handler."""
-import pytest
 from eugene.handlers.peers import _compare, _median, _get_ratio
 
 

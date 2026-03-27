@@ -1,6 +1,9 @@
 """
-Eugene Intelligence v0.6 — Unified SEC Data Server
+Eugene Intelligence v0.8 — Unified SEC Data Server
 FastAPI REST + MCP (stdio, SSE, streamable HTTP) in one file.
+
+All sync data-source calls are wrapped in ``asyncio.to_thread()`` so
+the async event loop is never blocked by network I/O.
 
 Usage:
   python eugene_server.py           -> API + MCP on port 8000
@@ -21,6 +24,7 @@ from eugene.sources.fmp import (
     get_historical_bars, get_screener, get_crypto_quote,
 )
 from eugene.auth import require_api_key
+from eugene.cache import get_disk_cache
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +54,7 @@ def _build_mcp(include_rest: bool = False):
         """All SEC EDGAR data in one tool.
 
         identifier: ticker (AAPL), CIK (320193), or accession number
-        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers (comma-separated)
+        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers
         period: FY|Q (for financials)
         concept: canonical concept (revenue,net_income,...) or raw XBRL tag
         form: 10-K|10-Q|8-K|4|13F-HR (filter)
@@ -134,6 +138,36 @@ def _build_mcp(include_rest: bool = False):
             except (ValueError, TypeError):
                 return JSONResponse({"error": f"Invalid number for '{name}': {value}"}, status_code=400)
 
+        @mcp.custom_route("/", methods=["GET"])
+        async def root(request: Request) -> Response:
+            # Serve the dashboard
+            import pathlib
+            html_path = pathlib.Path(__file__).parent / "static" / "index.html"
+            if html_path.exists():
+                return Response(content=html_path.read_text(), media_type="text/html")
+            return JSONResponse({
+                "service": "Eugene Intelligence",
+                "version": VERSION,
+                "status": "ok",
+                "docs": {
+                    "health": "/health",
+                    "capabilities": "/v1/capabilities",
+                    "concepts": "/v1/concepts",
+                },
+                "endpoints": {
+                    "sec_data": "/v1/sec/{identifier}?extract=financials",
+                    "economics": "/v1/economics/{category}",
+                    "screener": "/v1/screener?sector=Technology",
+                    "crypto": "/v1/crypto/{symbol}",
+                    "export": "/v1/sec/{identifier}/export?format=csv",
+                    "stream": "/v1/stream/filings",
+                },
+                "mcp": {
+                    "streamable_http": "/mcp",
+                    "sse": "/sse",
+                },
+            })
+
         @mcp.custom_route("/v1/info", methods=["GET"])
         async def api_info(request: Request) -> JSONResponse:
             return JSONResponse({
@@ -152,12 +186,6 @@ def _build_mcp(include_rest: bool = False):
                     "crypto": "/v1/crypto/{symbol}",
                     "export": "/v1/sec/{identifier}/export?format=csv",
                     "stream": "/v1/stream/filings",
-                    "prices": "/v1/sec/{ticker}/prices",
-                    "profile": "/v1/sec/{ticker}/profile",
-                    "ohlcv": "/v1/sec/{ticker}/ohlcv",
-                    "earnings": "/v1/sec/{ticker}/earnings",
-                    "estimates": "/v1/sec/{ticker}/estimates",
-                    "news": "/v1/sec/{ticker}/news",
                 },
                 "mcp": {
                     "streamable_http": "/mcp",
@@ -168,6 +196,36 @@ def _build_mcp(include_rest: bool = False):
         @mcp.custom_route("/health", methods=["GET"])
         async def health(request: Request) -> JSONResponse:
             return JSONResponse({"status": "ok", "version": VERSION})
+
+        @mcp.custom_route("/v1/docs", methods=["GET"])
+        async def openapi_docs(request: Request) -> Response:
+            """Serve Swagger UI for interactive API exploration."""
+            html = """<!DOCTYPE html>
+<html><head><title>Eugene Intelligence API Docs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+</head><body>
+<div id="swagger-ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>SwaggerUIBundle({url:'/v1/openapi.json',dom_id:'#swagger-ui',deepLinking:true})</script>
+</body></html>"""
+            return Response(content=html, media_type="text/html")
+
+        @mcp.custom_route("/v1/openapi.json", methods=["GET"])
+        async def openapi_json(request: Request) -> JSONResponse:
+            from eugene.openapi import openapi_spec
+            return JSONResponse(openapi_spec())
+
+        @mcp.custom_route("/v1/usage", methods=["GET"])
+        @require_api_key
+        async def usage_endpoint(request: Request) -> JSONResponse:
+            """Per-key usage stats."""
+            from eugene.usage import usage_tracker
+            key = request.headers.get("x-api-key") or request.query_params.get("api_key")
+            if key:
+                stats = usage_tracker.get_stats(key)
+            else:
+                stats = {"message": "No key provided (open mode)"}
+            return JSONResponse(stats)
 
         @mcp.custom_route("/v1/capabilities", methods=["GET"])
         @require_api_key
@@ -207,7 +265,9 @@ def _build_mcp(include_rest: bool = False):
                 "to": request.query_params.get("to"),
                 "limit": limit,
             }
-            return JSONResponse(query(identifier, extract, **{k: v for k, v in params.items() if v is not None}))
+            clean = {k: v for k, v in params.items() if v is not None}
+            result = await asyncio.to_thread(query, identifier, extract, **clean)
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/economics/{category}", methods=["GET"])
         @require_api_key
@@ -215,10 +275,13 @@ def _build_mcp(include_rest: bool = False):
             category = request.path_params["category"]
             series_param = request.query_params.get("series")
             if series_param:
-                return JSONResponse(get_series(series_param))
+                result = await asyncio.to_thread(get_series, series_param)
+                return JSONResponse(result)
             if category == "all":
-                return JSONResponse(get_all())
-            return JSONResponse(get_category(category))
+                result = await asyncio.to_thread(get_all)
+                return JSONResponse(result)
+            result = await asyncio.to_thread(get_category, category)
+            return JSONResponse(result)
 
         # --- v0.6 convenience routes ---
 
@@ -244,9 +307,11 @@ def _build_mcp(include_rest: bool = False):
             limit = _safe_int(p.get("limit", "50"), 50, "limit")
             if isinstance(limit, JSONResponse):
                 return limit
-            return JSONResponse(get_screener(
+            result = await asyncio.to_thread(
+                get_screener,
                 **parsed, sector=p.get("sector"), country=p.get("country"), limit=limit,
-            ))
+            )
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/crypto/{symbol}", methods=["GET"])
         @require_api_key
@@ -254,18 +319,22 @@ def _build_mcp(include_rest: bool = False):
             symbol = request.path_params["symbol"]
             interval = request.query_params.get("interval", "quote")
             if interval == "quote":
-                return JSONResponse(get_crypto_quote(symbol))
-            return JSONResponse(get_historical_bars(symbol, interval=interval))
+                result = await asyncio.to_thread(get_crypto_quote, symbol)
+                return JSONResponse(result)
+            result = await asyncio.to_thread(get_historical_bars, symbol, interval=interval)
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/prices", methods=["GET"])
         @require_api_key
         async def prices_compat(request: Request) -> JSONResponse:
-            return JSONResponse(get_price(request.path_params["ticker"]))
+            result = await asyncio.to_thread(get_price, request.path_params["ticker"])
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/profile", methods=["GET"])
         @require_api_key
         async def profile_compat(request: Request) -> JSONResponse:
-            return JSONResponse(get_profile(request.path_params["ticker"]))
+            result = await asyncio.to_thread(get_profile, request.path_params["ticker"])
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/ohlcv", methods=["GET"])
         @require_api_key
@@ -274,22 +343,26 @@ def _build_mcp(include_rest: bool = False):
             interval = request.query_params.get("interval", "daily")
             from_date = request.query_params.get("from")
             to_date = request.query_params.get("to")
-            return JSONResponse(get_historical_bars(ticker, interval, from_date, to_date))
+            result = await asyncio.to_thread(get_historical_bars, ticker, interval, from_date, to_date)
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/earnings", methods=["GET"])
         @require_api_key
         async def earnings_compat(request: Request) -> JSONResponse:
-            return JSONResponse(get_earnings(request.path_params["ticker"]))
+            result = await asyncio.to_thread(get_earnings, request.path_params["ticker"])
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/estimates", methods=["GET"])
         @require_api_key
         async def estimates_compat(request: Request) -> JSONResponse:
-            return JSONResponse(get_estimates(request.path_params["ticker"]))
+            result = await asyncio.to_thread(get_estimates, request.path_params["ticker"])
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/news", methods=["GET"])
         @require_api_key
         async def news_compat(request: Request) -> JSONResponse:
-            return JSONResponse(get_news(request.path_params["ticker"]))
+            result = await asyncio.to_thread(get_news, request.path_params["ticker"])
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])
         @require_api_key
@@ -306,13 +379,14 @@ def _build_mcp(include_rest: bool = False):
             }
             if fmt == "csv":
                 from eugene.handlers.export import export_financials_csv
-                csv_data = export_financials_csv(identifier, extract, **params)
+                csv_data = await asyncio.to_thread(export_financials_csv, identifier, extract, **params)
                 return Response(
                     content=csv_data, media_type="text/csv",
                     headers={"Content-Disposition": f"attachment; filename={identifier}_{extract}.csv"},
                 )
             else:
-                return JSONResponse(query(identifier, extract, **params))
+                result = await asyncio.to_thread(query, identifier, extract, **params)
+                return JSONResponse(result)
 
         @mcp.custom_route("/v1/stream/filings", methods=["GET"])
         @require_api_key
@@ -326,7 +400,7 @@ def _build_mcp(include_rest: bool = False):
                 seen = set()
                 while True:
                     try:
-                        filings = get_recent_filings(minutes=2)
+                        filings = await asyncio.to_thread(get_recent_filings, minutes=2)
                         for filing in filings:
                             fid = filing.get("accession_number", filing.get("url", ""))
                             if fid in seen:
@@ -374,6 +448,34 @@ def run_api():
     mcp = _build_mcp(include_rest=True)
     mcp.settings.port = port
     mcp.settings.host = "0.0.0.0"
+
+    # CORS — allow browser clients from any origin
+    from starlette.middleware.cors import CORSMiddleware
+    mcp._mcp_server  # ensure internal app exists
+    if hasattr(mcp, '_app') and mcp._app is not None:
+        mcp._app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining",
+                           "X-RateLimit-Reset", "X-Request-Count"],
+        )
+
+    # Warm up disk cache (evict expired entries on startup)
+    dc = get_disk_cache()
+    expired = dc.evict_expired()
+    if expired:
+        logging.info(f"Disk cache: evicted {expired} expired entries")
+    logging.info(f"Disk cache: {dc.size()} entries in {dc.cache_dir}")
+
+    # Pre-load SEC ticker map so first request doesn't wait
+    try:
+        from eugene.sources.sec_api import fetch_tickers
+        tickers = fetch_tickers()
+        logging.info(f"Ticker map: {len(tickers)} companies loaded")
+    except Exception as e:
+        logging.warning(f"Ticker map warmup failed (will retry on first request): {e}")
 
     logging.info(f"Starting Eugene v{VERSION} on port {port}")
     logging.info(f"REST API: http://0.0.0.0:{port}/health")

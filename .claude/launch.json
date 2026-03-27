@@ -9,8 +9,8 @@
     },
     {
       "name": "eugene-main",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["eugene_server.py"],
+      "runtimeExecutable": "/Users/nzubechukwuanyiam/Desktop/eugene/venv/bin/python3",
+      "runtimeArgs": ["/Users/nzubechukwuanyiam/Desktop/eugene/eugene_server.py"],
       "port": 8000
     }
   ]
