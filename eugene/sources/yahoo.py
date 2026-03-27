@@ -5,7 +5,6 @@ Stock prices, earnings data, dividends, and company info.
 
 import yfinance as yf
 from datetime import datetime, timedelta
-from typing import Optional
 
 
 def get_stock_prices(

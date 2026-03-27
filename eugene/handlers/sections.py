@@ -1,4 +1,5 @@
 """Extract narrative sections (MD&A, risk factors, etc.) from filing HTML."""
+import html
 import re
 from eugene.sources.sec_api import fetch_submissions, fetch_filing_html
 
@@ -53,12 +54,13 @@ def sections_handler(resolved: dict, params: dict) -> dict:
 
     # Fetch HTML
     try:
-        html = fetch_filing_html(cik, filing["accession"], filing["primary_doc"])
+        filing_html = fetch_filing_html(cik, filing["accession"], filing["primary_doc"])
     except Exception as e:
         return {"error": f"Failed to fetch filing: {str(e)}", "sections": {}}
 
-    # Strip HTML tags
-    text = re.sub(r"<[^>]+>", " ", html)
+    # Strip HTML tags and decode entities
+    text = re.sub(r"<[^>]+>", " ", filing_html)
+    text = html.unescape(text)
     text = re.sub(r"\s+", " ", text)
 
     # Extract each section
@@ -85,27 +87,68 @@ def sections_handler(resolved: dict, params: dict) -> dict:
 
 
 def _extract_section(text: str, section: str) -> str:
-    """Find section boundaries using regex."""
+    """Find section boundaries using regex.
+
+    SEC filings have a TOC followed by actual content. We find all matches of the
+    section heading and pick the one followed by the most content (the real section,
+    not the TOC entry).
+    """
     patterns = SECTION_PATTERNS.get(section, [])
     if not patterns:
         return None
 
-    start_idx = None
+    # Find ALL matches of the heading
+    candidates = []
     for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            start_idx = match.start()
-            break
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            candidates.append(match.start())
 
-    if start_idx is None:
+    if not candidates:
         return None
 
-    # Find next "Item N" to bound the section
-    remaining = text[start_idx + 50:]
-    next_item = re.search(r"item\s+\d", remaining, re.IGNORECASE)
-    if next_item:
-        end_idx = start_idx + 50 + next_item.start()
-    else:
-        end_idx = min(start_idx + 50000, len(text))
+    # For each candidate, measure content length to next major section heading
+    # Pick the one with the most content (the real section, not TOC)
+    best_start = None
+    best_length = 0
 
-    return text[start_idx:end_idx].strip()
+    end_pattern = _next_section_pattern(section)
+
+    for start_idx in candidates:
+        remaining = text[start_idx + 50:]
+        # Find standalone section heading (not inline references like "in Part II, Item 8")
+        # Standalone headings are preceded by whitespace/newline, not by a comma or preposition
+        end_offset = None
+        for m in re.finditer(end_pattern, remaining, re.IGNORECASE):
+            # Check what precedes the match — skip if it's an inline reference
+            before = remaining[max(0, m.start() - 15):m.start()]
+            if re.search(r"(Part\s+II,?\s*|in\s+|see\s+|under\s+)", before, re.IGNORECASE):
+                continue
+            end_offset = m.start()
+            break
+
+        section_len = end_offset if end_offset else min(50000, len(remaining))
+        if section_len > best_length:
+            best_length = section_len
+            best_start = start_idx
+
+    if best_start is None:
+        return None
+
+    end_idx = best_start + 50 + best_length
+    extracted = text[best_start:end_idx].strip()
+
+    if len(extracted) < 200:
+        return None
+
+    return extracted[:50000]
+
+
+def _next_section_pattern(section: str) -> str:
+    """Return regex for the next major section heading after the given section."""
+    patterns = {
+        "business": r"item\s*1a\b",
+        "risk_factors": r"item\s*(?:1b|2)\b",
+        "mdna": r"item\s*(?:7a|8)\b",
+        "legal": r"item\s*4\b",
+    }
+    return patterns.get(section, r"item\s+\d")

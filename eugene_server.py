@@ -168,7 +168,7 @@ def _build_mcp(include_rest: bool = False):
                 },
             })
 
-        @mcp.custom_route("/api", methods=["GET"])
+        @mcp.custom_route("/v1/info", methods=["GET"])
         async def api_info(request: Request) -> JSONResponse:
             return JSONResponse({
                 "service": "Eugene Intelligence",
@@ -482,7 +482,54 @@ def run_api():
     logging.info(f"MCP (streamable HTTP): http://0.0.0.0:{port}/mcp")
     logging.info(f"MCP (SSE): http://0.0.0.0:{port}/sse")
 
-    mcp.run(transport="streamable-http")
+    # Get the underlying ASGI app from FastMCP and wrap it with
+    # CORS middleware and SPA static file serving for the frontend.
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.staticfiles import StaticFiles
+    from starlette.responses import FileResponse
+    from pathlib import Path
+    import uvicorn
+
+    # Build the MCP ASGI app via streamable_http_app()
+    mcp_app = mcp.streamable_http_app()
+
+    # Wrap with CORS
+    mcp_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Mount frontend static files if the dist directory exists.
+    # SPAStaticFiles serves static assets and falls back to index.html
+    # for client-side routing (React Router).
+    frontend_dist = Path(__file__).parent / "frontend" / "dist"
+    if frontend_dist.is_dir():
+        logging.info(f"Serving frontend from {frontend_dist}")
+
+        class SPAStaticFiles(StaticFiles):
+            async def get_response(self, path, scope):
+                try:
+                    response = await super().get_response(path, scope)
+                    if response.status_code == 404:
+                        return FileResponse(
+                            str(Path(self.directory) / "index.html"),
+                            media_type="text/html",
+                        )
+                    return response
+                except Exception:
+                    return FileResponse(
+                        str(Path(self.directory) / "index.html"),
+                        media_type="text/html",
+                    )
+
+        mcp_app.mount("/", SPAStaticFiles(directory=str(frontend_dist), html=True), name="spa")
+    else:
+        logging.info("No frontend/dist found -- serving API only")
+
+    uvicorn.run(mcp_app, host="0.0.0.0", port=port)
 
 
 # ---------------------------------------------------------------------------

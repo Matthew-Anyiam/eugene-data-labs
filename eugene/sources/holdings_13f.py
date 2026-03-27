@@ -5,8 +5,7 @@ Parse SEC 13F-HR filings to track institutional ownership.
 
 import requests
 import xml.etree.ElementTree as ET
-from datetime import datetime
-from typing import Optional, List
+from typing import List
 
 HEADERS = {"User-Agent": "Eugene Intelligence matthew@eugeneintelligence.com"}
 
@@ -84,7 +83,7 @@ def get_13f_filing(cik: str, accession: str = None) -> dict:
         xml_resp = requests.get(xml_url, headers=HEADERS, timeout=15)
         
         if xml_resp.status_code != 200:
-            return {"cik": cik, "error": f"Could not fetch infotable", "source": "SEC 13F-HR"}
+            return {"cik": cik, "error": "Could not fetch infotable", "source": "SEC 13F-HR"}
         
         holdings = _parse_infotable(xml_resp.text)
         
@@ -142,12 +141,12 @@ def _parse_infotable(xml_content: str) -> List[dict]:
                 elif tag_lower == "value":
                     try:
                         holding["value"] = int(text.replace(",", ""))  # 13F reports in thousands
-                    except:
+                    except Exception:
                         pass
                 elif tag_lower == "sshprnamt":
                     try:
                         holding["shares"] = int(text.replace(",", ""))
-                    except:
+                    except Exception:
                         pass
                 elif tag_lower == "sshprnamttype":
                     holding["share_type"] = text
@@ -162,9 +161,9 @@ def _parse_infotable(xml_content: str) -> List[dict]:
         # Sort by value descending
         holdings.sort(key=lambda x: x.get("value", 0), reverse=True)
         
-    except:
+    except Exception:
         pass
-    
+
     return holdings
 
 

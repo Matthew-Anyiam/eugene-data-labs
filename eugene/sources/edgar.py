@@ -21,7 +21,6 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
-from urllib.parse import urljoin
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -347,7 +346,7 @@ class EDGARClient:
         url = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}&type=&dateb=&owner=include&count=1&output=json"
         
         try:
-            content = self._request(url, use_cache=False)
+            self._request(url, use_cache=False)
             # Parse response and extract CIK
             # This is a fallback, implementation depends on response format
             raise FilingNotFoundError(f"Could not find CIK for ticker: {ticker}")

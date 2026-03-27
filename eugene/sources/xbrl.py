@@ -5,10 +5,10 @@ No LLM needed. Deterministic. Every company uses the same tags.
 """
 import json
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
-from eugene.config import Config, get_config
+from eugene.config import get_config
 
 logger = logging.getLogger(__name__)
 
