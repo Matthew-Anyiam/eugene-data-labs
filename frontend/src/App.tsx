@@ -5,6 +5,7 @@ import { LandingPage } from './pages/LandingPage';
 import { CompanyPage } from './pages/CompanyPage';
 import { ScreenerPage } from './pages/ScreenerPage';
 import { EconomicsPage } from './pages/EconomicsPage';
+import { DocsPage } from './pages/DocsPage';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
             <Route path="/company/:ticker" element={<CompanyPage />} />
             <Route path="/screener" element={<ScreenerPage />} />
             <Route path="/economics" element={<EconomicsPage />} />
+            <Route path="/docs" element={<DocsPage />} />
             <Route path="*" element={
               <div className="flex h-96 items-center justify-center">
                 <p className="text-lg text-slate-500">Page not found</p>

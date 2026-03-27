@@ -5,7 +5,7 @@ Eugene Intelligence — SEC EDGAR Insider Transactions (Forms 3, 4, 5)
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional
 
 HEADERS = {"User-Agent": "Eugene Intelligence matthew@eugeneintelligence.com", "Accept": "application/json"}
 
@@ -19,7 +19,7 @@ def _get_cik_for_ticker(ticker: str) -> Optional[str]:
             if entry.get("ticker", "").upper() == ticker_upper:
                 return str(entry["cik_str"]).zfill(10)
         return None
-    except:
+    except Exception:
         return None
 
 
@@ -33,11 +33,13 @@ def _parse_form4_xml(xml_content: str) -> dict:
         root = ET.fromstring(xml_content)
         
         def find_text(element, path, default=""):
-            if element is None: return default
+            if element is None:
+                return default
             parts = path.split("/")
             el = element
             for part in parts:
-                if el is None: return default
+                if el is None:
+                    return default
                 found = None
                 for child in el:
                     tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
@@ -48,7 +50,8 @@ def _parse_form4_xml(xml_content: str) -> dict:
             return el.text.strip() if el is not None and el.text else default
         
         def find_elem(element, tag_name):
-            if element is None: return None
+            if element is None:
+                return None
             for child in element:
                 tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
                 if tag == tag_name:
@@ -78,7 +81,8 @@ def _parse_form4_xml(xml_content: str) -> dict:
         if nd_table is not None:
             for txn in nd_table:
                 txn_tag = txn.tag.split("}")[-1] if "}" in txn.tag else txn.tag
-                if "Transaction" not in txn_tag: continue
+                if "Transaction" not in txn_tag:
+                    continue
                 
                 coding = find_elem(txn, "transactionCoding")
                 amounts = find_elem(txn, "transactionAmounts")
@@ -94,12 +98,18 @@ def _parse_form4_xml(xml_content: str) -> dict:
                 price_elem = find_elem(amounts, "transactionPricePerShare") if amounts else None
                 post_elem = find_elem(post, "sharesOwnedFollowingTransaction") if post else None
                 
-                try: shares = float(find_text(shares_elem, "value", "0"))
-                except: shares = 0
-                try: price = float(find_text(price_elem, "value", "0"))
-                except: price = 0
-                try: post_shares = float(find_text(post_elem, "value", "0"))
-                except: post_shares = 0
+                try:
+                    shares = float(find_text(shares_elem, "value", "0"))
+                except Exception:
+                    shares = 0
+                try:
+                    price = float(find_text(price_elem, "value", "0"))
+                except Exception:
+                    price = 0
+                try:
+                    post_shares = float(find_text(post_elem, "value", "0"))
+                except Exception:
+                    post_shares = 0
                 
                 transactions.append({
                     "date": find_text(txn_date_elem, "value") if txn_date_elem else "",
@@ -129,7 +139,7 @@ def _find_xml_file(cik: str, accession: str) -> Optional[str]:
                 name = item.get("name", "")
                 if name.endswith(".xml") and name not in ("primary_doc.xml",):
                     return name
-    except:
+    except Exception:
         pass
     return "edgardoc.xml"  # fallback
 
@@ -183,7 +193,8 @@ def get_insider_transactions(ticker: str, days_back: int = 365, transaction_type
                             txn["owner_title"] = parsed.get("owner", {}).get("officer_title", "")
                             all_transactions.append(txn)
                         parsed_count += 1
-            except: continue
+            except Exception:
+                continue
         
         if transaction_type:
             if transaction_type.lower() == "buy":

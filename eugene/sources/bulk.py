@@ -5,14 +5,13 @@ Critical for building comprehensive financial datasets.
 """
 import json
 import logging
-import gzip
 import asyncio
 import aiohttp
-from typing import Dict, List, Optional, Iterator, Tuple
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, date, timedelta
 from pathlib import Path
-from eugene.config import Config, get_config
+from eugene.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -353,10 +352,10 @@ class BulkDownloader:
             job.status = 'running'
 
             if job.data_type == 'company_tickers':
-                result = await self.download_company_tickers_bulk(job.output_path)
+                await self.download_company_tickers_bulk(job.output_path)
             elif job.data_type == 'submissions':
                 start_date, end_date = job.date_range
-                result = await self.download_submissions_bulk(
+                await self.download_submissions_bulk(
                     start_date, end_date,
                     job.filters.get('filing_types') if job.filters else None,
                     job.output_path
@@ -364,7 +363,7 @@ class BulkDownloader:
             elif job.data_type == 'xbrl_datasets':
                 quarters = job.filters.get('quarters', []) if job.filters else []
                 results = await self.download_xbrl_datasets(quarters, job.output_path)
-                result = results[0] if results else None
+                results[0] if results else None
             else:
                 raise ValueError(f"Unknown data type: {job.data_type}")
 

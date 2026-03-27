@@ -3,14 +3,11 @@ Eugene Intelligence - 13F Holdings Parser
 Extracts institutional holdings from SEC 13F filings.
 Critical for understanding institutional ownership, concentration, and smart money flows.
 """
-import json
 import logging
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime
-from eugene.config import Config, get_config
-from eugene.models.sources import SourceCitation, CitedValue, SourcedResponse, SourceType
+from typing import Dict, List, Optional
+from dataclasses import dataclass
+from eugene.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +158,7 @@ class ThirteenFClient:
             company = self.edgar.search_companies(institution_name)
             if company:
                 return company[0].cik
-        except:
+        except Exception:
             pass
 
         return None

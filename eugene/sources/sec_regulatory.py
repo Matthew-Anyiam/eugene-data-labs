@@ -4,7 +4,6 @@ Speeches, press releases, rules, litigation, enforcement actions.
 """
 import requests
 import feedparser
-from typing import Optional
 from datetime import datetime, timedelta
 
 # Headers required by SEC

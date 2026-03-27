@@ -27,11 +27,16 @@ class SourceCitation:
 
     def to_dict(self) -> dict:
         d = {"source_type": self.source_type, "document": self.document_name, "confidence": round(self.confidence, 3)}
-        if self.filing_date: d["filing_date"] = self.filing_date
-        if self.accession_number: d["accession_number"] = self.accession_number
-        if self.section: d["section"] = self.section
-        if self.url: d["url"] = self.url
-        if self.extracted_text: d["source_text"] = self.extracted_text[:500]
+        if self.filing_date:
+            d["filing_date"] = self.filing_date
+        if self.accession_number:
+            d["accession_number"] = self.accession_number
+        if self.section:
+            d["section"] = self.section
+        if self.url:
+            d["url"] = self.url
+        if self.extracted_text:
+            d["source_text"] = self.extracted_text[:500]
         return d
 
 @dataclass
@@ -73,7 +78,8 @@ class SourcedResponse:
 
     @property
     def avg_confidence(self) -> float:
-        if not self.cited_values: return 0.0
+        if not self.cited_values:
+            return 0.0
         return sum(cv.confidence for cv in self.cited_values) / len(self.cited_values)
 
     def to_dict(self) -> dict:

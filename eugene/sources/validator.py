@@ -2,13 +2,12 @@
 Eugene Intelligence - XBRL Data Validator
 Comprehensive validation layer for financial metrics to prevent bad SEC data reaching agents.
 """
-import json
 import logging
 import statistics
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from eugene.config import Config, get_config
+from datetime import datetime
+from eugene.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +333,6 @@ class XBRLValidator:
 
     def _calculate_confidence(self, fact, validation_results: List[ValidationResult]) -> int:
         """Calculate confidence score 0-100 based on validation results and source quality."""
-        base_confidence = 100
 
         # Source quality component (40% of score)
         source_weight = self.source_weights.get(fact.form, 50)  # default 50 for unknown forms

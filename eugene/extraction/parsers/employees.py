@@ -15,10 +15,9 @@ import json
 import logging
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
-from datetime import datetime
 
 from eugene.extraction.llm import (
-    LLMClient, MockLLMClient, ExtractionRequest, ExtractionResponse
+    LLMClient, MockLLMClient, ExtractionRequest
 )
 from eugene.validation.engine import validate_employees, ValidationResult
 
@@ -547,7 +546,7 @@ if __name__ == "__main__":
         source_filing="0000012927-25-000001"
     )
     
-    print(f"2. Boeing extraction:")
+    print("2. Boeing extraction:")
     print(f"   Employees: {result.current_employees:,}")
     print(f"   Prior Year: {result.prior_year_employees:,}")
     print(f"   YoY Change: {result.year_over_year_change:,} ({result.yoy_change_pct:+.1f}%)")
@@ -558,13 +557,13 @@ if __name__ == "__main__":
     print(f"   Summary: {result.summary}")
     
     assert result.current_employees == 150000
-    assert result.has_layoffs == True
+    assert result.has_layoffs
     assert result.layoff_count == 17000
     assert result.severity == "medium"  # ~10%
     print("   ✓ Extraction correct\n")
     
     # Test validation
-    print(f"3. Validation:")
+    print("3. Validation:")
     print(f"   Valid: {result.validation.is_valid}")
     print(f"   Checks: {result.validation.checks_passed}/{result.validation.checks_total}")
     assert result.validation.is_valid
@@ -572,7 +571,7 @@ if __name__ == "__main__":
     
     # Test serialization
     output = result.to_dict()
-    print(f"4. JSON Output:")
+    print("4. JSON Output:")
     print(json.dumps(output, indent=2)[:500] + "...")
     assert "employees" in output
     assert "layoffs" in output

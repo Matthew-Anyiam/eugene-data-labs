@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 
 export function Hero() {
   return (
-    <section className="px-4 pb-20 pt-16 sm:px-6 sm:pt-24">
+    <section className="px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
       <div className="mx-auto max-w-2xl">
         <p className="text-sm font-medium uppercase tracking-widest text-slate-400 dark:text-slate-500">
-          SEC &middot; XBRL &middot; FRED &middot; FMP
+          SEC &middot; XBRL &middot; FRED
         </p>
 
         <h1 className="mt-4 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
@@ -23,11 +23,11 @@ export function Hero() {
           <SearchInput large />
         </div>
 
-        <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 dark:border-slate-800 dark:bg-slate-800 sm:grid-cols-3">
+        <div className="mt-12 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 dark:border-slate-800 dark:bg-slate-800">
           {[
             { label: 'Extract types', value: '17' },
-            { label: 'Data sources', value: '4' },
-            { label: 'XBRL concepts', value: '28' },
+            { label: 'XBRL concepts', value: '36' },
+            { label: 'FRED categories', value: '9' },
           ].map((stat) => (
             <div key={stat.label} className="bg-white px-5 py-4 dark:bg-slate-900">
               <p className="text-2xl font-semibold tabular-nums">{stat.value}</p>
@@ -95,18 +95,24 @@ export function CTASection() {
         <p className="mt-2 text-slate-600 dark:text-slate-400">
           Search a ticker above, or browse the tools:
         </p>
-        <div className="mt-5 flex gap-3">
+        <div className="mt-5 flex flex-wrap gap-3">
           <Link
             to="/screener"
-            className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+            className="rounded-md border border-slate-200 px-5 py-2.5 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             Screener
           </Link>
           <Link
             to="/economics"
-            className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+            className="rounded-md border border-slate-200 px-5 py-2.5 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             Economics
+          </Link>
+          <Link
+            to="/docs"
+            className="rounded-md border border-slate-200 px-5 py-2.5 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+          >
+            Documentation
           </Link>
         </div>
       </div>

@@ -4,7 +4,7 @@ Extracts structured data regardless of source format.
 """
 import json
 import re
-from typing import Union, Dict, List
+from typing import List
 import requests
 
 SEC_HEADERS = {"User-Agent": "Eugene Intelligence (matthew@eugeneintelligence.com)"}
