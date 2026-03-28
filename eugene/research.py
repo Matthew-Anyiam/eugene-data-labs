@@ -1,8 +1,9 @@
 """
 Eugene Intelligence - Equity Research Agent
 
-Generates AI-powered research briefs by synthesizing company data
-from SEC filings, financial metrics, and market data.
+Generates AI-powered deep research briefs by synthesizing company data
+from SEC filings, financial metrics, insider trades, institutional holdings,
+corporate events, and market data.
 
 Uses Claude Haiku with aggressive caching to minimize costs.
 Rate-limited: 3 briefs/day for free users, unlimited for Pro.
@@ -64,29 +65,33 @@ def get_remaining(client_ip: str) -> int:
 # ---------------------------------------------------------------------------
 # Prompts
 # ---------------------------------------------------------------------------
-RESEARCH_SYSTEM_PROMPT = """You are an equity research analyst at Eugene Intelligence. Generate a concise research brief for the given company based on the financial data provided.
+RESEARCH_SYSTEM_PROMPT = """You are a senior equity research analyst at Eugene Intelligence. Generate a comprehensive research brief for the given company based on ALL the data provided — financials, insider activity, institutional holdings, recent corporate events, and filing narratives.
 
 Rules:
 - Return ONLY valid JSON matching the schema below
-- Be factual and data-driven — cite specific numbers from the data
+- Be factual and data-driven — cite specific numbers, dates, and names from the data
+- Synthesize across data sources — connect insider trades to financial performance, link 8-K events to outlook
 - Never give buy/sell/hold recommendations
 - Never predict future stock prices
 - Use plain language accessible to non-experts
-- Keep each section to 2-3 sentences
+- Keep each section to 3-5 sentences for depth
 - If data is missing for a section, write "Insufficient data available."
 
 JSON Schema:
 {
-  "company_overview": "string — what the company does, sector, scale",
-  "financial_health": "string — profitability, margins, liquidity, debt levels",
-  "key_metrics": "string — notable ratios, how they compare to typical ranges",
-  "recent_developments": "string — insights from MD&A or recent filings",
-  "risk_factors": "string — key risks from filings or financial position",
-  "competitive_position": "string — market position, moat indicators",
-  "outlook_summary": "string — neutral forward-looking context from filings"
+  "company_overview": "string — what the company does, sector, scale, market position",
+  "financial_health": "string — profitability, margins, revenue trends, liquidity, debt levels",
+  "key_metrics": "string — notable ratios with context on what they indicate",
+  "insider_activity": "string — recent insider buying/selling patterns, who is trading, sentiment signal",
+  "institutional_holdings": "string — major institutional holders, concentration, changes",
+  "recent_events": "string — recent 8-K filings, corporate actions, material events",
+  "recent_developments": "string — insights from MD&A, management commentary, strategic direction",
+  "risk_factors": "string — key risks from filings, financial position, or market dynamics",
+  "competitive_position": "string — market position, moat indicators, peer comparison if available",
+  "outlook_summary": "string — neutral forward-looking context synthesizing all data sources"
 }"""
 
-RESEARCH_USER_PROMPT = """Generate an equity research brief for {ticker} ({company_name}) based on this data:
+RESEARCH_USER_PROMPT = """Generate a deep equity research brief for {ticker} ({company_name}) based on this comprehensive data package:
 
 <profile>
 {profile}
@@ -100,9 +105,27 @@ RESEARCH_USER_PROMPT = """Generate an equity research brief for {ticker} ({compa
 {financials}
 </recent_financials>
 
+<insider_trading>
+{insiders}
+</insider_trading>
+
+<institutional_holdings>
+{holdings}
+</institutional_holdings>
+
+<recent_8k_events>
+{events}
+</recent_8k_events>
+
+<recent_filings>
+{filings}
+</recent_filings>
+
 <mdna_section>
 {mdna}
 </mdna_section>
+
+Synthesize ALL data sources to produce a thorough research brief. Connect the dots — if insiders are buying while financials show growth, note it. If 8-K events signal major changes, analyze implications.
 
 Return JSON only."""
 
@@ -111,7 +134,7 @@ Return JSON only."""
 # Data gathering
 # ---------------------------------------------------------------------------
 def _gather_company_data(ticker: str) -> dict:
-    """Gather all available data for a company from existing sources."""
+    """Gather comprehensive data for a company from all available sources."""
     data = {}
 
     # Profile
@@ -148,12 +171,96 @@ def _gather_company_data(ticker: str) -> dict:
         logger.warning(f"Research: failed to get financials for {ticker}: {e}")
         data["financials"] = {}
 
+    # Insider trades (recent Form 4 filings)
+    try:
+        insiders_resp = query(ticker, "insiders", limit=10)
+        insiders_data = insiders_resp.get("data", {})
+        # Extract summary and recent trades
+        summary = insiders_data.get("summary", {})
+        sentiment = insiders_data.get("sentiment", {})
+        trades = []
+        for filing in insiders_data.get("insider_filings", [])[:5]:
+            owner = filing.get("owner", {})
+            for txn in filing.get("transactions", [])[:2]:
+                trades.append({
+                    "date": txn.get("date"),
+                    "name": owner.get("name"),
+                    "title": owner.get("title"),
+                    "type": txn.get("transaction_type"),
+                    "shares": txn.get("shares"),
+                    "price": txn.get("price_per_share"),
+                })
+        data["insiders"] = {
+            "summary": summary,
+            "sentiment": sentiment,
+            "recent_trades": trades,
+        }
+    except Exception as e:
+        logger.warning(f"Research: failed to get insiders for {ticker}: {e}")
+        data["insiders"] = {}
+
+    # Institutional holdings (13F)
+    try:
+        ownership_resp = query(ticker, "ownership", limit=3)
+        ownership_data = ownership_resp.get("data", {})
+        holdings = []
+        for filing in ownership_data.get("ownership_filings", [])[:1]:
+            for h in filing.get("holdings", [])[:10]:
+                holdings.append({
+                    "issuer": h.get("issuer"),
+                    "value_thousands": h.get("value_thousands"),
+                    "shares": h.get("shares"),
+                })
+            data["holdings"] = {
+                "filed_date": filing.get("filed_date"),
+                "total_value_thousands": filing.get("total_value_thousands"),
+                "position_count": filing.get("position_count"),
+                "top_holdings": holdings,
+            }
+        if not holdings:
+            data["holdings"] = {}
+    except Exception as e:
+        logger.warning(f"Research: failed to get ownership for {ticker}: {e}")
+        data["holdings"] = {}
+
+    # Recent 8-K events (corporate news from SEC)
+    try:
+        events_resp = query(ticker, "events", limit=10)
+        events_data = events_resp.get("data", {})
+        events = []
+        for ev in events_data.get("events", [])[:10]:
+            events.append({
+                "date": ev.get("filed_date"),
+                "form": ev.get("form"),
+                "description": ev.get("description"),
+            })
+        data["events"] = events
+    except Exception as e:
+        logger.warning(f"Research: failed to get events for {ticker}: {e}")
+        data["events"] = []
+
+    # Recent filings (all types)
+    try:
+        filings_resp = query(ticker, "filings", limit=10)
+        filings_data = filings_resp.get("data", {})
+        filings = []
+        for f in filings_data.get("filings", [])[:10]:
+            filings.append({
+                "date": f.get("filed_date"),
+                "form": f.get("form"),
+                "description": f.get("description"),
+            })
+        data["filings"] = filings
+    except Exception as e:
+        logger.warning(f"Research: failed to get filings for {ticker}: {e}")
+        data["filings"] = []
+
     # MD&A section (truncated to save tokens)
     try:
         sections_resp = query(ticker, "sections", section="mdna", limit=1)
         mdna = sections_resp.get("data", {}).get("sections", {}).get("mdna", {})
         text = mdna.get("text", "") if isinstance(mdna, dict) else ""
-        data["mdna"] = text[:2000]  # Trimmed from 4K to 2K for cost savings
+        data["mdna"] = text[:2000]
     except Exception as e:
         logger.warning(f"Research: failed to get MD&A for {ticker}: {e}")
         data["mdna"] = ""
@@ -161,8 +268,8 @@ def _gather_company_data(ticker: str) -> dict:
     return data
 
 
-def _truncate_for_prompt(obj: dict, max_chars: int = 2000) -> str:
-    """Serialize dict to JSON string, truncated to max_chars."""
+def _truncate_for_prompt(obj, max_chars: int = 2000) -> str:
+    """Serialize dict/list to JSON string, truncated to max_chars."""
     text = json.dumps(obj, indent=1, default=str)
     if len(text) > max_chars:
         return text[:max_chars] + "\n... (truncated)"
@@ -174,7 +281,7 @@ def _truncate_for_prompt(obj: dict, max_chars: int = 2000) -> str:
 # ---------------------------------------------------------------------------
 @cached(ttl=3600, disk=True, disk_ttl=86400)
 def generate_research(ticker: str) -> dict:
-    """Generate an AI equity research brief for a ticker.
+    """Generate a deep AI equity research brief for a ticker.
 
     Cached for 1 hour in memory, 24 hours on disk.
     """
@@ -188,17 +295,21 @@ def generate_research(ticker: str) -> dict:
             "source": "eugene-research-agent",
         }
 
-    # Gather data from existing sources
+    # Gather comprehensive data from all sources
     data = _gather_company_data(ticker)
     company_name = data["profile"].get("name") or data["profile"].get("company") or ticker
 
-    # Build prompt with trimmed inputs
+    # Build prompt with all data sources
     prompt = RESEARCH_USER_PROMPT.format(
         ticker=ticker,
         company_name=company_name,
         profile=_truncate_for_prompt(data["profile"], 1000),
         metrics=_truncate_for_prompt(data["metrics"], 1500),
         financials=_truncate_for_prompt(data["financials"], 1500),
+        insiders=_truncate_for_prompt(data["insiders"], 1500),
+        holdings=_truncate_for_prompt(data["holdings"], 1000),
+        events=_truncate_for_prompt(data["events"], 1000),
+        filings=_truncate_for_prompt(data["filings"], 800),
         mdna=data["mdna"][:2000] if data["mdna"] else "Not available.",
     )
 
@@ -209,7 +320,7 @@ def generate_research(ticker: str) -> dict:
 
         response = client.messages.create(
             model=config.api.anthropic_model,
-            max_tokens=1500,  # Reduced from 2048
+            max_tokens=2000,
             temperature=0.1,
             system=RESEARCH_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
@@ -245,7 +356,7 @@ def generate_research(ticker: str) -> dict:
             "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
             "model": config.api.anthropic_model,
             "source": "eugene-research-agent",
-            "disclaimer": "This is AI-generated analysis for informational purposes only. Not investment advice.",
+            "disclaimer": "This is AI-generated analysis for informational purposes only. Not investment advice. Based on SEC filings and public data.",
         }
 
     except ImportError:

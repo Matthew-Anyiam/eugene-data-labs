@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import type { ResearchResponse } from '../../hooks/useResearch';
-import { AlertTriangle, Brain, TrendingUp, Shield, Target, BarChart3, FileText, Sparkles, Lock } from 'lucide-react';
+import { AlertTriangle, Brain, TrendingUp, Shield, Target, BarChart3, FileText, Sparkles, Lock, Users, Building2, Newspaper } from 'lucide-react';
 
 interface ResearchBriefProps {
   data: ResearchResponse | undefined;
@@ -14,6 +14,9 @@ const SECTIONS = [
   { key: 'company_overview', label: 'Company Overview', icon: FileText },
   { key: 'financial_health', label: 'Financial Health', icon: TrendingUp },
   { key: 'key_metrics', label: 'Key Metrics', icon: BarChart3 },
+  { key: 'insider_activity', label: 'Insider Activity', icon: Users },
+  { key: 'institutional_holdings', label: 'Institutional Holdings', icon: Building2 },
+  { key: 'recent_events', label: 'Recent Events', icon: Newspaper },
   { key: 'recent_developments', label: 'Recent Developments', icon: Sparkles },
   { key: 'risk_factors', label: 'Risk Factors', icon: AlertTriangle },
   { key: 'competitive_position', label: 'Competitive Position', icon: Target },
@@ -27,16 +30,17 @@ export function ResearchBrief({ data, isLoading, error, onGenerate, hasRequested
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 py-16 dark:border-slate-800">
         <Brain className="mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
-        <h3 className="mb-2 text-lg font-semibold">AI Equity Research</h3>
+        <h3 className="mb-2 text-lg font-semibold">AI Deep Research</h3>
         <p className="mb-6 max-w-md text-center text-sm text-slate-500 dark:text-slate-400">
-          Generate an AI-powered research brief using SEC filings, financial metrics, and company data.
+          Generate a comprehensive research brief using SEC filings, insider trades,
+          institutional holdings, 8-K events, financial metrics, and management commentary.
           Analysis is cached for 24 hours.
         </p>
         <button
           onClick={onGenerate}
           className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
-          Generate Research Brief
+          Generate Deep Research Brief
         </button>
         <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
           Powered by Claude &middot; 3 free briefs/day &middot; Not investment advice
@@ -49,8 +53,8 @@ export function ResearchBrief({ data, isLoading, error, onGenerate, hasRequested
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 py-16 dark:border-slate-800">
         <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-        <p className="text-sm font-medium">Analyzing company data...</p>
-        <p className="mt-1 text-xs text-slate-400">This may take 10-20 seconds</p>
+        <p className="text-sm font-medium">Running deep research analysis...</p>
+        <p className="mt-1 text-xs text-slate-400">Gathering SEC filings, insider trades, holdings, and events — 15-30 seconds</p>
       </div>
     );
   }
@@ -130,10 +134,10 @@ export function ResearchBrief({ data, isLoading, error, onGenerate, hasRequested
         })}
       </div>
 
-      {/* Footer with remaining count */}
+      {/* Footer with remaining count and data sources */}
       <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
         <span>
-          Powered by Claude &middot; Eugene Research Agent
+          Powered by Claude &middot; Sources: SEC EDGAR, Form 4, 13F, 8-K
         </span>
         <span>
           {data.remaining !== undefined
