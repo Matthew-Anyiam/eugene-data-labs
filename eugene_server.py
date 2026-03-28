@@ -25,6 +25,7 @@ from eugene.sources.fmp import (
 )
 from eugene.auth import require_api_key
 from eugene.cache import get_disk_cache
+from eugene.research import generate_research, check_rate_limit, record_usage, get_remaining
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +367,22 @@ def _build_mcp(include_rest: bool = False):
         @require_api_key
         async def news_compat(request: Request) -> JSONResponse:
             result = await asyncio.to_thread(get_news, request.path_params["ticker"])
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/sec/{ticker}/research", methods=["GET"])
+        @require_api_key
+        async def research_endpoint(request: Request) -> JSONResponse:
+            client_ip = request.client.host if request.client else "unknown"
+            # Check rate limit
+            limited = check_rate_limit(client_ip)
+            if limited:
+                limited["ticker"] = request.path_params["ticker"]
+                return JSONResponse(limited, status_code=429)
+            result = await asyncio.to_thread(generate_research, request.path_params["ticker"])
+            # Only count if successful (cached hits are free)
+            if result.get("research"):
+                record_usage(client_ip)
+            result["remaining"] = get_remaining(client_ip)
             return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])

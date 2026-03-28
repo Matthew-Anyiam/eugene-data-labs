@@ -18,7 +18,7 @@ class APIConfig:
     fred_api_key: Optional[str] = None
     fmp_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
-    anthropic_model: str = "claude-sonnet-4-20250514"
+    anthropic_model: str = "claude-haiku-4-5-20251001"
 
     def __post_init__(self):
         if self.fred_api_key is None:
