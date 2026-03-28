@@ -1,11 +1,23 @@
-import { Hero, FeatureGrid, CTASection } from '../components/landing/Hero';
+import {
+  Hero,
+  DataSources,
+  StatsBar,
+  CodeShowcase,
+  FeatureShowcase,
+  UseCases,
+  BottomCTA,
+} from '../components/landing/Hero';
 
 export function LandingPage() {
   return (
     <div>
       <Hero />
-      <FeatureGrid />
-      <CTASection />
+      <DataSources />
+      <StatsBar />
+      <CodeShowcase />
+      <FeatureShowcase />
+      <UseCases />
+      <BottomCTA />
     </div>
   );
 }
