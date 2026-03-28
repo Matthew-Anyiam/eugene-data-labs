@@ -18,7 +18,7 @@ class TestAPIConfig:
         assert cfg.fred_api_key is None
         assert cfg.fmp_api_key is None
         assert cfg.anthropic_api_key is None
-        assert cfg.anthropic_model == "claude-sonnet-4-20250514"
+        assert cfg.anthropic_model == "claude-haiku-4-5-20251001"
 
     def test_env_loading(self):
         env = {"FRED_API_KEY": "fred123", "FMP_API_KEY": "fmp456", "ANTHROPIC_API_KEY": "ant789"}

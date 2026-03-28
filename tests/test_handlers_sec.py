@@ -340,7 +340,14 @@ class TestSectionsHandler:
         mock_html.return_value = """
         <html><body>
         <h2>Item 7. Management's Discussion and Analysis</h2>
-        <p>We had a great year with record revenue growth across all segments.</p>
+        <p>We had a great year with record revenue growth across all segments.
+        Our total revenue increased 15 percent year-over-year to $394.3 billion,
+        driven by strong performance in our Services segment which grew 24 percent
+        to reach $85.2 billion. Gross margin expanded 120 basis points to 46.2 percent
+        as we benefited from favorable product mix and cost efficiencies in our supply
+        chain. Operating expenses were well-controlled, growing only 8 percent while
+        we continued to invest heavily in research and development initiatives across
+        artificial intelligence and machine learning capabilities.</p>
         <h2>Item 8. Financial Statements</h2>
         </body></html>
         """
