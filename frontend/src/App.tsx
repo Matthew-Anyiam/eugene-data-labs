@@ -10,6 +10,7 @@ import { EconomicsPage } from './pages/EconomicsPage';
 import { DocsPage } from './pages/DocsPage';
 import { PricingPage } from './pages/PricingPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { FeedbackWidget } from './components/ui/FeedbackWidget';
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Eugene Intelligence',
@@ -55,6 +56,7 @@ export default function App() {
           </Routes>
         </main>
         <Footer />
+        <FeedbackWidget />
       </div>
     </BrowserRouter>
   );
