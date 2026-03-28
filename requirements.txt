@@ -7,3 +7,4 @@ click>=8.0.0,<9
 python-dotenv>=1.0.0,<2
 httpx>=0.24,<1
 rich>=13.0,<15
+anthropic>=0.30.0,<1
