@@ -256,10 +256,13 @@ def generate_research(ticker: str) -> dict:
             "source": "eugene-research-agent",
         }
     except Exception as e:
-        logger.error(f"Research generation failed for {ticker}: {e}")
+        logger.error(f"Research generation failed for {ticker}: {type(e).__name__}: {e}")
+        error_msg = str(e)
+        if "connection" in error_msg.lower() or "connect" in error_msg.lower():
+            error_msg = f"Cannot reach AI service: {error_msg}. Check ANTHROPIC_API_KEY is valid."
         return {
             "ticker": ticker,
             "research": None,
-            "error": str(e),
+            "error": error_msg,
             "source": "eugene-research-agent",
         }
