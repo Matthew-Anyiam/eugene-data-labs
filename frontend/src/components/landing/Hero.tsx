@@ -131,7 +131,7 @@ export function DataSources() {
     <section className="border-y border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/30">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <p className="text-center text-xs font-medium uppercase tracking-widest text-slate-400 dark:text-slate-500">
-          Built on authoritative data sources
+          Data sources
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
           {sources.map((s) => (
