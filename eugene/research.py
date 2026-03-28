@@ -12,8 +12,6 @@ import json
 import logging
 import time
 from collections import defaultdict
-from typing import Optional
-
 from eugene.cache import cached
 from eugene.config import get_config
 from eugene.router import query
