@@ -6,7 +6,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export function ScreenerPage() {
   const [filters, setFilters] = useState<Filters>({ limit: 50 });
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(true);
   const { data, isLoading, error } = useScreener(filters, submitted);
 
   const note = data?.note;

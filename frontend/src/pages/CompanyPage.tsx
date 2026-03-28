@@ -8,6 +8,7 @@ import { useMetrics } from '../hooks/useMetrics';
 import { useFilings } from '../hooks/useFilings';
 import { useInsiders } from '../hooks/useInsiders';
 import { useSections } from '../hooks/useSections';
+import { useNews } from '../hooks/useNews';
 import { CompanyHeader } from '../components/company/CompanyHeader';
 import { PriceChart } from '../components/charts/PriceChart';
 import { FinancialStatements } from '../components/company/FinancialStatements';
@@ -15,12 +16,13 @@ import { MetricsGrid } from '../components/company/MetricsGrid';
 import { FilingsTable } from '../components/company/FilingsTable';
 import { InsidersTable } from '../components/company/InsidersTable';
 import { SectionsView } from '../components/company/SectionsView';
+import { NewsSection } from '../components/company/NewsSection';
 import { Tabs } from '../components/ui/Tabs';
 import { ProvenanceBar } from '../components/ui/Provenance';
 import { SkeletonCompanyHeader, SkeletonStatsGrid, SkeletonChart, SkeletonTable } from '../components/ui/Skeleton';
 import { formatPrice } from '../lib/utils';
 
-const PAGE_TABS = ['Overview', 'Financials', 'Metrics', 'Filings', 'Insiders', 'Sections'];
+const PAGE_TABS = ['Overview', 'Financials', 'Metrics', 'Filings', 'Insiders', 'News', 'Sections'];
 
 export function CompanyPage() {
   const { ticker = '' } = useParams();
@@ -35,6 +37,7 @@ export function CompanyPage() {
   const filings = useFilings(ticker);
   const insiders = useInsiders(ticker);
   const sections = useSections(ticker, sectionType);
+  const news = useNews(ticker);
 
   const isLoading = profile.isLoading || prices.isLoading;
   const error = profile.error || prices.error;
@@ -157,6 +160,14 @@ export function CompanyPage() {
             </>
           )}
           {insiders.error && <p className="text-sm text-red-500">Failed to load insider data</p>}
+        </div>
+      )}
+
+      {tab === 'News' && (
+        <div>
+          {news.isLoading && <SkeletonTable rows={6} cols={1} />}
+          {news.data?.articles && <NewsSection articles={news.data.articles} />}
+          {news.error && <p className="text-sm text-red-500">Failed to load news</p>}
         </div>
       )}
 
