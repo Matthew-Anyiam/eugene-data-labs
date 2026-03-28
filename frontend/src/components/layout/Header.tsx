@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { to: '/screener', label: 'Screener' },
   { to: '/economics', label: 'Economics' },
   { to: '/docs', label: 'Docs' },
+  { to: '/pricing', label: 'Pricing' },
 ];
 
 export function Header() {
