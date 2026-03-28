@@ -61,33 +61,33 @@ function GettingStartedSection() {
       <div>
         <h3 className="text-lg font-semibold">2. Configure</h3>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          Eugene reads configuration from environment variables. The only requirement is a
-          SEC user agent string (SEC EDGAR policy). Optional keys unlock additional data sources.
+          Eugene reads configuration from environment variables. Most data works out of the box
+          with just a SEC user agent string (SEC EDGAR policy).
         </p>
         <div className="mt-3">
           <CodeBlock>{`# Required — SEC EDGAR needs a user-agent identifier
 export SEC_USER_AGENT="YourName your@email.com"
 
-# Optional — for market data (quotes, screener, technicals)
-export FMP_API_KEY="your-key"
-
-# Optional — for FRED economic data
+# Optional — for FRED economic data (inflation, GDP, employment)
 export FRED_API_KEY="your-key"`}</CodeBlock>
         </div>
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          SEC filings, financials, XBRL concepts, insiders, ownership, events, and filing
-          sections all work with just SEC_USER_AGENT. The optional keys add market data and economics.
+          SEC filings, financials, XBRL concepts, insiders, ownership, events, sections,
+          and filing text all work with just SEC_USER_AGENT. FRED key adds economic indicators.
+          Get a free FRED key at <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-300">fred.stlouisfed.org</a>.
         </p>
       </div>
 
       <div>
         <h3 className="text-lg font-semibold">3. Run</h3>
         <div className="mt-3">
-          <CodeBlock>{`# REST API server
-eugene start
+          <CodeBlock>{`# Start the REST API + MCP server
+eugene serve
 
-# MCP server (for Claude, Cursor, etc.)
-eugene serve`}</CodeBlock>
+# Or use the CLI directly
+eugene sec AAPL -e financials,metrics
+eugene screener --sector Technology --market-cap-min 1e9
+eugene economics inflation`}</CodeBlock>
         </div>
       </div>
 
@@ -98,16 +98,16 @@ eugene serve`}</CodeBlock>
         </p>
         <div className="mt-3">
           <CodeBlock>{`# Financials from SEC XBRL — no API key needed
-curl "http://localhost:8000/v1/sec/AAPL?extract=financials&period=FY&limit=3"
+curl "https://www.eugeneintelligence.com/v1/sec/AAPL?extract=financials&period=FY&limit=3"
 
 # Combine multiple extracts in one call
-curl "http://localhost:8000/v1/sec/AAPL?extract=profile,financials,insiders,metrics"
+curl "https://www.eugeneintelligence.com/v1/sec/AAPL?extract=profile,financials,insiders,metrics"
 
 # Screen for large-cap tech stocks
-curl "http://localhost:8000/v1/screener?sector=Technology&marketCapMin=100000000000"
+curl "https://www.eugeneintelligence.com/v1/screener?sector=Technology&marketCapMin=100000000000"
 
 # Economics from FRED
-curl "http://localhost:8000/v1/economics/inflation"`}</CodeBlock>
+curl "https://www.eugeneintelligence.com/v1/economics/inflation"`}</CodeBlock>
         </div>
       </div>
 
@@ -199,8 +199,8 @@ function APISection() {
     <div className="space-y-8">
       <div>
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          Base URL: <InlineCode>http://localhost:8000</InlineCode>. SEC EDGAR endpoints work without authentication.
-          Market data and screener endpoints use the API keys configured during setup.
+          Base URL: <InlineCode>https://www.eugeneintelligence.com</InlineCode>. Free during beta — no API key required.
+          All endpoints are open access until July 2026.
         </p>
       </div>
 
@@ -221,7 +221,7 @@ function APISection() {
             { name: 'from', type: 'query', desc: 'Start date filter (YYYY-MM-DD).' },
             { name: 'to', type: 'query', desc: 'End date filter (YYYY-MM-DD).' },
           ]}
-          example={`curl "http://localhost:8000/v1/sec/AAPL?extract=financials,metrics&period=FY&limit=5"`}
+          example={`curl "https://www.eugeneintelligence.com/v1/sec/AAPL?extract=financials,metrics&period=FY&limit=5"`}
         />
       </div>
 
@@ -271,7 +271,7 @@ function APISection() {
             { name: 'betaMax', type: 'query', desc: 'Maximum beta.' },
             { name: 'limit', type: 'query', desc: 'Maximum results.', def: '50' },
           ]}
-          example={`curl "http://localhost:8000/v1/screener?sector=Technology&marketCapMin=100000000000&limit=20"`}
+          example={`curl "https://www.eugeneintelligence.com/v1/screener?sector=Technology&marketCapMin=100000000000&limit=20"`}
         />
       </div>
 
@@ -542,10 +542,10 @@ function ConceptsSection() {
           Usage example
         </h3>
         <CodeBlock>{`# Get just revenue for Apple, last 10 years
-curl "http://localhost:8000/v1/sec/AAPL?extract=concepts&concept=revenue&limit=10"
+curl "https://www.eugeneintelligence.com/v1/sec/AAPL?extract=concepts&concept=revenue&limit=10"
 
 # Get a raw XBRL tag
-curl "http://localhost:8000/v1/sec/AAPL?extract=concepts&concept=us-gaap:ResearchAndDevelopmentExpense"`}</CodeBlock>
+curl "https://www.eugeneintelligence.com/v1/sec/AAPL?extract=concepts&concept=us-gaap:ResearchAndDevelopmentExpense"`}</CodeBlock>
       </div>
     </div>
   );
