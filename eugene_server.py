@@ -140,32 +140,18 @@ def _build_mcp(include_rest: bool = False):
 
         @mcp.custom_route("/", methods=["GET"])
         async def root(request: Request) -> Response:
-            # Serve the dashboard
+            # Serve the React frontend if available, fall back to static page
             import pathlib
-            html_path = pathlib.Path(__file__).parent / "static" / "index.html"
-            if html_path.exists():
-                return Response(content=html_path.read_text(), media_type="text/html")
+            frontend_index = pathlib.Path(__file__).parent / "frontend" / "dist" / "index.html"
+            if frontend_index.exists():
+                return Response(content=frontend_index.read_text(), media_type="text/html")
+            static_index = pathlib.Path(__file__).parent / "static" / "index.html"
+            if static_index.exists():
+                return Response(content=static_index.read_text(), media_type="text/html")
             return JSONResponse({
                 "service": "Eugene Intelligence",
                 "version": VERSION,
                 "status": "ok",
-                "docs": {
-                    "health": "/health",
-                    "capabilities": "/v1/capabilities",
-                    "concepts": "/v1/concepts",
-                },
-                "endpoints": {
-                    "sec_data": "/v1/sec/{identifier}?extract=financials",
-                    "economics": "/v1/economics/{category}",
-                    "screener": "/v1/screener?sector=Technology",
-                    "crypto": "/v1/crypto/{symbol}",
-                    "export": "/v1/sec/{identifier}/export?format=csv",
-                    "stream": "/v1/stream/filings",
-                },
-                "mcp": {
-                    "streamable_http": "/mcp",
-                    "sse": "/sse",
-                },
             })
 
         @mcp.custom_route("/v1/info", methods=["GET"])
