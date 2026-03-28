@@ -23,8 +23,8 @@ RUN pip install --no-cache-dir --no-deps .
 # Copy frontend build output from stage 1
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
-# Non-root user
-RUN useradd --create-home eugene
+# Non-root user with write access to app dir
+RUN useradd --create-home eugene && chown -R eugene:eugene /app
 USER eugene
 
 EXPOSE 8000
