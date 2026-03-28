@@ -11,55 +11,34 @@ Rate-limited: 3 briefs/day for free users, unlimited for Pro.
 
 import json
 import logging
-import time
-from collections import defaultdict
 from eugene.cache import cached
 from eugene.config import get_config
 from eugene.router import query
+from eugene.db import check_research_rate_limit, _record_research_usage, get_research_remaining
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Rate limiting — per-IP daily limit
+# Rate limiting — per-IP daily limit (backed by SQLite via eugene.db)
 # ---------------------------------------------------------------------------
 FREE_DAILY_LIMIT = 3
-
-_usage: dict[str, list[float]] = defaultdict(list)  # ip -> [timestamps]
 
 
 def check_rate_limit(client_ip: str) -> dict | None:
     """Check if client has exceeded daily research limit.
     Returns error dict if limited, None if OK.
     """
-    now = time.time()
-    day_ago = now - 86400
-
-    # Clean old entries
-    _usage[client_ip] = [t for t in _usage[client_ip] if t > day_ago]
-
-    if len(_usage[client_ip]) >= FREE_DAILY_LIMIT:
-        return {
-            "ticker": "",
-            "research": None,
-            "rate_limited": True,
-            "error": f"Free tier limit: {FREE_DAILY_LIMIT} research briefs per day. Upgrade to Pro for unlimited access.",
-            "remaining": 0,
-            "source": "eugene-research-agent",
-        }
-    return None
+    return check_research_rate_limit(client_ip, daily_limit=FREE_DAILY_LIMIT)
 
 
 def record_usage(client_ip: str):
     """Record a research generation for rate limiting."""
-    _usage[client_ip].append(time.time())
+    _record_research_usage(client_ip)
 
 
 def get_remaining(client_ip: str) -> int:
     """Get remaining research briefs for today."""
-    now = time.time()
-    day_ago = now - 86400
-    used = len([t for t in _usage.get(client_ip, []) if t > day_ago])
-    return max(0, FREE_DAILY_LIMIT - used)
+    return get_research_remaining(client_ip, daily_limit=FREE_DAILY_LIMIT)
 
 
 # ---------------------------------------------------------------------------

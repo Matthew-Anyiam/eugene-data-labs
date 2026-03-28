@@ -20,6 +20,7 @@ from eugene.handlers.float_data import float_handler
 from eugene.handlers.corporate_actions import corporate_actions_handler
 from eugene.handlers.transcripts import transcripts_handler
 from eugene.handlers.peers import peers_handler
+from eugene.handlers.news import news_handler
 from eugene.concepts import VALID_CONCEPTS
 
 VERSION = "0.8.1"
@@ -46,6 +47,7 @@ EXTRACT_HANDLERS = {
     # --- v0.7 ---
     "transcripts": transcripts_handler,
     "peers": peers_handler,
+    "news": news_handler,
 }
 
 VALID_EXTRACTS = list(EXTRACT_HANDLERS.keys())
@@ -70,6 +72,8 @@ SOURCE_MAP = {
     # --- v0.7 ---
     "transcripts": "SEC EDGAR 8-K Filings",
     "peers": "SEC XBRL + FMP Screener",
+    # --- v0.8 ---
+    "news": "SEC EDGAR EFTS",
 }
 
 EXTRACT_DESCRIPTIONS = {
@@ -91,6 +95,8 @@ EXTRACT_DESCRIPTIONS = {
     # --- v0.7 ---
     "transcripts": "Earnings call transcripts with management remarks, Q&A, guidance, and tone analysis",
     "peers": "Relative valuation: compare metrics against sector peers with percentile rankings",
+    # --- v0.8 ---
+    "news": "Recent 8-K/6-K filings as corporate news (material events, earnings, leadership changes)",
 }
 
 
@@ -191,6 +197,7 @@ def _source_url(extract: str, cik: str) -> str:
         "corporate_actions": edgar_url,
         "transcripts": edgar_url,
         "peers": xbrl_url,
+        "news": "https://efts.sec.gov/LATEST/search-index?q=&forms=8-K",
     }
     return urls.get(extract, "")
 

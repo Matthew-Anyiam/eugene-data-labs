@@ -116,6 +116,9 @@ def search_fulltext(query: str, forms: list = None, date_from: str = None, date_
         params["startdt"] = date_from
     if date_to:
         params["enddt"] = date_to
+    if limit:
+        params["from"] = 0
+        params["size"] = min(limit, 50)
     params = {k: v for k, v in params.items() if v}
     SEC_LIMITER.acquire()
     r = requests.get(f"{EFTS_BASE}/LATEST/search-index", headers=SEC_HEADERS, params=params, timeout=15)

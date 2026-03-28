@@ -15,6 +15,9 @@ import logging
 from dotenv import load_dotenv
 load_dotenv()
 
+from eugene.monitoring import setup_logging, RequestLoggingMiddleware, get_stats
+setup_logging(level=os.environ.get("LOG_LEVEL", "INFO"))
+
 logger = logging.getLogger(__name__)
 
 from eugene.router import query, capabilities, VERSION
@@ -26,6 +29,7 @@ from eugene.sources.fmp import (
 from eugene.auth import require_api_key
 from eugene.cache import get_disk_cache
 from eugene.research import generate_research, check_rate_limit, record_usage, get_remaining
+import eugene.db  # ensure init_db() runs on startup
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +59,7 @@ def _build_mcp(include_rest: bool = False):
         """All SEC EDGAR data in one tool.
 
         identifier: ticker (AAPL), CIK (320193), or accession number
-        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers
+        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers|news
         period: FY|Q (for financials)
         concept: canonical concept (revenue,net_income,...) or raw XBRL tag
         form: 10-K|10-Q|8-K|4|13F-HR (filter)
@@ -184,16 +188,13 @@ def _build_mcp(include_rest: bool = False):
         async def waitlist(request: Request) -> JSONResponse:
             """Collect waitlist emails."""
             import json as _json
-            import pathlib
             try:
                 body = await request.body()
                 data = _json.loads(body)
                 email = data.get("email", "").strip()
                 if not email or "@" not in email:
                     return JSONResponse({"error": "Invalid email"}, status_code=400)
-                waitlist_file = pathlib.Path("/tmp/waitlist.jsonl")
-                with open(waitlist_file, "a") as f:
-                    f.write(_json.dumps({"email": email, "ts": __import__("datetime").datetime.utcnow().isoformat()}) + "\n")
+                eugene.db.save_waitlist(email)
                 return JSONResponse({"status": "ok", "message": "Added to waitlist"})
             except Exception:
                 return JSONResponse({"error": "Failed to process request"}, status_code=500)
@@ -202,7 +203,6 @@ def _build_mcp(include_rest: bool = False):
         async def feedback(request: Request) -> JSONResponse:
             """Collect user feedback and feature requests."""
             import json as _json
-            import pathlib
             try:
                 body = await request.body()
                 data = _json.loads(body)
@@ -212,23 +212,38 @@ def _build_mcp(include_rest: bool = False):
                 page = data.get("page", "")
                 if not message or len(message) < 5:
                     return JSONResponse({"error": "Message too short"}, status_code=400)
-                fb_file = pathlib.Path("/tmp/feedback.jsonl")
-                entry = {
-                    "type": fb_type,
-                    "message": message[:2000],
-                    "email": email if email and "@" in email else None,
-                    "page": page,
-                    "ts": __import__("datetime").datetime.utcnow().isoformat(),
-                }
-                with open(fb_file, "a") as f:
-                    f.write(_json.dumps(entry) + "\n")
+                eugene.db.save_feedback(
+                    type=fb_type,
+                    message=message,
+                    email=email if email and "@" in email else None,
+                    page=page,
+                )
                 return JSONResponse({"status": "ok", "message": "Thank you for your feedback!"})
             except Exception:
                 return JSONResponse({"error": "Failed to process request"}, status_code=500)
 
         @mcp.custom_route("/health", methods=["GET"])
         async def health(request: Request) -> JSONResponse:
-            return JSONResponse({"status": "ok", "version": VERSION})
+            stats = get_stats()
+            return JSONResponse({
+                "status": "ok",
+                "version": VERSION,
+                "uptime_seconds": stats["uptime_seconds"],
+                "total_requests": stats["total_requests"],
+            })
+
+        @mcp.custom_route("/v1/stats", methods=["GET"])
+        async def stats_endpoint(request: Request) -> JSONResponse:
+            return JSONResponse(get_stats())
+
+        @mcp.custom_route("/v1/admin/feedback", methods=["GET"])
+        async def admin_feedback(request: Request) -> JSONResponse:
+            """Return recent feedback entries from SQLite."""
+            try:
+                entries = eugene.db.get_feedback_entries(limit=200)
+                return JSONResponse({"entries": entries, "count": len(entries)})
+            except Exception:
+                return JSONResponse({"error": "Failed to read feedback"}, status_code=500)
 
         @mcp.custom_route("/v1/docs", methods=["GET"])
         async def openapi_docs(request: Request) -> Response:
@@ -394,7 +409,24 @@ def _build_mcp(include_rest: bool = False):
         @mcp.custom_route("/v1/sec/{ticker}/news", methods=["GET"])
         @require_api_key
         async def news_compat(request: Request) -> JSONResponse:
-            result = await asyncio.to_thread(get_news, request.path_params["ticker"])
+            ticker = request.path_params["ticker"]
+            limit = _safe_int(request.query_params.get("limit", "10"), 10, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            # Use SEC EDGAR EFTS (free); fall back to FMP if EFTS returns nothing
+            result = await asyncio.to_thread(query, ticker, "news", limit=limit)
+            news_data = result.get("data", {})
+            if isinstance(news_data, dict) and news_data.get("count", 0) > 0:
+                return JSONResponse(result)
+            # Fallback to FMP (may fail on Starter plan, but try)
+            try:
+                fmp_result = await asyncio.to_thread(get_news, ticker)
+                if fmp_result and not isinstance(fmp_result, dict):
+                    return JSONResponse(fmp_result)
+                if isinstance(fmp_result, dict) and not fmp_result.get("error"):
+                    return JSONResponse(fmp_result)
+            except Exception:
+                pass
             return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/research", methods=["GET"])
@@ -411,6 +443,7 @@ def _build_mcp(include_rest: bool = False):
                 # Only count if successful (cached hits are free)
                 if result.get("research"):
                     record_usage(client_ip)
+                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/research")
                 result["remaining"] = get_remaining(client_ip)
                 return JSONResponse(result)
             except Exception as e:
@@ -548,6 +581,9 @@ def run_api():
 
     # Build the MCP ASGI app via streamable_http_app()
     mcp_app = mcp.streamable_http_app()
+
+    # Add request logging middleware (must be added before CORS so it wraps the full pipeline)
+    mcp_app.add_middleware(RequestLoggingMiddleware)
 
     # Wrap with CORS
     mcp_app.add_middleware(
