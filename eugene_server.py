@@ -198,6 +198,34 @@ def _build_mcp(include_rest: bool = False):
             except Exception:
                 return JSONResponse({"error": "Failed to process request"}, status_code=500)
 
+        @mcp.custom_route("/v1/feedback", methods=["POST"])
+        async def feedback(request: Request) -> JSONResponse:
+            """Collect user feedback and feature requests."""
+            import json as _json
+            import pathlib
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                fb_type = data.get("type", "feedback")  # feedback, feature, bug
+                message = data.get("message", "").strip()
+                email = data.get("email", "").strip()
+                page = data.get("page", "")
+                if not message or len(message) < 5:
+                    return JSONResponse({"error": "Message too short"}, status_code=400)
+                fb_file = pathlib.Path("feedback.jsonl")
+                entry = {
+                    "type": fb_type,
+                    "message": message[:2000],
+                    "email": email if email and "@" in email else None,
+                    "page": page,
+                    "ts": __import__("datetime").datetime.utcnow().isoformat(),
+                }
+                with open(fb_file, "a") as f:
+                    f.write(_json.dumps(entry) + "\n")
+                return JSONResponse({"status": "ok", "message": "Thank you for your feedback!"})
+            except Exception:
+                return JSONResponse({"error": "Failed to process request"}, status_code=500)
+
         @mcp.custom_route("/health", methods=["GET"])
         async def health(request: Request) -> JSONResponse:
             return JSONResponse({"status": "ok", "version": VERSION})
