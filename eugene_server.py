@@ -191,7 +191,7 @@ def _build_mcp(include_rest: bool = False):
                 email = data.get("email", "").strip()
                 if not email or "@" not in email:
                     return JSONResponse({"error": "Invalid email"}, status_code=400)
-                waitlist_file = pathlib.Path("waitlist.jsonl")
+                waitlist_file = pathlib.Path("/tmp/waitlist.jsonl")
                 with open(waitlist_file, "a") as f:
                     f.write(_json.dumps({"email": email, "ts": __import__("datetime").datetime.utcnow().isoformat()}) + "\n")
                 return JSONResponse({"status": "ok", "message": "Added to waitlist"})
@@ -212,7 +212,7 @@ def _build_mcp(include_rest: bool = False):
                 page = data.get("page", "")
                 if not message or len(message) < 5:
                     return JSONResponse({"error": "Message too short"}, status_code=400)
-                fb_file = pathlib.Path("feedback.jsonl")
+                fb_file = pathlib.Path("/tmp/feedback.jsonl")
                 entry = {
                     "type": fb_type,
                     "message": message[:2000],
@@ -400,18 +400,25 @@ def _build_mcp(include_rest: bool = False):
         @mcp.custom_route("/v1/sec/{ticker}/research", methods=["GET"])
         @require_api_key
         async def research_endpoint(request: Request) -> JSONResponse:
-            client_ip = request.client.host if request.client else "unknown"
-            # Check rate limit
-            limited = check_rate_limit(client_ip)
-            if limited:
-                limited["ticker"] = request.path_params["ticker"]
-                return JSONResponse(limited, status_code=429)
-            result = await asyncio.to_thread(generate_research, request.path_params["ticker"])
-            # Only count if successful (cached hits are free)
-            if result.get("research"):
-                record_usage(client_ip)
-            result["remaining"] = get_remaining(client_ip)
-            return JSONResponse(result)
+            try:
+                client_ip = request.client.host if request.client else "unknown"
+                # Check rate limit
+                limited = check_rate_limit(client_ip)
+                if limited:
+                    limited["ticker"] = request.path_params["ticker"]
+                    return JSONResponse(limited, status_code=429)
+                result = await asyncio.to_thread(generate_research, request.path_params["ticker"])
+                # Only count if successful (cached hits are free)
+                if result.get("research"):
+                    record_usage(client_ip)
+                result["remaining"] = get_remaining(client_ip)
+                return JSONResponse(result)
+            except Exception as e:
+                return JSONResponse(
+                    {"ticker": request.path_params.get("ticker", ""), "research": None,
+                     "error": str(e), "source": "eugene-research-agent"},
+                    status_code=500,
+                )
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])
         @require_api_key
