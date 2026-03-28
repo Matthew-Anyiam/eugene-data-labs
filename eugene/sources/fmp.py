@@ -100,7 +100,7 @@ def get_estimates(ticker: str) -> dict:
 
 @cached(ttl=300)
 def get_news(ticker: str, limit: int = 10) -> dict:
-    data = _safe_get(f"{FMP_BASE}/news", params={"symbol": ticker, "limit": limit, "apikey": _key()})
+    data = _safe_get(f"{FMP_BASE}/stock-news", params={"symbol": ticker, "limit": limit, "apikey": _key()})
     if isinstance(data, dict) and "error" in data:
         return {"ticker": ticker, "articles": [], **data}
     articles = []

@@ -116,23 +116,18 @@ export interface OHLCVData {
   bars: OHLCVBar[];
 }
 
-// Screener
+// Screener — matches backend get_screener() response shape
 export interface ScreenerResult {
-  symbol: string;
-  companyName: string;
-  marketCap: number;
+  ticker: string;
+  name: string;
+  market_cap: number;
   price: number;
-  change: number;
-  changesPercentage: number;
   sector: string;
   industry: string;
   country: string;
   beta: number;
   volume: number;
-  lastAnnualDividend: number;
   exchange: string;
-  exchangeShortName: string;
-  isActivelyTrading: boolean;
 }
 
 // Economics / FRED
