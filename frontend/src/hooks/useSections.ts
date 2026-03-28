@@ -40,7 +40,7 @@ export function useSections(ticker: string, section?: string) {
     queryFn: async () => {
       const params = new URLSearchParams({ extract: 'sections', limit: '5' });
       if (section) params.set('section', section);
-      const raw = await fetchSEC<RawSectionsData>(ticker, params);
+      const raw = await fetchSEC<EugeneResponse<RawSectionsData>>(ticker, params);
       return transformSections(raw);
     },
     enabled: !!ticker,
