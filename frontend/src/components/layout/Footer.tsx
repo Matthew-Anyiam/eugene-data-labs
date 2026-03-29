@@ -32,6 +32,12 @@ export function Footer() {
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               Financial data infrastructure for AI agents and analysts.
             </p>
+            <a
+              href="mailto:info@eugeneintelligence.com"
+              className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              info@eugeneintelligence.com
+            </a>
           </div>
 
           {/* Link columns */}
