@@ -12,7 +12,6 @@ Rate-limited: 3 briefs/day for free users, unlimited for Pro.
 import json
 import logging
 from eugene.cache import cached
-from eugene.config import get_config
 from eugene.router import query
 from eugene.db import check_research_rate_limit, _record_research_usage, get_research_remaining
 
@@ -278,13 +277,13 @@ def generate_research(ticker: str, scenario: str = None) -> dict:
 
     Cached for 1 hour in memory, 24 hours on disk.
     """
-    config = get_config()
+    from eugene.llm import chat_json, available_providers
 
-    if not config.api.anthropic_api_key:
+    if not available_providers():
         return {
             "ticker": ticker,
             "research": None,
-            "error": "Research agent requires an Anthropic API key. Set ANTHROPIC_API_KEY environment variable.",
+            "error": "No AI provider configured. Set ANTHROPIC_API_KEY, KIMI_API_KEY, or GLM_API_KEY.",
             "source": "eugene-research-agent",
         }
 
@@ -310,33 +309,13 @@ def generate_research(ticker: str, scenario: str = None) -> dict:
     if scenario:
         prompt += SCENARIO_ADDENDUM.format(scenario=scenario)
 
-    # Call Claude Haiku
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=config.api.anthropic_api_key)
-
-        response = client.messages.create(
-            model=config.api.anthropic_model,
+        research, response = chat_json(
+            system=RESEARCH_SYSTEM_PROMPT,
+            user=prompt,
             max_tokens=2000,
             temperature=0.1,
-            system=RESEARCH_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
         )
-
-        raw = response.content[0].text
-        # Parse JSON from response
-        import re
-        research = None
-        try:
-            research = json.loads(raw)
-        except json.JSONDecodeError:
-            m = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw)
-            if m:
-                research = json.loads(m.group(1))
-            else:
-                m = re.search(r'\{[\s\S]*\}', raw)
-                if m:
-                    research = json.loads(m.group())
 
         if not research:
             return {
@@ -350,27 +329,18 @@ def generate_research(ticker: str, scenario: str = None) -> dict:
             "ticker": ticker,
             "company_name": company_name,
             "research": research,
-            "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
-            "model": config.api.anthropic_model,
+            "tokens_used": response.total_tokens,
+            "model": response.model,
+            "provider": response.provider,
             "source": "eugene-research-agent",
             "disclaimer": "This is AI-generated analysis for informational purposes only. Not investment advice. Based on SEC filings and public data.",
         }
 
-    except ImportError:
-        return {
-            "ticker": ticker,
-            "research": None,
-            "error": "anthropic package not installed",
-            "source": "eugene-research-agent",
-        }
     except Exception as e:
         logger.error(f"Research generation failed for {ticker}: {type(e).__name__}: {e}")
-        error_msg = str(e)
-        if "connection" in error_msg.lower() or "connect" in error_msg.lower():
-            error_msg = f"Cannot reach AI service: {error_msg}. Check ANTHROPIC_API_KEY is valid."
         return {
             "ticker": ticker,
             "research": None,
-            "error": error_msg,
+            "error": str(e),
             "source": "eugene-research-agent",
         }

@@ -5,13 +5,11 @@ Creates AI agent personas (analyst, trader, insider, institutional, macro)
 that interact with real SEC + FRED data to produce emergent market predictions.
 """
 
-import json
 import logging
-import re
 from eugene.cache import cached
-from eugene.config import get_config
 from eugene.router import query
 from eugene.research import _gather_company_data, _truncate_for_prompt
+from eugene.llm import chat_json, available_providers
 from eugene.db import check_research_rate_limit, _record_research_usage, get_research_remaining
 
 logger = logging.getLogger(__name__)
@@ -203,36 +201,11 @@ def _gather_simulation_data(ticker: str) -> dict:
 # ---------------------------------------------------------------------------
 # Agent runner
 # ---------------------------------------------------------------------------
-def _parse_agent_json(raw: str) -> dict | None:
-    """Parse JSON from agent response, handling code blocks and bare JSON."""
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        pass
-    # Try extracting from code block
-    m = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw)
-    if m:
-        try:
-            return json.loads(m.group(1))
-        except json.JSONDecodeError:
-            pass
-    # Try extracting bare JSON object
-    m = re.search(r'\{[\s\S]*\}', raw)
-    if m:
-        try:
-            return json.loads(m.group())
-        except json.JSONDecodeError:
-            pass
-    return None
-
-
 def _run_agent(persona_prompt: str, data_slice: dict, ticker: str, scenario: str = None) -> dict:
     """Run a single agent persona against its relevant data slice.
 
     Returns the agent's decision dict with action, reasoning, confidence, key_signal.
     """
-    config = get_config()
-
     scenario_instruction = ""
     if scenario:
         scenario_instruction = f"Consider this scenario in your analysis: {scenario}"
@@ -247,21 +220,7 @@ def _run_agent(persona_prompt: str, data_slice: dict, ticker: str, scenario: str
 
 Return your JSON verdict."""
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=config.api.anthropic_api_key)
-
-    response = client.messages.create(
-        model=config.api.anthropic_model,
-        max_tokens=500,
-        temperature=0.4,
-        system=prompt,
-        messages=[{"role": "user", "content": user_content}],
-    )
-
-    raw = response.content[0].text
-    result = _parse_agent_json(raw)
-
-    tokens = response.usage.input_tokens + response.usage.output_tokens
+    result, response = chat_json(prompt, user_content, max_tokens=500, temperature=0.4)
 
     if not result:
         return {
@@ -269,7 +228,7 @@ Return your JSON verdict."""
             "reasoning": "Failed to parse agent response",
             "confidence": 0.0,
             "key_signal": "parse_error",
-            "tokens_used": tokens,
+            "tokens_used": response.total_tokens,
         }
 
     # Normalize action value
@@ -289,7 +248,7 @@ Return your JSON verdict."""
         "reasoning": str(result.get("reasoning", ""))[:500],
         "confidence": confidence,
         "key_signal": str(result.get("key_signal", ""))[:200],
-        "tokens_used": tokens,
+        "tokens_used": response.total_tokens,
     }
 
 
@@ -298,8 +257,6 @@ Return your JSON verdict."""
 # ---------------------------------------------------------------------------
 def _synthesize_simulation(agent_results: list[dict], ticker: str, scenario: str = None) -> dict:
     """Synthesize all agent results into a final simulation output."""
-    config = get_config()
-
     scenario_context = f" under scenario: '{scenario}'" if scenario else ""
 
     agent_summaries = ""
@@ -316,20 +273,9 @@ def _synthesize_simulation(agent_results: list[dict], ticker: str, scenario: str
         agent_summaries=agent_summaries,
     )
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=config.api.anthropic_api_key)
-
-    response = client.messages.create(
-        model=config.api.anthropic_model,
-        max_tokens=800,
-        temperature=0.2,
-        system="You are the chief strategist at Eugene Intelligence. Synthesize agent views into a coherent market simulation result. Return only valid JSON.",
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw = response.content[0].text
-    result = _parse_agent_json(raw)
-    tokens = response.usage.input_tokens + response.usage.output_tokens
+    system = "You are the chief strategist at Eugene Intelligence. Synthesize agent views into a coherent market simulation result. Return only valid JSON."
+    result, resp = chat_json(system, prompt, max_tokens=800, temperature=0.2)
+    tokens = resp.total_tokens
 
     if not result:
         # Fallback: compute from agent results directly
@@ -397,13 +343,11 @@ def run_simulation(ticker: str, scenario: str = None) -> dict:
     Cached for 30 minutes in memory, 12 hours on disk.
     Runs 5 AI agents sequentially (~$0.01 total cost).
     """
-    config = get_config()
-
-    if not config.api.anthropic_api_key:
+    if not available_providers():
         return {
             "ticker": ticker,
             "mode": "simulation",
-            "error": "Simulation engine requires an Anthropic API key. Set ANTHROPIC_API_KEY environment variable.",
+            "error": "No AI provider configured. Set ANTHROPIC_API_KEY, KIMI_API_KEY, or GLM_API_KEY.",
             "source": "eugene-simulation-engine",
         }
 
@@ -438,16 +382,6 @@ def run_simulation(ticker: str, scenario: str = None) -> dict:
     # Run agents sequentially to manage costs
     agent_results = []
     total_tokens = 0
-
-    try:
-        import anthropic  # noqa: F401 — verify package is available
-    except ImportError:
-        return {
-            "ticker": ticker,
-            "mode": "simulation",
-            "error": "anthropic package not installed",
-            "source": "eugene-simulation-engine",
-        }
 
     for persona_name, persona_prompt, data_slice in agents:
         try:
@@ -512,7 +446,8 @@ def run_simulation(ticker: str, scenario: str = None) -> dict:
         "key_signals": synthesis["key_signals"],
         "narrative": synthesis["narrative"],
         "tokens_used": total_tokens,
-        "model": config.api.anthropic_model,
+        "model": available_providers()[0]["model"] if available_providers() else "unknown",
+        "provider": available_providers()[0]["name"] if available_providers() else "none",
         "source": "eugene-simulation-engine",
         "disclaimer": "This is an AI-generated multi-agent simulation for informational purposes only. Not investment advice. Agent personas are synthetic — no real trading decisions are made.",
     }

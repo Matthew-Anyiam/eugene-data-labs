@@ -234,6 +234,11 @@ def _build_mcp(include_rest: bool = False):
                 "total_requests": stats["total_requests"],
             })
 
+        @mcp.custom_route("/v1/providers", methods=["GET"])
+        async def providers_endpoint(request: Request) -> JSONResponse:
+            from eugene.llm import available_providers
+            return JSONResponse({"providers": available_providers()})
+
         @mcp.custom_route("/v1/stats", methods=["GET"])
         async def stats_endpoint(request: Request) -> JSONResponse:
             return JSONResponse(get_stats())

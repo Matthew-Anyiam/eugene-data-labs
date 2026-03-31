@@ -9,10 +9,9 @@ Runs three sequential Claude Haiku calls:
 
 import json
 import logging
-import re
 
 from eugene.cache import cached
-from eugene.config import get_config
+from eugene.llm import chat_json, available_providers
 from eugene.research import _gather_company_data, _truncate_for_prompt
 
 logger = logging.getLogger(__name__)
@@ -63,26 +62,6 @@ Return ONLY valid JSON:
 }"""
 
 
-def _parse_json_response(raw: str) -> dict | None:
-    """Parse JSON from Claude response, handling markdown fences."""
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw)
-        if m:
-            try:
-                return json.loads(m.group(1))
-            except json.JSONDecodeError:
-                pass
-        m = re.search(r'\{[\s\S]*\}', raw)
-        if m:
-            try:
-                return json.loads(m.group())
-            except json.JSONDecodeError:
-                pass
-    return None
-
-
 def _build_data_prompt(ticker: str, company_name: str, data: dict) -> str:
     """Build the data context prompt shared by all agents."""
     return f"""Company: {ticker} ({company_name})
@@ -116,35 +95,18 @@ def _build_data_prompt(ticker: str, company_name: str, data: dict) -> str:
 </mdna_section>"""
 
 
-def _call_claude(client, model: str, system: str, user: str, max_tokens: int, temperature: float) -> tuple[dict | None, int]:
-    """Make a Claude API call and return (parsed_json, tokens_used)."""
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    raw = response.content[0].text
-    tokens = response.usage.input_tokens + response.usage.output_tokens
-    parsed = _parse_json_response(raw)
-    return parsed, tokens
-
-
 @cached(ttl=3600, disk=True, disk_ttl=86400)
 def generate_debate(ticker: str) -> dict:
     """Generate a bull/bear debate analysis for a ticker.
 
-    Three sequential Claude calls: bull case, bear case, synthesis.
+    Three sequential LLM calls: bull case, bear case, synthesis.
     Cached for 1 hour in memory, 24 hours on disk.
     """
-    config = get_config()
-
-    if not config.api.anthropic_api_key:
+    if not available_providers():
         return {
             "ticker": ticker,
             "mode": "debate",
-            "error": "Debate agent requires an Anthropic API key. Set ANTHROPIC_API_KEY.",
+            "error": "No AI provider configured. Set ANTHROPIC_API_KEY, KIMI_API_KEY, or GLM_API_KEY.",
             "source": "eugene-debate-agent",
         }
 
@@ -154,20 +116,19 @@ def generate_debate(ticker: str) -> dict:
     data_prompt = _build_data_prompt(ticker, company_name, data)
 
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=config.api.anthropic_api_key)
-        model = config.api.anthropic_model
         total_tokens = 0
+        provider_used = None
 
         # 1. Bull case
         bull_prompt = f"{data_prompt}\n\nMake the strongest bull case for investing in {ticker}. Return JSON only."
-        bull_result, bull_tokens = _call_claude(client, model, BULL_SYSTEM_PROMPT, bull_prompt, 1000, 0.3)
-        total_tokens += bull_tokens
+        bull_result, bull_resp = chat_json(BULL_SYSTEM_PROMPT, bull_prompt, 1000, 0.3)
+        total_tokens += bull_resp.total_tokens
+        provider_used = bull_resp.provider
 
         # 2. Bear case
         bear_prompt = f"{data_prompt}\n\nMake the strongest bear case against investing in {ticker}. Return JSON only."
-        bear_result, bear_tokens = _call_claude(client, model, BEAR_SYSTEM_PROMPT, bear_prompt, 1000, 0.3)
-        total_tokens += bear_tokens
+        bear_result, bear_resp = chat_json(BEAR_SYSTEM_PROMPT, bear_prompt, 1000, 0.3)
+        total_tokens += bear_resp.total_tokens
 
         # 3. Synthesis
         synthesis_result = None
@@ -183,8 +144,8 @@ def generate_debate(ticker: str) -> dict:
 </bear_case>
 
 Synthesize these arguments into a balanced verdict. Return JSON only."""
-            synthesis_result, synth_tokens = _call_claude(client, model, SYNTHESIS_SYSTEM_PROMPT, synth_prompt, 1500, 0.1)
-            total_tokens += synth_tokens
+            synthesis_result, synth_resp = chat_json(SYNTHESIS_SYSTEM_PROMPT, synth_prompt, 1500, 0.1)
+            total_tokens += synth_resp.total_tokens
 
         return {
             "ticker": ticker,
@@ -194,26 +155,17 @@ Synthesize these arguments into a balanced verdict. Return JSON only."""
             "bear_case": bear_result,
             "synthesis": synthesis_result,
             "tokens_used": total_tokens,
-            "model": model,
+            "model": bull_resp.model,
+            "provider": provider_used,
             "source": "eugene-debate-agent",
             "disclaimer": "AI-generated analysis for informational purposes only. Not investment advice.",
         }
 
-    except ImportError:
-        return {
-            "ticker": ticker,
-            "mode": "debate",
-            "error": "anthropic package not installed",
-            "source": "eugene-debate-agent",
-        }
     except Exception as e:
         logger.error(f"Debate generation failed for {ticker}: {type(e).__name__}: {e}")
-        error_msg = str(e)
-        if "connection" in error_msg.lower() or "connect" in error_msg.lower():
-            error_msg = f"Cannot reach AI service: {error_msg}. Check ANTHROPIC_API_KEY is valid."
         return {
             "ticker": ticker,
             "mode": "debate",
-            "error": error_msg,
+            "error": str(e),
             "source": "eugene-debate-agent",
         }
