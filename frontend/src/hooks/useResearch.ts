@@ -8,6 +8,7 @@ export interface ResearchBrief {
   recent_developments: string;
   risk_factors: string;
   competitive_position: string;
+  market_sentiment?: string;
   outlook_summary: string;
   scenario_analysis?: string;
 }

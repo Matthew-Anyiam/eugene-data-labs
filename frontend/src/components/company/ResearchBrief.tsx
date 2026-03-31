@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { ResearchResponse } from '../../hooks/useResearch';
 import { useState } from 'react';
-import { AlertTriangle, Brain, TrendingUp, Shield, Target, BarChart3, FileText, Sparkles, Lock, Users, Building2, Newspaper, Lightbulb } from 'lucide-react';
+import { AlertTriangle, Brain, TrendingUp, Shield, Target, BarChart3, FileText, Sparkles, Lock, Users, Building2, Newspaper, Lightbulb, Activity } from 'lucide-react';
 
 interface ResearchBriefProps {
   data: ResearchResponse | undefined;
@@ -21,6 +21,7 @@ const SECTIONS = [
   { key: 'recent_developments', label: 'Recent Developments', icon: Sparkles },
   { key: 'risk_factors', label: 'Risk Factors', icon: AlertTriangle },
   { key: 'competitive_position', label: 'Competitive Position', icon: Target },
+  { key: 'market_sentiment', label: 'Market Sentiment', icon: Activity },
   { key: 'outlook_summary', label: 'Outlook', icon: Shield },
   { key: 'scenario_analysis', label: 'Scenario Analysis', icon: Lightbulb },
 ] as const;

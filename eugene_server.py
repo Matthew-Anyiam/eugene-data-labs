@@ -61,7 +61,7 @@ def _build_mcp(include_rest: bool = False):
         """All SEC EDGAR data in one tool.
 
         identifier: ticker (AAPL), CIK (320193), or accession number
-        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers|news
+        extract: profile|filings|financials|concepts|insiders|ownership|events|sections|exhibits|metrics|ohlcv|technicals|segments|float|corporate_actions|transcripts|peers|news|predictions
         period: FY|Q (for financials)
         concept: canonical concept (revenue,net_income,...) or raw XBRL tag
         form: 10-K|10-Q|8-K|4|13F-HR (filter)
@@ -475,6 +475,29 @@ def _build_mcp(include_rest: bool = False):
                     return JSONResponse(fmp_result)
             except Exception:
                 pass
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/predictions", methods=["GET"])
+        @require_api_key
+        async def predictions_endpoint(request: Request) -> JSONResponse:
+            """Get prediction market data from Polymarket + Kalshi."""
+            from eugene.sources.predictions import get_predictions
+            topic = request.query_params.get("topic") or request.query_params.get("q")
+            limit = _safe_int(request.query_params.get("limit", "10"), 10, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_predictions, query=topic, topic=topic, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/sec/{ticker}/predictions", methods=["GET"])
+        @require_api_key
+        async def ticker_predictions_endpoint(request: Request) -> JSONResponse:
+            """Get prediction market data related to a specific ticker."""
+            ticker = request.path_params["ticker"]
+            limit = _safe_int(request.query_params.get("limit", "10"), 10, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(query, ticker, "predictions", limit=limit)
             return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{ticker}/research", methods=["GET"])

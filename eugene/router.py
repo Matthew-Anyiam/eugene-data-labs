@@ -21,6 +21,7 @@ from eugene.handlers.corporate_actions import corporate_actions_handler
 from eugene.handlers.transcripts import transcripts_handler
 from eugene.handlers.peers import peers_handler
 from eugene.handlers.news import news_handler
+from eugene.handlers.predictions import predictions_handler
 from eugene.concepts import VALID_CONCEPTS
 
 VERSION = "0.8.1"
@@ -48,6 +49,7 @@ EXTRACT_HANDLERS = {
     "transcripts": transcripts_handler,
     "peers": peers_handler,
     "news": news_handler,
+    "predictions": predictions_handler,
 }
 
 VALID_EXTRACTS = list(EXTRACT_HANDLERS.keys())
@@ -74,6 +76,7 @@ SOURCE_MAP = {
     "peers": "SEC XBRL + FMP Screener",
     # --- v0.8 ---
     "news": "SEC EDGAR EFTS",
+    "predictions": "Polymarket + Kalshi",
 }
 
 EXTRACT_DESCRIPTIONS = {
@@ -97,6 +100,7 @@ EXTRACT_DESCRIPTIONS = {
     "peers": "Relative valuation: compare metrics against sector peers with percentile rankings",
     # --- v0.8 ---
     "news": "Recent 8-K/6-K filings as corporate news (material events, earnings, leadership changes)",
+    "predictions": "Prediction market data from Polymarket and Kalshi (event probabilities, financial forecasts)",
 }
 
 

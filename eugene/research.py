@@ -66,7 +66,8 @@ JSON Schema:
   "recent_developments": "string — insights from MD&A, management commentary, strategic direction",
   "risk_factors": "string — key risks from filings, financial position, or market dynamics",
   "competitive_position": "string — market position, moat indicators, peer comparison if available",
-  "outlook_summary": "string — neutral forward-looking context synthesizing all data sources"
+  "market_sentiment": "string — prediction market consensus if available, crowd expectations vs fundamental view",
+  "outlook_summary": "string — neutral forward-looking context synthesizing all data sources including prediction markets"
 }"""
 
 RESEARCH_USER_PROMPT = """Generate a deep equity research brief for {ticker} ({company_name}) based on this comprehensive data package:
@@ -103,7 +104,11 @@ RESEARCH_USER_PROMPT = """Generate a deep equity research brief for {ticker} ({c
 {mdna}
 </mdna_section>
 
-Synthesize ALL data sources to produce a thorough research brief. Connect the dots — if insiders are buying while financials show growth, note it. If 8-K events signal major changes, analyze implications.
+<prediction_markets>
+{predictions}
+</prediction_markets>
+
+Synthesize ALL data sources to produce a thorough research brief. Connect the dots — if insiders are buying while financials show growth, note it. If 8-K events signal major changes, analyze implications. If prediction market data is available, compare crowd expectations to fundamental data.
 
 Return JSON only."""
 
@@ -257,6 +262,23 @@ def _gather_company_data(ticker: str) -> dict:
         logger.warning(f"Research: failed to get MD&A for {ticker}: {e}")
         data["mdna"] = ""
 
+    # Prediction market data (Polymarket + Kalshi)
+    try:
+        from eugene.sources.predictions import get_predictions
+        pred_resp = get_predictions(query=ticker, limit=5)
+        predictions = []
+        for p in pred_resp.get("predictions", [])[:5]:
+            predictions.append({
+                "question": p.get("question"),
+                "outcomes": p.get("outcomes"),
+                "yes_pct": p.get("yes_probability_pct"),
+                "source": p.get("source"),
+            })
+        data["predictions"] = predictions
+    except Exception as e:
+        logger.warning(f"Research: failed to get predictions for {ticker}: {e}")
+        data["predictions"] = []
+
     return data
 
 
@@ -303,6 +325,7 @@ def generate_research(ticker: str, scenario: str = None) -> dict:
         events=_truncate_for_prompt(data["events"], 1000),
         filings=_truncate_for_prompt(data["filings"], 800),
         mdna=data["mdna"][:2000] if data["mdna"] else "Not available.",
+        predictions=_truncate_for_prompt(data["predictions"], 1000) if data.get("predictions") else "No prediction market data available.",
     )
 
     # Append scenario analysis instruction if provided
