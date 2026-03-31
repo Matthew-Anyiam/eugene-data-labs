@@ -9,6 +9,7 @@ import { useFilings } from '../hooks/useFilings';
 import { useInsiders } from '../hooks/useInsiders';
 import { useSections } from '../hooks/useSections';
 import { useNews } from '../hooks/useNews';
+import { useTickerPredictions } from '../hooks/usePredictions';
 import { useResearch } from '../hooks/useResearch';
 import { useDebate } from '../hooks/useDebate';
 import { useSimulation } from '../hooks/useSimulation';
@@ -20,6 +21,7 @@ import { FilingsTable } from '../components/company/FilingsTable';
 import { InsidersTable } from '../components/company/InsidersTable';
 import { SectionsView } from '../components/company/SectionsView';
 import { NewsSection } from '../components/company/NewsSection';
+import { PredictionsView } from '../components/company/PredictionsView';
 import { ResearchBrief } from '../components/company/ResearchBrief';
 import { DebateBrief } from '../components/company/DebateBrief';
 import { SimulationBrief } from '../components/company/SimulationBrief';
@@ -28,7 +30,7 @@ import { ProvenanceBar } from '../components/ui/Provenance';
 import { SkeletonCompanyHeader, SkeletonStatsGrid, SkeletonChart, SkeletonTable } from '../components/ui/Skeleton';
 import { formatPrice } from '../lib/utils';
 
-const PAGE_TABS = ['Overview', 'Research', 'Debate', 'Simulation', 'Financials', 'Metrics', 'Filings', 'Insiders', 'News', 'Sections'];
+const PAGE_TABS = ['Overview', 'Research', 'Debate', 'Simulation', 'Financials', 'Metrics', 'Filings', 'Insiders', 'News', 'Predictions', 'Sections'];
 
 export function CompanyPage() {
   const { ticker = '' } = useParams();
@@ -49,6 +51,7 @@ export function CompanyPage() {
   const insiders = useInsiders(ticker);
   const sections = useSections(ticker, sectionType);
   const news = useNews(ticker);
+  const predictions = useTickerPredictions(ticker);
   const research = useResearch(ticker, researchRequested, researchScenario);
   const debate = useDebate(ticker, debateRequested);
   const simulation = useSimulation(ticker, simulationRequested, simulationScenario);
@@ -218,6 +221,17 @@ export function CompanyPage() {
           {news.isLoading && <SkeletonTable rows={6} cols={1} />}
           {news.data?.articles && <NewsSection articles={news.data.articles} />}
           {news.error && <p className="text-sm text-red-500">Failed to load news</p>}
+        </div>
+      )}
+
+      {tab === 'Predictions' && (
+        <div>
+          <PredictionsView
+            data={predictions.data}
+            isLoading={predictions.isLoading}
+            error={predictions.error as Error | null}
+            ticker={ticker}
+          />
         </div>
       )}
 

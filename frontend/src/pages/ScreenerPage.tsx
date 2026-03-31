@@ -1,37 +1,67 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { Filter } from 'lucide-react';
 import { ScreenerFilters } from '../components/screener/ScreenerFilters';
-import { ScreenerResults } from '../components/screener/ScreenerResults';
+import { ScreenerResults, ScreenerResultsSkeleton } from '../components/screener/ScreenerResults';
 import { useScreener, type ScreenerFilters as Filters } from '../hooks/useScreener';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+
+const DEFAULT_FILTERS: Filters = { limit: 50 };
 
 export function ScreenerPage() {
-  const [filters, setFilters] = useState<Filters>({ limit: 50 });
-  const [submitted, setSubmitted] = useState(true);
-  const { data, isLoading, error } = useScreener(filters, submitted);
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [applied, setApplied] = useState<Filters>(DEFAULT_FILTERS);
+  const { data, isLoading, error } = useScreener(applied);
 
   const note = data?.note;
   const results = data?.results ?? [];
 
+  const handleSubmit = useCallback(() => {
+    setApplied({ ...filters });
+  }, [filters]);
+
+  const handleReset = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+    setApplied(DEFAULT_FILTERS);
+  }, []);
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight">Stock Screener</h1>
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2">
+          <Filter className="h-5 w-5 text-slate-400" />
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Stock Screener
+          </h1>
+        </div>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Filter stocks by sector, market cap, price, volume, and beta
+        </p>
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        <ScreenerFilters
-          filters={filters}
-          onChange={setFilters}
-          onSubmit={() => setSubmitted(true)}
-        />
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        {/* Filters sidebar */}
+        <div className="lg:sticky lg:top-20 lg:self-start">
+          <ScreenerFilters
+            filters={filters}
+            onChange={setFilters}
+            onSubmit={handleSubmit}
+            onReset={handleReset}
+          />
+        </div>
 
+        {/* Results area */}
         <div>
-          {!submitted && (
-            <p className="py-16 text-center text-sm text-slate-400">
-              Set filters and click "Screen Stocks"
-            </p>
+          {isLoading && <ScreenerResultsSkeleton />}
+
+          {!isLoading && error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-8 text-center dark:border-red-900/50 dark:bg-red-950/30">
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                {(error as Error).message}
+              </p>
+            </div>
           )}
-          {isLoading && <LoadingSpinner />}
-          {error && <p className="text-sm text-red-500">{(error as Error).message}</p>}
-          {data && note ? (
+
+          {!isLoading && !error && data && note ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
                 {note}
@@ -41,7 +71,7 @@ export function ScreenerPage() {
               </p>
             </div>
           ) : (
-            data && <ScreenerResults results={results} />
+            !isLoading && !error && data && <ScreenerResults results={results} />
           )}
         </div>
       </div>

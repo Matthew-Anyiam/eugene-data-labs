@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils';
 const NAV_LINKS = [
   { to: '/screener', label: 'Screener' },
   { to: '/economics', label: 'Economics' },
+  { to: '/predictions', label: 'Predictions' },
   { to: '/docs', label: 'Docs' },
   { to: '/pricing', label: 'Pricing' },
 ];
