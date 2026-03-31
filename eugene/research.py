@@ -108,6 +108,20 @@ Synthesize ALL data sources to produce a thorough research brief. Connect the do
 
 Return JSON only."""
 
+SCENARIO_ADDENDUM = """
+
+ADDITIONAL INSTRUCTION — SCENARIO ANALYSIS:
+The user wants you to analyze this company under the following hypothetical scenario:
+
+<scenario>
+{scenario}
+</scenario>
+
+Add an extra field to your JSON response:
+  "scenario_analysis": "string — detailed analysis of how this scenario would impact the company, based on the data provided. Reference specific financials, insider positions, sector exposure, or risk factors that are relevant to this scenario. 3-5 sentences."
+
+Incorporate the scenario's implications into your other sections where relevant (e.g., risk_factors, outlook_summary)."""
+
 
 # ---------------------------------------------------------------------------
 # Data gathering
@@ -259,7 +273,7 @@ def _truncate_for_prompt(obj, max_chars: int = 2000) -> str:
 # Research generation (cached)
 # ---------------------------------------------------------------------------
 @cached(ttl=3600, disk=True, disk_ttl=86400)
-def generate_research(ticker: str) -> dict:
+def generate_research(ticker: str, scenario: str = None) -> dict:
     """Generate a deep AI equity research brief for a ticker.
 
     Cached for 1 hour in memory, 24 hours on disk.
@@ -291,6 +305,10 @@ def generate_research(ticker: str) -> dict:
         filings=_truncate_for_prompt(data["filings"], 800),
         mdna=data["mdna"][:2000] if data["mdna"] else "Not available.",
     )
+
+    # Append scenario analysis instruction if provided
+    if scenario:
+        prompt += SCENARIO_ADDENDUM.format(scenario=scenario)
 
     # Call Claude Haiku
     try:

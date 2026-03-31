@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import type { ResearchResponse } from '../../hooks/useResearch';
-import { AlertTriangle, Brain, TrendingUp, Shield, Target, BarChart3, FileText, Sparkles, Lock, Users, Building2, Newspaper } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, Brain, TrendingUp, Shield, Target, BarChart3, FileText, Sparkles, Lock, Users, Building2, Newspaper, Lightbulb } from 'lucide-react';
 
 interface ResearchBriefProps {
   data: ResearchResponse | undefined;
   isLoading: boolean;
   error: unknown;
-  onGenerate: () => void;
+  onGenerate: (scenario?: string) => void;
   hasRequested: boolean;
 }
 
@@ -21,10 +22,12 @@ const SECTIONS = [
   { key: 'risk_factors', label: 'Risk Factors', icon: AlertTriangle },
   { key: 'competitive_position', label: 'Competitive Position', icon: Target },
   { key: 'outlook_summary', label: 'Outlook', icon: Shield },
+  { key: 'scenario_analysis', label: 'Scenario Analysis', icon: Lightbulb },
 ] as const;
 
 export function ResearchBrief({ data, isLoading, error, onGenerate, hasRequested }: ResearchBriefProps) {
   const navigate = useNavigate();
+  const [scenario, setScenario] = useState('');
 
   if (!hasRequested) {
     return (
@@ -36,11 +39,23 @@ export function ResearchBrief({ data, isLoading, error, onGenerate, hasRequested
           institutional holdings, 8-K events, financial metrics, and management commentary.
           Analysis is cached for 24 hours.
         </p>
+        <div className="mb-4 w-full max-w-md">
+          <input
+            type="text"
+            value={scenario}
+            onChange={(e) => setScenario(e.target.value)}
+            placeholder="Optional: What if tariffs increase 25%?"
+            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-500"
+          />
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+            Add a scenario to see how it would impact this company
+          </p>
+        </div>
         <button
-          onClick={onGenerate}
+          onClick={() => onGenerate(scenario || undefined)}
           className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
-          Generate Deep Research Brief
+          {scenario ? 'Generate Scenario Research' : 'Generate Deep Research Brief'}
         </button>
         <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
           Powered by Claude &middot; 3 free briefs/day &middot; Not investment advice
@@ -88,7 +103,7 @@ export function ResearchBrief({ data, isLoading, error, onGenerate, hasRequested
           {data?.error || (error as Error)?.message || 'Failed to generate research'}
         </p>
         <button
-          onClick={onGenerate}
+          onClick={() => onGenerate()}
           className="mt-3 text-sm text-red-600 underline hover:text-red-700 dark:text-red-400"
         >
           Try again

@@ -29,6 +29,8 @@ from eugene.sources.fmp import (
 from eugene.auth import require_api_key
 from eugene.cache import get_disk_cache
 from eugene.research import generate_research, check_rate_limit, record_usage, get_remaining
+from eugene.debate import generate_debate
+from eugene import simulation as sim_module
 import eugene.db  # ensure init_db() runs on startup
 
 
@@ -439,7 +441,8 @@ def _build_mcp(include_rest: bool = False):
                 if limited:
                     limited["ticker"] = request.path_params["ticker"]
                     return JSONResponse(limited, status_code=429)
-                result = await asyncio.to_thread(generate_research, request.path_params["ticker"])
+                scenario = request.query_params.get("scenario")
+                result = await asyncio.to_thread(generate_research, request.path_params["ticker"], scenario=scenario)
                 # Only count if successful (cached hits are free)
                 if result.get("research"):
                     record_usage(client_ip)
@@ -450,6 +453,57 @@ def _build_mcp(include_rest: bool = False):
                 return JSONResponse(
                     {"ticker": request.path_params.get("ticker", ""), "research": None,
                      "error": str(e), "source": "eugene-research-agent"},
+                    status_code=500,
+                )
+
+        @mcp.custom_route("/v1/sec/{ticker}/debate", methods=["GET"])
+        @require_api_key
+        async def debate_endpoint(request: Request) -> JSONResponse:
+            try:
+                client_ip = request.client.host if request.client else "unknown"
+                limited = check_rate_limit(client_ip)
+                if limited:
+                    limited["ticker"] = request.path_params["ticker"]
+                    return JSONResponse(limited, status_code=429)
+                result = await asyncio.to_thread(generate_debate, request.path_params["ticker"])
+                if result.get("bull_case"):
+                    record_usage(client_ip)
+                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/debate")
+                result["remaining"] = get_remaining(client_ip)
+                return JSONResponse(result)
+            except Exception as e:
+                return JSONResponse(
+                    {"ticker": request.path_params.get("ticker", ""), "mode": "debate",
+                     "error": str(e), "source": "eugene-debate-agent"},
+                    status_code=500,
+                )
+
+        @mcp.custom_route("/v1/sec/{ticker}/simulate", methods=["GET"])
+        @require_api_key
+        async def simulation_endpoint(request: Request) -> JSONResponse:
+            try:
+                client_ip = request.client.host if request.client else "unknown"
+                # Check rate limit (shares quota with research)
+                limited = sim_module.check_rate_limit(client_ip)
+                if limited:
+                    limited["ticker"] = request.path_params["ticker"]
+                    return JSONResponse(limited, status_code=429)
+                scenario = request.query_params.get("scenario")
+                result = await asyncio.to_thread(
+                    sim_module.run_simulation,
+                    request.path_params["ticker"],
+                    scenario,
+                )
+                # Only count if successful
+                if result.get("consensus"):
+                    sim_module.record_usage(client_ip)
+                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/simulate")
+                result["remaining"] = sim_module.get_remaining(client_ip)
+                return JSONResponse(result)
+            except Exception as e:
+                return JSONResponse(
+                    {"ticker": request.path_params.get("ticker", ""), "mode": "simulation",
+                     "error": str(e), "source": "eugene-simulation-engine"},
                     status_code=500,
                 )
 

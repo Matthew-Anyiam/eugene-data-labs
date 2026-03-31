@@ -10,6 +10,8 @@ import { useInsiders } from '../hooks/useInsiders';
 import { useSections } from '../hooks/useSections';
 import { useNews } from '../hooks/useNews';
 import { useResearch } from '../hooks/useResearch';
+import { useDebate } from '../hooks/useDebate';
+import { useSimulation } from '../hooks/useSimulation';
 import { CompanyHeader } from '../components/company/CompanyHeader';
 import { PriceChart } from '../components/charts/PriceChart';
 import { FinancialStatements } from '../components/company/FinancialStatements';
@@ -19,18 +21,24 @@ import { InsidersTable } from '../components/company/InsidersTable';
 import { SectionsView } from '../components/company/SectionsView';
 import { NewsSection } from '../components/company/NewsSection';
 import { ResearchBrief } from '../components/company/ResearchBrief';
+import { DebateBrief } from '../components/company/DebateBrief';
+import { SimulationBrief } from '../components/company/SimulationBrief';
 import { Tabs } from '../components/ui/Tabs';
 import { ProvenanceBar } from '../components/ui/Provenance';
 import { SkeletonCompanyHeader, SkeletonStatsGrid, SkeletonChart, SkeletonTable } from '../components/ui/Skeleton';
 import { formatPrice } from '../lib/utils';
 
-const PAGE_TABS = ['Overview', 'Research', 'Financials', 'Metrics', 'Filings', 'Insiders', 'News', 'Sections'];
+const PAGE_TABS = ['Overview', 'Research', 'Debate', 'Simulation', 'Financials', 'Metrics', 'Filings', 'Insiders', 'News', 'Sections'];
 
 export function CompanyPage() {
   const { ticker = '' } = useParams();
   const [tab, setTab] = useState(PAGE_TABS[0]);
   const [sectionType, setSectionType] = useState('mdna');
   const [researchRequested, setResearchRequested] = useState(false);
+  const [researchScenario, setResearchScenario] = useState<string | undefined>();
+  const [debateRequested, setDebateRequested] = useState(false);
+  const [simulationRequested, setSimulationRequested] = useState(false);
+  const [simulationScenario, setSimulationScenario] = useState<string | undefined>();
 
   const profile = useProfile(ticker);
   const prices = usePrices(ticker);
@@ -41,7 +49,9 @@ export function CompanyPage() {
   const insiders = useInsiders(ticker);
   const sections = useSections(ticker, sectionType);
   const news = useNews(ticker);
-  const research = useResearch(ticker, researchRequested);
+  const research = useResearch(ticker, researchRequested, researchScenario);
+  const debate = useDebate(ticker, debateRequested);
+  const simulation = useSimulation(ticker, simulationRequested, simulationScenario);
 
   const isLoading = profile.isLoading || prices.isLoading;
   const error = profile.error || prices.error;
@@ -113,8 +123,32 @@ export function CompanyPage() {
             data={research.data}
             isLoading={research.isLoading}
             error={research.error}
-            onGenerate={() => setResearchRequested(true)}
+            onGenerate={(scenario?: string) => { setResearchScenario(scenario); setResearchRequested(true); }}
             hasRequested={researchRequested}
+          />
+        </div>
+      )}
+
+      {tab === 'Debate' && (
+        <div>
+          <DebateBrief
+            data={debate.data}
+            isLoading={debate.isLoading}
+            error={debate.error}
+            onGenerate={() => setDebateRequested(true)}
+            hasRequested={debateRequested}
+          />
+        </div>
+      )}
+
+      {tab === 'Simulation' && (
+        <div>
+          <SimulationBrief
+            data={simulation.data}
+            isLoading={simulation.isLoading}
+            error={simulation.error}
+            onGenerate={(scenario?: string) => { setSimulationScenario(scenario); setSimulationRequested(true); }}
+            hasRequested={simulationRequested}
           />
         </div>
       )}

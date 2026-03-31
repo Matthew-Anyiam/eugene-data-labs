@@ -9,6 +9,7 @@ export interface ResearchBrief {
   risk_factors: string;
   competitive_position: string;
   outlook_summary: string;
+  scenario_analysis?: string;
 }
 
 export interface ResearchResponse {
@@ -24,10 +25,11 @@ export interface ResearchResponse {
   rate_limited?: boolean;
 }
 
-export function useResearch(ticker: string, enabled = false) {
+export function useResearch(ticker: string, enabled = false, scenario?: string) {
+  const params = scenario ? `?scenario=${encodeURIComponent(scenario)}` : '';
   return useQuery<ResearchResponse>({
-    queryKey: ['research', ticker],
-    queryFn: () => eugeneApi<ResearchResponse>(`/v1/sec/${encodeURIComponent(ticker)}/research`),
+    queryKey: ['research', ticker, scenario ?? ''],
+    queryFn: () => eugeneApi<ResearchResponse>(`/v1/sec/${encodeURIComponent(ticker)}/research${params}`),
     enabled: !!ticker && enabled,
     staleTime: 30 * 60 * 1000, // 30 min — research is expensive
     gcTime: 60 * 60 * 1000,
