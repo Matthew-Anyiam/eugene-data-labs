@@ -26,7 +26,7 @@ from eugene.sources.fmp import (
     get_price, get_profile, get_earnings, get_estimates, get_news,
     get_historical_bars, get_screener, get_crypto_quote,
 )
-from eugene.auth import require_api_key
+from eugene.auth import require_api_key, _extract_key
 from eugene.cache import get_disk_cache
 from eugene.research import generate_research, check_rate_limit, record_usage, get_remaining
 from eugene.debate import generate_debate
@@ -131,6 +131,16 @@ def _build_mcp(include_rest: bool = False):
         import asyncio
         import json as json_mod
 
+        def _is_pro_user(request: Request) -> bool:
+            """Check if request is from authenticated user with non-free tier."""
+            user = getattr(request.state, "user", None)
+            return user is not None and user.get("tier", "free") != "free"
+
+        def _get_api_key_from_request(request: Request) -> str | None:
+            """Get the eug_ API key from request state if available."""
+            user = getattr(request.state, "user", None)
+            return user.get("key") if user else None
+
         def _safe_int(value: str, default: int, name: str) -> int | JSONResponse:
             """Parse int from query param, return JSONResponse on failure."""
             try:
@@ -185,6 +195,37 @@ def _build_mcp(include_rest: bool = False):
                     "sse": "/sse",
                 },
             })
+
+        # --- Auth endpoints ---
+
+        @mcp.custom_route("/v1/auth/register", methods=["POST"])
+        async def auth_register(request: Request) -> JSONResponse:
+            """Register a new API key.  Accepts {email, name}."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                email = data.get("email", "").strip()
+                name = data.get("name", "").strip() or None
+                if not email or "@" not in email:
+                    return JSONResponse({"error": "Valid email is required"}, status_code=400)
+                from eugene.apikeys import generate_key
+                result = generate_key(email=email, name=name)
+                return JSONResponse(result)
+            except Exception:
+                logger.exception("Registration failed")
+                return JSONResponse({"error": "Failed to register"}, status_code=500)
+
+        @mcp.custom_route("/v1/auth/usage", methods=["GET"])
+        @require_api_key
+        async def auth_usage(request: Request) -> JSONResponse:
+            """Return usage stats for the authenticated API key."""
+            key = _extract_key(request)
+            if not key or not key.startswith("eug_"):
+                return JSONResponse({"error": "Valid eug_ API key required"}, status_code=401)
+            from eugene.apikeys import get_usage
+            stats = get_usage(key)
+            return JSONResponse(stats)
 
         @mcp.custom_route("/v1/waitlist", methods=["POST"])
         async def waitlist(request: Request) -> JSONResponse:
@@ -441,18 +482,20 @@ def _build_mcp(include_rest: bool = False):
         async def research_endpoint(request: Request) -> JSONResponse:
             try:
                 client_ip = request.client.host if request.client else "unknown"
-                # Check rate limit
-                limited = check_rate_limit(client_ip)
-                if limited:
-                    limited["ticker"] = request.path_params["ticker"]
-                    return JSONResponse(limited, status_code=429)
+                api_key = _get_api_key_from_request(request)
+                # Pro users bypass rate limiting
+                if not _is_pro_user(request):
+                    limited = check_rate_limit(client_ip)
+                    if limited:
+                        limited["ticker"] = request.path_params["ticker"]
+                        return JSONResponse(limited, status_code=429)
                 scenario = request.query_params.get("scenario")
                 result = await asyncio.to_thread(generate_research, request.path_params["ticker"], scenario=scenario)
                 # Only count if successful (cached hits are free)
                 if result.get("research"):
                     record_usage(client_ip)
-                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/research")
-                result["remaining"] = get_remaining(client_ip)
+                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/research", api_key=api_key)
+                result["remaining"] = get_remaining(client_ip) if not _is_pro_user(request) else 999
                 return JSONResponse(result)
             except Exception as e:
                 return JSONResponse(
@@ -466,15 +509,17 @@ def _build_mcp(include_rest: bool = False):
         async def debate_endpoint(request: Request) -> JSONResponse:
             try:
                 client_ip = request.client.host if request.client else "unknown"
-                limited = check_rate_limit(client_ip)
-                if limited:
-                    limited["ticker"] = request.path_params["ticker"]
-                    return JSONResponse(limited, status_code=429)
+                api_key = _get_api_key_from_request(request)
+                if not _is_pro_user(request):
+                    limited = check_rate_limit(client_ip)
+                    if limited:
+                        limited["ticker"] = request.path_params["ticker"]
+                        return JSONResponse(limited, status_code=429)
                 result = await asyncio.to_thread(generate_debate, request.path_params["ticker"])
                 if result.get("bull_case"):
                     record_usage(client_ip)
-                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/debate")
-                result["remaining"] = get_remaining(client_ip)
+                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/debate", api_key=api_key)
+                result["remaining"] = get_remaining(client_ip) if not _is_pro_user(request) else 999
                 return JSONResponse(result)
             except Exception as e:
                 return JSONResponse(
@@ -488,11 +533,13 @@ def _build_mcp(include_rest: bool = False):
         async def simulation_endpoint(request: Request) -> JSONResponse:
             try:
                 client_ip = request.client.host if request.client else "unknown"
-                # Check rate limit (shares quota with research)
-                limited = sim_module.check_rate_limit(client_ip)
-                if limited:
-                    limited["ticker"] = request.path_params["ticker"]
-                    return JSONResponse(limited, status_code=429)
+                api_key = _get_api_key_from_request(request)
+                # Pro users bypass rate limiting
+                if not _is_pro_user(request):
+                    limited = sim_module.check_rate_limit(client_ip)
+                    if limited:
+                        limited["ticker"] = request.path_params["ticker"]
+                        return JSONResponse(limited, status_code=429)
                 scenario = request.query_params.get("scenario")
                 result = await asyncio.to_thread(
                     sim_module.run_simulation,
@@ -502,8 +549,8 @@ def _build_mcp(include_rest: bool = False):
                 # Only count if successful
                 if result.get("consensus"):
                     sim_module.record_usage(client_ip)
-                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/simulate")
-                result["remaining"] = sim_module.get_remaining(client_ip)
+                eugene.db.record_api_usage(client_ip, f"/v1/sec/{request.path_params['ticker']}/simulate", api_key=api_key)
+                result["remaining"] = sim_module.get_remaining(client_ip) if not _is_pro_user(request) else 999
                 return JSONResponse(result)
             except Exception as e:
                 return JSONResponse(

@@ -1,4 +1,10 @@
-"""API key authentication with usage tracking and rate-limit headers."""
+"""API key authentication with usage tracking and rate-limit headers.
+
+Supports two authentication modes:
+1. Eugene API keys (``eug_`` prefix) — validated against SQLite via apikeys module
+2. Legacy env-var keys (``EUGENE_API_KEYS``) — comma-separated list for backwards compat
+3. No key — unauthenticated free tier, rate limited by IP
+"""
 import os
 from functools import wraps
 
@@ -30,50 +36,66 @@ def _add_rate_headers(response, usage_info):
 def require_api_key(func):
     """Starlette route decorator: auth + usage tracking + rate-limit headers.
 
-    - If EUGENE_API_KEYS is not set, all requests pass through (open mode)
-      with no rate limiting.
-    - If set, validates the key, tracks usage, enforces per-key rate limits,
-      and adds X-RateLimit-* headers to every response.
+    Authentication flow:
+    1. If an ``eug_`` key is provided, validate via ``apikeys.validate_key()``.
+       - Valid: attach user info to ``request.state.user`` and proceed.
+       - Invalid/revoked: return 401.
+    2. If a legacy env-var key is provided, validate against EUGENE_API_KEYS.
+    3. If no key is provided, allow the request (free tier).
     """
     @wraps(func)
     async def wrapper(request, *args, **kwargs):
-        valid_keys = _get_valid_keys()
+        key = _extract_key(request)
 
-        # Open mode — no auth required
-        if not valid_keys:
+        # --- Eugene API key (eug_ prefix) ---
+        if key and key.startswith("eug_"):
+            from eugene.apikeys import validate_key
+            user_info = validate_key(key)
+            if user_info is None:
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    {"error": "Invalid or revoked API key"},
+                    status_code=401,
+                )
+            # Attach user info so downstream handlers can check tier, etc.
+            request.state.user = user_info
             return await func(request, *args, **kwargs)
 
-        key = _extract_key(request)
-        if key not in valid_keys:
-            from starlette.responses import JSONResponse
-            return JSONResponse(
-                {"error": "Invalid or missing API key"},
-                status_code=401,
-            )
+        # --- Legacy env-var keys ---
+        valid_keys = _get_valid_keys()
+        if valid_keys:
+            if key not in valid_keys:
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    {"error": "Invalid or missing API key"},
+                    status_code=401,
+                )
+            # Legacy key — usage tracking + rate limiting
+            from eugene.usage import usage_tracker
+            usage_info = usage_tracker.check_and_record(key)
 
-        # Usage tracking + rate limiting
-        from eugene.usage import usage_tracker
-        usage_info = usage_tracker.check_and_record(key)
+            if not usage_info["allowed"]:
+                from starlette.responses import JSONResponse
+                resp = JSONResponse(
+                    {
+                        "error": "Rate limit exceeded",
+                        "retry_after": usage_info["reset"],
+                        "limit": usage_info["limit"],
+                    },
+                    status_code=429,
+                )
+                _add_rate_headers(resp, usage_info)
+                resp.headers["Retry-After"] = str(usage_info["reset"])
+                return resp
 
-        if not usage_info["allowed"]:
-            from starlette.responses import JSONResponse
-            resp = JSONResponse(
-                {
-                    "error": "Rate limit exceeded",
-                    "retry_after": usage_info["reset"],
-                    "limit": usage_info["limit"],
-                },
-                status_code=429,
-            )
-            _add_rate_headers(resp, usage_info)
-            resp.headers["Retry-After"] = str(usage_info["reset"])
-            return resp
+            response = await func(request, *args, **kwargs)
+            _add_rate_headers(response, usage_info)
+            return response
 
-        # Execute handler
-        response = await func(request, *args, **kwargs)
-
-        # Add rate-limit headers to successful responses
-        _add_rate_headers(response, usage_info)
-        return response
+        # --- No key, no env-var keys configured: open / free tier ---
+        # Ensure request.state.user is not set (free tier)
+        if not hasattr(request.state, "user"):
+            request.state.user = None
+        return await func(request, *args, **kwargs)
 
     return wrapper

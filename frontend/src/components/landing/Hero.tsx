@@ -1,6 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SearchInput } from '../ui/SearchInput';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { fetchSEC } from '../../lib/api';
+import {
+  Search,
+  Brain,
+  Swords,
+  Drama,
+  ArrowRight,
+} from 'lucide-react';
 
 /* ── Beta Banner ─────────────────────────────────────────────── */
 export function BetaBanner() {
@@ -82,43 +90,387 @@ export function WaitlistForm({ dark = false }: { dark?: boolean }) {
 /* ── Hero ────────────────────────────────────────────────────── */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden px-4 pb-20 pt-20 sm:px-6 sm:pt-28">
+    <section className="relative overflow-hidden px-4 pb-16 pt-20 sm:px-6 sm:pt-28">
       {/* Subtle gradient background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-white dark:from-slate-900/50 dark:via-slate-950 dark:to-slate-950" />
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-          Financial data infrastructure
+          SEC data + AI research
           <br />
-          <span className="text-slate-400 dark:text-slate-500">for AI agents and analysts</span>
+          <span className="text-slate-400 dark:text-slate-500">in one search</span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
-          One API call gets you normalized SEC financials, insider trades, institutional holdings,
-          economic indicators, and market data — all with full provenance tracking.
+          Search any public company. Get financials, insider trades, institutional holdings,
+          and AI-generated research briefs — free, with full SEC provenance.
         </p>
 
-        <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          <Link
-            to="/docs"
-            className="w-full rounded-md bg-slate-900 px-6 py-3 text-sm font-medium text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 sm:w-auto"
-          >
-            Get started free
-          </Link>
-          <Link
-            to="/company/AAPL"
-            className="w-full rounded-md border border-slate-300 px-6 py-3 text-sm font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 sm:w-auto"
-          >
-            See it live — AAPL
-          </Link>
-        </div>
-
-        <div className="mx-auto mt-6 max-w-sm">
+        <div className="mx-auto mt-8 max-w-lg">
           <SearchInput large />
         </div>
 
-        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-          pip install eugene-intelligence &middot; No API key needed during beta
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+          Try <Link to="/company/AAPL" className="font-medium text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900 dark:text-slate-300 dark:decoration-slate-600 dark:hover:text-white">AAPL</Link>,{' '}
+          <Link to="/company/NVDA" className="font-medium text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900 dark:text-slate-300 dark:decoration-slate-600 dark:hover:text-white">NVDA</Link>,{' '}
+          or <Link to="/company/TSLA" className="font-medium text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900 dark:text-slate-300 dark:decoration-slate-600 dark:hover:text-white">TSLA</Link>
+          {' '}&middot; No signup required
         </p>
+      </div>
+    </section>
+  );
+}
+
+/* ── Live Demo Section ──────────────────────────────────────── */
+
+interface CompanyProfile {
+  company_name?: string;
+  ticker?: string;
+  sector?: string;
+  industry?: string;
+  market_cap?: number;
+  description?: string;
+}
+
+interface CompanyMetrics {
+  market_cap?: number;
+  price?: number;
+  pe_ratio?: number;
+  dividend_yield?: number;
+  revenue_ttm?: number;
+  net_income_ttm?: number;
+  gross_margin?: number;
+  roe?: number;
+  beta?: number;
+}
+
+const FALLBACK_PROFILE: CompanyProfile = {
+  company_name: 'Apple Inc.',
+  ticker: 'AAPL',
+  sector: 'Technology',
+  industry: 'Consumer Electronics',
+};
+
+const FALLBACK_METRICS: CompanyMetrics = {
+  market_cap: 3540000000000,
+  price: 232.47,
+  pe_ratio: 37.8,
+  revenue_ttm: 394328000000,
+  gross_margin: 0.462,
+  roe: 1.606,
+  beta: 1.24,
+};
+
+function formatLargeNumber(n: number | undefined): string {
+  if (n === undefined || n === null) return '--';
+  if (n >= 1e12) return `$${(n / 1e12).toFixed(1)}T`;
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  return `$${n.toLocaleString()}`;
+}
+
+function formatPercent(n: number | undefined): string {
+  if (n === undefined || n === null) return '--';
+  // If value is already a fraction (< 1), multiply by 100
+  const pct = Math.abs(n) < 1 ? n * 100 : n;
+  return `${pct.toFixed(1)}%`;
+}
+
+export function LiveDemo() {
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [metrics, setMetrics] = useState<CompanyMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [tryTicker, setTryTicker] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [profileRes, metricsRes] = await Promise.all([
+          fetchSEC<any>('AAPL', new URLSearchParams({ extract: 'profile' })),
+          fetchSEC<any>('AAPL', new URLSearchParams({ extract: 'metrics' })),
+        ]);
+        if (cancelled) return;
+        setProfile(profileRes?.data || profileRes);
+        setMetrics(metricsRes?.data || metricsRes);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const p = error || !profile ? FALLBACK_PROFILE : profile;
+  const m = error || !metrics ? FALLBACK_METRICS : metrics;
+
+  const metricItems = [
+    { label: 'Price', value: m.price ? `$${m.price.toFixed(2)}` : '--' },
+    { label: 'Market Cap', value: formatLargeNumber(m.market_cap) },
+    { label: 'P/E Ratio', value: m.pe_ratio ? m.pe_ratio.toFixed(1) : '--' },
+    { label: 'Revenue (TTM)', value: formatLargeNumber(m.revenue_ttm) },
+    { label: 'Gross Margin', value: formatPercent(m.gross_margin) },
+    { label: 'ROE', value: formatPercent(m.roe) },
+  ];
+
+  const handleTryIt = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ticker = tryTicker.trim().toUpperCase();
+    if (ticker) navigate(`/company/${ticker}`);
+  };
+
+  return (
+    <section className="border-t border-slate-200 px-4 py-20 dark:border-slate-800 sm:px-6">
+      <div className="mx-auto max-w-5xl">
+        <div className="text-center">
+          <p className="text-xs font-medium uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+            Live data
+          </p>
+          <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            See it working — right now
+          </h2>
+          <p className="mt-3 text-slate-600 dark:text-slate-400">
+            Real SEC data for Apple Inc, fetched from our API on page load.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-8 lg:grid-cols-5">
+          {/* Company Card */}
+          <div className="lg:col-span-3">
+            <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+              {/* Card Header */}
+              <div className="border-b border-slate-100 px-6 py-4 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    {loading ? (
+                      <div className="h-6 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+                    ) : (
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        {p.company_name || 'Apple Inc.'}
+                        <span className="ml-2 text-sm font-normal text-slate-400">
+                          {p.ticker || 'AAPL'}
+                        </span>
+                      </h3>
+                    )}
+                    {!loading && (
+                      <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                        {p.sector}{p.industry ? ` / ${p.industry}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  {error && (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      Static fallback
+                    </span>
+                  )}
+                  {!error && !loading && (
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      Live
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 gap-px bg-slate-100 dark:bg-slate-700 sm:grid-cols-3">
+                {metricItems.map((item) => (
+                  <div key={item.label} className="bg-white px-4 py-3.5 dark:bg-slate-800">
+                    {loading ? (
+                      <>
+                        <div className="h-3 w-16 rounded bg-slate-200 dark:bg-slate-700" />
+                        <div className="mt-2 h-5 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{item.label}</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                          {item.value}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Card Footer */}
+              <div className="border-t border-slate-100 px-6 py-3 dark:border-slate-700">
+                <Link
+                  to="/company/AAPL"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                >
+                  View full AAPL profile <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Try It */}
+          <div className="flex flex-col justify-center lg:col-span-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/50">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Try any ticker
+              </h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                Search 10,000+ public companies. Get financials, insiders, and AI research.
+              </p>
+              <form onSubmit={handleTryIt} className="mt-4">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={tryTicker}
+                      onChange={(e) => setTryTicker(e.target.value)}
+                      placeholder="MSFT, GOOGL, TSLA..."
+                      className="w-full rounded-md border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-slate-400 dark:focus:ring-slate-400"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                  >
+                    Go
+                  </button>
+                </div>
+              </form>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['NVDA', 'MSFT', 'GOOGL', 'TSLA', 'META'].map((t) => (
+                  <Link
+                    key={t}
+                    to={`/company/${t}`}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600"
+                  >
+                    {t}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── AI Capabilities ────────────────────────────────────────── */
+export function AICapabilities() {
+  const capabilities = [
+    {
+      icon: Brain,
+      title: 'Deep Research',
+      tagline: '7 data sources, structured brief',
+      desc: 'Pulls financials, insiders, institutional holdings, technicals, filings, segments, and news into a comprehensive research brief with investment thesis and risk factors.',
+    },
+    {
+      icon: Swords,
+      title: 'Bull/Bear Debate',
+      tagline: '3 AI agents argue, one synthesizes',
+      desc: 'A bull analyst, bear analyst, and moderator debate the investment case. Each cites real SEC data. The synthesis presents both sides with a confidence-weighted verdict.',
+    },
+    {
+      icon: Drama,
+      title: 'Market Simulation',
+      tagline: '5 AI personas, emergent consensus',
+      desc: 'Five distinct investor personas — from value investor to momentum trader — independently evaluate the stock. Their consensus reveals where smart money might agree.',
+    },
+  ];
+
+  return (
+    <section className="border-t border-slate-200 bg-slate-50/50 px-4 py-20 dark:border-slate-800 dark:bg-slate-900/30 sm:px-6">
+      <div className="mx-auto max-w-4xl">
+        <div className="text-center">
+          <p className="text-xs font-medium uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            AI-powered analysis
+          </p>
+          <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            Three ways AI reads the market
+          </h2>
+          <p className="mt-3 text-slate-600 dark:text-slate-400">
+            Every AI analysis is grounded in real SEC filings and market data — not hallucinations.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-6 sm:grid-cols-3">
+          {capabilities.map((c) => {
+            const Icon = c.icon;
+            return (
+              <div
+                key={c.title}
+                className="rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700">
+                  <Icon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                </div>
+                <h3 className="mt-4 font-semibold text-slate-900 dark:text-white">{c.title}</h3>
+                <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  {c.tagline}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                  {c.desc}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── How It Works ───────────────────────────────────────────── */
+export function HowItWorks() {
+  const steps = [
+    {
+      number: '1',
+      title: 'Search any ticker',
+      desc: 'Type a ticker symbol or company name. We cover 10,000+ public companies filed with the SEC.',
+    },
+    {
+      number: '2',
+      title: 'View SEC data',
+      desc: 'Financials, insider trades, 13F institutional holdings, filing sections, and technicals — all normalized and sourced.',
+    },
+    {
+      number: '3',
+      title: 'Generate AI research',
+      desc: 'One click generates a deep research brief, bull/bear debate, or market simulation grounded in real data.',
+    },
+  ];
+
+  return (
+    <section className="border-t border-slate-200 px-4 py-20 dark:border-slate-800 sm:px-6">
+      <div className="mx-auto max-w-4xl">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            How it works
+          </h2>
+          <p className="mt-3 text-slate-600 dark:text-slate-400">
+            From search to AI-powered research in three steps.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-8 sm:grid-cols-3">
+          {steps.map((s) => (
+              <div key={s.number} className="text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white dark:bg-white dark:text-slate-900">
+                  {s.number}
+                </div>
+                <h3 className="mt-4 font-semibold text-slate-900 dark:text-white">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                  {s.desc}
+                </p>
+              </div>
+          ))}
+        </div>
+        <div className="mt-10 text-center">
+          <Link
+            to="/company/AAPL"
+            className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-6 py-3 text-sm font-medium text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+          >
+            Try it now — it's free <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </section>
   );

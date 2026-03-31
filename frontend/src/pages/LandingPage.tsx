@@ -1,5 +1,8 @@
 import {
   Hero,
+  LiveDemo,
+  AICapabilities,
+  HowItWorks,
   DataSources,
   StatsBar,
   CodeShowcase,
@@ -14,6 +17,9 @@ export function LandingPage() {
       <Hero />
       <DataSources />
       <StatsBar />
+      <LiveDemo />
+      <AICapabilities />
+      <HowItWorks />
       <CodeShowcase />
       <FeatureShowcase />
       <UseCases />

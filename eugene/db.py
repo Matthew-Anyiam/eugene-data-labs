@@ -60,6 +60,7 @@ def init_db():
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_ip   TEXT NOT NULL,
                 endpoint    TEXT NOT NULL,
+                api_key     TEXT,
                 created_at  TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
@@ -67,6 +68,7 @@ def init_db():
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_ip   TEXT NOT NULL,
                 action      TEXT NOT NULL,
+                api_key     TEXT,
                 created_at  TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
@@ -75,6 +77,21 @@ def init_db():
 
             CREATE INDEX IF NOT EXISTS idx_usage_ip
                 ON usage (client_ip, created_at);
+
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                key         TEXT UNIQUE NOT NULL,
+                email       TEXT NOT NULL,
+                name        TEXT,
+                tier        TEXT DEFAULT 'free',
+                daily_limit INTEGER DEFAULT 3,
+                created_at  TEXT DEFAULT (datetime('now')),
+                last_used   TEXT,
+                is_active   INTEGER DEFAULT 1
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_api_keys_key
+                ON api_keys (key);
         """)
     logger.info("SQLite database initialised at %s", DB_PATH)
 
@@ -113,12 +130,12 @@ def save_waitlist(email: str):
 # ---------------------------------------------------------------------------
 # API usage tracking
 # ---------------------------------------------------------------------------
-def record_api_usage(client_ip: str, endpoint: str):
+def record_api_usage(client_ip: str, endpoint: str, api_key: str = None):
     """Record an API call for analytics."""
     with _get_conn() as conn:
         conn.execute(
-            "INSERT INTO usage (client_ip, endpoint) VALUES (?, ?)",
-            (client_ip, endpoint),
+            "INSERT INTO usage (client_ip, endpoint, api_key) VALUES (?, ?, ?)",
+            (client_ip, endpoint, api_key),
         )
 
 
@@ -167,12 +184,12 @@ def check_research_rate_limit(client_ip: str, daily_limit: int = 3) -> dict | No
     return None
 
 
-def _record_research_usage(client_ip: str):
+def _record_research_usage(client_ip: str, api_key: str = None):
     """Record a research generation for rate-limiting purposes."""
     with _get_conn() as conn:
         conn.execute(
-            "INSERT INTO rate_limits (client_ip, action) VALUES (?, 'research')",
-            (client_ip,),
+            "INSERT INTO rate_limits (client_ip, action, api_key) VALUES (?, 'research', ?)",
+            (client_ip, api_key),
         )
 
 
