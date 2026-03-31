@@ -73,7 +73,7 @@ def _get_providers() -> list[Provider]:
     # Zhipu GLM
     key = os.getenv("GLM_API_KEY") or os.getenv("ZHIPUAI_API_KEY")
     if key:
-        model = os.getenv("GLM_MODEL", "glm-4")
+        model = os.getenv("GLM_MODEL", "glm-4.7-flash")
         providers.append(Provider(
             name="glm",
             api_key=key,
