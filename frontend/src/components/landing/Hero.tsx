@@ -100,14 +100,14 @@ export function Hero() {
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-white dark:from-slate-900/50 dark:via-slate-950 dark:to-slate-950" />
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-          The context layer
+          Look up any company.
           <br />
-          <span className="text-slate-400 dark:text-slate-500">for financial decisions</span>
+          <span className="text-slate-400 dark:text-slate-500">Know what's going on.</span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
-          We collect financial data, world events, and market signals — then make it all
-          easy to understand for AI agents and the people who use them.
+          Financials, insider trades, world events, sanctions, supply chains, credit markets —
+          all in one place. Use it yourself or plug it into your tools.
         </p>
 
         <div className="mx-auto mt-8 max-w-lg">
@@ -234,10 +234,10 @@ export function LiveDemo() {
             Live data
           </p>
           <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            See it working — right now
+            This is real data, loading right now
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Real company data, fetched live from our platform right now.
+            Not a mockup. This is Apple's actual data pulled from our API when you opened this page.
           </p>
         </div>
 
@@ -313,7 +313,7 @@ export function LiveDemo() {
                 Try any ticker
               </h3>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                Search any public company. Get financials, world context, and AI research.
+                Type any ticker. See what the company looks like, what insiders are doing, and what's happening around it.
               </p>
               <form onSubmit={handleTryIt} className="mt-4">
                 <div className="flex gap-2">
@@ -359,21 +359,21 @@ export function AICapabilities() {
   const capabilities = [
     {
       icon: Brain,
-      title: 'Deep Research',
-      tagline: '7 data sources, one clear brief',
-      desc: 'Pulls together financials, insider trades, institutional holdings, market data, filings, world events, and news — then writes you a research brief that explains what it all means.',
+      title: 'Research Brief',
+      tagline: 'Reads 7 sources, writes you a summary',
+      desc: 'Financials, insider trades, holdings, market data, filings, world events, news — it reads all of it and gives you a brief you can actually use. Takes about 30 seconds.',
     },
     {
       icon: Swords,
-      title: 'Bull/Bear Debate',
-      tagline: '3 AI analysts argue it out',
-      desc: 'A bull analyst, bear analyst, and moderator debate whether a stock is worth buying. Each backs up their argument with real data. You get both sides and a verdict.',
+      title: 'Bull vs Bear',
+      tagline: 'The case for and against',
+      desc: 'One side argues buy, the other argues sell. Both use real numbers. A third voice synthesizes. You read it and decide. Better than reading 50 pages of filings yourself.',
     },
     {
       icon: Drama,
-      title: 'Market Simulation',
-      tagline: '5 investor types, one consensus',
-      desc: 'Five AI investor personas — value investor, growth hunter, momentum trader, contrarian, and macro strategist — each independently evaluate a stock. Their agreement (or disagreement) tells you something.',
+      title: 'Investor Panel',
+      tagline: '5 perspectives on one stock',
+      desc: 'A value investor, growth hunter, momentum trader, contrarian, and macro strategist each give their take. When they agree, pay attention. When they don\'t, that\'s interesting too.',
     },
   ];
 
@@ -382,13 +382,13 @@ export function AICapabilities() {
       <div className="mx-auto max-w-4xl">
         <div className="text-center">
           <p className="text-xs font-medium uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            AI-powered analysis
+            Research tools
           </p>
           <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            Three ways AI reads the market
+            Let the machine do the reading
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Every analysis is built on real data — filings, prices, and world events — not guesswork.
+            There's too much data to read yourself. These tools pull it together and tell you what matters.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -423,18 +423,18 @@ export function HowItWorks() {
   const steps = [
     {
       number: '1',
-      title: 'Search or explore',
-      desc: 'Type a company name to see everything about it, or browse world events — conflicts, shipping disruptions, sanctions, natural disasters — that move markets.',
+      title: 'Search a company',
+      desc: 'Type a ticker. You get financials, insider trades, institutional holdings, filings, news, and whatever\'s happening in the world around that company.',
     },
     {
       number: '2',
-      title: 'See the full picture',
-      desc: 'Financials, insider trades, who owns what, credit markets, geopolitical risks, and supply chain status — all in one place, all connected.',
+      title: 'Browse world data',
+      desc: 'Or skip the ticker and go straight to world events — sanctions lists, conflict zones, port congestion, shipping routes, credit markets, economic indicators.',
     },
     {
       number: '3',
-      title: 'Let AI make sense of it',
-      desc: 'One click generates a research brief, investment debate, or market simulation — built on real data, not hallucinations.',
+      title: 'Get a brief',
+      desc: 'Hit one button and get a written research brief, a bull-vs-bear debate, or a multi-perspective analysis. Email it, export it, or feed it to your own tools.',
     },
   ];
 
@@ -446,7 +446,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            From search to understanding in three steps.
+            It's not complicated.
           </p>
         </div>
         <div className="mt-12 grid gap-8 sm:grid-cols-3">
@@ -510,10 +510,10 @@ export function DataSources() {
 /* -- Stats Bar ----------------------------------------------------------- */
 export function StatsBar() {
   const stats = [
-    { value: '19', label: 'Data extracts' },
-    { value: '7', label: 'Signal categories' },
-    { value: '10K+', label: 'Public companies' },
-    { value: '3', label: 'Protocols (REST, MCP, CLI)' },
+    { value: '10K+', label: 'Companies' },
+    { value: '19', label: 'Data types' },
+    { value: '7', label: 'World categories' },
+    { value: '3', label: 'Ways to connect' },
   ];
   return (
     <section className="px-4 py-16 sm:px-6">
@@ -581,10 +581,10 @@ export function CodeShowcase() {
       <div className="mx-auto max-w-4xl">
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Three ways to access your data
+            Use it however you want
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            CLI for exploration. REST API for production. MCP for AI agents.
+            Terminal, API, or plug it straight into Claude, ChatGPT, or Cursor.
           </p>
         </div>
 
@@ -669,10 +669,10 @@ export function FeatureShowcase() {
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
           <p className="text-xs font-medium uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            Capabilities
+            What's in it
           </p>
           <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            Everything that matters, in one place
+            Six types of data, one place to find them
           </h2>
         </div>
 
@@ -729,16 +729,16 @@ export function FeatureShowcase() {
 export function UseCases() {
   const cases = [
     {
-      title: 'For AI Agents',
-      desc: 'Give your AI the context it needs — company data, world events, risk signals — through a single API or MCP connection. Your agent stops guessing and starts knowing.',
+      title: 'You build AI tools',
+      desc: 'Your agent needs to know about companies, markets, and the world. Connect it to Eugene and it has real data to work with instead of making things up.',
     },
     {
-      title: 'For Analysts & PMs',
-      desc: 'Stop tab-switching between Bloomberg, SEC, and news sites. One workspace for financials, geopolitical risk, supply chains, sanctions, and AI-generated briefs you can email to your team.',
+      title: 'You work in finance',
+      desc: 'Stop switching between 12 tabs. Company data, insider activity, sanctions checks, world events, credit markets — it\'s all here. Generate a brief, email it to your team, move on.',
     },
     {
-      title: 'For Developers',
-      desc: 'Build on top of clean, normalized data. REST API, MCP server, CLI, CSV and Parquet export. 10,000+ companies and 7 categories of world data, ready to plug into your stack.',
+      title: 'You write code',
+      desc: 'REST API, MCP server, command line, CSV export. Clean data, good docs, no weird auth flows. pip install and go.',
     },
   ];
 
@@ -746,9 +746,9 @@ export function UseCases() {
     <section className="border-t border-slate-200 px-4 py-20 dark:border-slate-800 sm:px-6">
       <div className="mx-auto max-w-4xl">
         <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">One workspace, many uses</h2>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who this is for</h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Whether you're an AI agent that needs context, an analyst writing a brief, or a developer building a product.
+            Different people use it differently. That's the point.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -773,10 +773,10 @@ export function BottomCTA() {
     <section className="border-t border-slate-200 bg-slate-900 px-4 py-20 dark:border-slate-800 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Start making better decisions
+          Get started — it's free
         </h2>
         <p className="mt-3 text-slate-400">
-          Free during beta. No signup needed. Install in 30 seconds.
+          No signup, no credit card, no API key. Just install and go.
         </p>
         <div className="mx-auto mt-6 max-w-sm rounded-md border border-slate-700 bg-slate-800 px-4 py-3">
           <code className="text-sm text-emerald-400">pip install eugene-intelligence</code>
