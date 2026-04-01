@@ -1328,6 +1328,98 @@ def _build_mcp(include_rest: bool = False):
             result = await asyncio.to_thread(get_credit_spreads, series_id=series_id)
             return JSONResponse(result)
 
+        @mcp.custom_route("/v1/world/private-credit/bdcs/{ticker}/holdings", methods=["GET"])
+        @require_api_key
+        async def world_bdc_parsed_holdings(request: Request) -> JSONResponse:
+            """Parse actual portfolio holdings from BDC filing."""
+            from eugene.sources.private_credit import parse_holdings_from_filing
+            ticker = request.path_params["ticker"]
+            accession = request.query_params.get("accession")
+            result = await asyncio.to_thread(parse_holdings_from_filing, ticker, accession=accession)
+            return JSONResponse(result)
+
+        # --- Worker management endpoints ---
+
+        @mcp.custom_route("/v1/workers/status", methods=["GET"])
+        @require_api_key
+        async def workers_status(request: Request) -> JSONResponse:
+            """Check if Celery workers are connected."""
+            try:
+                from eugene.workers.celery_app import app as celery_app
+                inspector = celery_app.control.inspect(timeout=2)
+                active = inspector.active()
+                return JSONResponse({
+                    "workers_online": bool(active),
+                    "active_tasks": {k: len(v) for k, v in (active or {}).items()},
+                })
+            except Exception as e:
+                return JSONResponse({"workers_online": False, "error": str(e)})
+
+        @mcp.custom_route("/v1/workers/trigger/{task_name}", methods=["POST"])
+        @require_api_key
+        async def workers_trigger(request: Request) -> JSONResponse:
+            """Trigger an ingestion task on-demand."""
+            task_name = request.path_params["task_name"]
+            allowed = {
+                "news": "eugene.workers.tasks.ingest_news_signals",
+                "sanctions": "eugene.workers.tasks.sync_sanctions",
+                "disasters": "eugene.workers.tasks.ingest_disaster_signals",
+                "conflict": "eugene.workers.tasks.ingest_conflict_signals",
+                "ports": "eugene.workers.tasks.ingest_port_signals",
+                "sec": "eugene.workers.tasks.ingest_sec_signals",
+                "economics": "eugene.workers.tasks.ingest_economic_signals",
+                "cleanup": "eugene.workers.tasks.cleanup_old_signals",
+            }
+            if task_name not in allowed:
+                return JSONResponse({"error": f"Unknown task: {task_name}. Available: {', '.join(allowed.keys())}"}, status_code=400)
+            try:
+                from eugene.workers.celery_app import app as celery_app
+                result = celery_app.send_task(allowed[task_name])
+                return JSONResponse({"task_id": result.id, "task": task_name, "status": "queued"})
+            except Exception as e:
+                return JSONResponse({"error": f"Failed to queue task: {e}"}, status_code=500)
+
+        # --- Email briefs endpoints ---
+
+        @mcp.custom_route("/v1/email/brief", methods=["POST"])
+        @require_api_key
+        async def email_brief(request: Request) -> JSONResponse:
+            """Email a research brief, debate, or simulation."""
+            from eugene.email_briefs import send_brief, is_configured
+
+            if not is_configured():
+                return JSONResponse({"error": "Email not configured on this server. Set SMTP_USER and SMTP_PASS."}, status_code=503)
+
+            try:
+                body = await request.body()
+                data = json_mod.loads(body)
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+            to_email = data.get("to")
+            ticker = data.get("ticker", "")
+            brief_type = data.get("type", "research")
+            brief_data = data.get("brief")
+
+            if not to_email or not brief_data:
+                return JSONResponse({"error": "Required fields: to (email), brief (data), optional: ticker, type"}, status_code=400)
+
+            if brief_type not in ("research", "debate", "simulation"):
+                return JSONResponse({"error": "type must be: research, debate, or simulation"}, status_code=400)
+
+            subject = f"{ticker.upper() + ' — ' if ticker else ''}{brief_type.title()} Brief — Eugene Intelligence"
+            result = await asyncio.to_thread(send_brief, to_email, subject, brief_data, brief_type)
+
+            status_code = 200 if "status" in result else 500
+            return JSONResponse(result, status_code=status_code)
+
+        @mcp.custom_route("/v1/email/status", methods=["GET"])
+        @require_api_key
+        async def email_status(request: Request) -> JSONResponse:
+            """Check if email sending is configured."""
+            from eugene.email_briefs import is_configured
+            return JSONResponse({"configured": is_configured()})
+
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])
         @require_api_key
         async def export_endpoint(request: Request) -> Response:

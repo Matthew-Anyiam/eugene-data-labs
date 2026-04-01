@@ -1,40 +1,60 @@
 # Eugene Intelligence — Roadmap
 
 ## Shipped
-- [x] SEC EDGAR data pipeline (10-K, 10-Q, 8-K, Form 4, 13F)
-- [x] AI Deep Research agent (7 data sources, Claude Haiku)
-- [x] SEC EFTS news handler (8-K/6-K filings)
-- [x] SQLite persistence (feedback, waitlist, usage, rate limits)
-- [x] Structured JSON logging & monitoring (`/v1/stats`)
-- [x] Frontend test suite (19 tests, Vitest)
-- [x] Feedback widget
 
-## In Progress
-- [ ] Production hardening & scaling
+### Core Platform
+- [x] SEC EDGAR data pipeline (10-K, 10-Q, 8-K, Form 4, 13F, XBRL)
+- [x] 19 data extract types (financials, insiders, holdings, sections, technicals, etc.)
+- [x] Stock screener (sector, market cap, price, volume, beta)
+- [x] Economic indicators (9 FRED categories, 200+ series)
+- [x] Prediction markets (Polymarket/Kalshi integration)
+- [x] Crypto quotes and historical data
 
-## Planned
+### AI Research
+- [x] Deep Research agent (7 data sources, Claude Haiku)
+- [x] Bull/Bear Debate (3 AI analysts)
+- [x] Market Simulation (5 investor personas)
+- [x] Email briefs (send research to your inbox)
 
-### Private Credit Market Data
-**Priority:** High — user-requested feature
-**Opportunity:** $1.7T+ market with very little transparent data. Institutional investors pay premium for visibility.
+### World Intelligence
+- [x] News intelligence (GDELT feeds, sentiment, topic filtering)
+- [x] Sanctions screening (OFAC SDN, EU, UN lists)
+- [x] Regulatory monitoring (Federal Register changes)
+- [x] Disaster tracking (USGS earthquakes, GDACS multi-hazard, NASA FIRMS fires)
+- [x] Conflict intelligence (UCDP events, escalation scoring)
+- [x] Supply chain monitoring (15 ports, 8 chokepoints, UN Comtrade trade flows)
+- [x] Flight intelligence (OpenSky aircraft, 15 airports, airspace status)
+- [x] Convergence engine (cross-signal risk detection, 5 named patterns)
 
-Potential data sources:
-- **BDC filings (SEC EDGAR)** — Ares Capital (ARCC), Owl Rock (OBDC), Blue Owl (OWL) etc. file quarterly holdings in 10-Q/10-K. We already have the SEC pipeline to extract these.
-- **Cliffwater Direct Lending Index** — benchmark for private credit returns
-- **LCD by PitchBook** — leveraged loan and private credit deal data
-- **Federal Reserve SLOOS** — Senior Loan Officer Opinion Survey for lending conditions
-- **FRED** — high-yield spreads, leveraged loan indices as market context
+### Private Credit
+- [x] BDC universe (12 tracked companies with SEC filings)
+- [x] BDC holdings parser (Schedule of Investments extraction)
+- [x] Credit spreads (6 FRED series — HY, BBB, BB, B, CCC, lending standards)
+- [x] Market stress indicators
 
-Implementation ideas:
-1. Start with BDC holdings extraction (free, uses existing SEC pipeline)
-2. Add private credit market indicators from FRED (free API)
-3. Build a "Private Credit Dashboard" section in the frontend
-4. Premium tier: deeper analytics, deal-level data from paid sources
+### Infrastructure
+- [x] Dual SQLite/PostgreSQL database with transparent SQL translation
+- [x] Celery + Redis workers (8 periodic ingestion tasks)
+- [x] Modal.com GPU inference pipeline (NER, sentiment, 3-tier fallback)
+- [x] Entity ontology graph (entities, edges, signals, convergence)
+- [x] API key authentication with tiered rate limits
+- [x] Structured JSON logging and monitoring
 
-### Other Ideas
+### Access Methods
+- [x] REST API (62 endpoints)
+- [x] MCP server (7 tools, ~35 sub-actions)
+- [x] CLI (`eugene sec`, `eugene econ`, `eugene prices`, `eugene crypto`)
+- [x] SSE streaming (real-time filing alerts)
+
+### Frontend
+- [x] 11 pages (Landing, Company, Screener, Economics, Predictions, Ontology, World, Dashboard, Docs, Pricing, 404)
+- [x] Responsive design with dark mode
+- [x] Live data demo on landing page
+
+## Next Up
+- [ ] Production deployment of Celery workers on Railway
 - [ ] Real-time price data integration
-- [ ] Portfolio tracking & alerts
-- [ ] Earnings call transcript analysis
-- [ ] Peer comparison tool
-- [ ] API key authentication for power users
-- [ ] Webhook notifications for material events
+- [ ] Portfolio tracking and alerts
+- [ ] Webhook notifications for convergence events
+- [ ] Frontend code-splitting for bundle optimization
+- [ ] Error boundaries and improved error UX
