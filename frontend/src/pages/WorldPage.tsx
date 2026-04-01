@@ -6,11 +6,13 @@ import {
   useSanctionsScreen,
   useRegulatoryChanges,
 } from '../hooks/useWorld';
+import { useActiveDisasters, useActiveConflicts } from '../hooks/useDisasters';
 import type { NewsArticle, RegulatoryChange } from '../hooks/useWorld';
+import type { Disaster } from '../hooks/useDisasters';
 import {
   Globe, Newspaper, Shield, Search, TrendingUp, TrendingDown,
   Minus, CheckCircle, XCircle, Loader2, ExternalLink,
-  Clock, FileText, Zap, BarChart3,
+  Clock, FileText, Zap, BarChart3, AlertTriangle, Swords,
 } from 'lucide-react';
 
 const NEWS_TOPICS = [
@@ -38,7 +40,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export function WorldPage() {
-  const [activeTab, setActiveTab] = useState<'news' | 'sanctions' | 'regulatory'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'sanctions' | 'regulatory' | 'disasters' | 'conflict'>('news');
   const [newsTopic, setNewsTopic] = useState<string | undefined>();
   const [newsQuery, setNewsQuery] = useState('');
   const [activeNewsQuery, setActiveNewsQuery] = useState('');
@@ -51,6 +53,8 @@ export function WorldPage() {
   const brief = useNewsBrief(activeNewsQuery || undefined, newsTopic, !!(activeNewsQuery || newsTopic));
   const screening = useSanctionsScreen(activeSanctionsName);
   const regulatory = useRegulatoryChanges(7);
+  const disasters = useActiveDisasters(7);
+  const conflicts = useActiveConflicts();
 
   const handleNewsSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,8 +84,10 @@ export function WorldPage() {
       <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
         {[
           { key: 'news', label: 'News & Signals', icon: Newspaper },
-          { key: 'sanctions', label: 'Sanctions Screening', icon: Shield },
-          { key: 'regulatory', label: 'Regulatory Changes', icon: FileText },
+          { key: 'disasters', label: 'Disasters', icon: AlertTriangle },
+          { key: 'conflict', label: 'Conflict', icon: Swords },
+          { key: 'sanctions', label: 'Sanctions', icon: Shield },
+          { key: 'regulatory', label: 'Regulatory', icon: FileText },
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -338,9 +344,104 @@ export function WorldPage() {
         </div>
       )}
 
+      {/* Disasters Tab */}
+      {activeTab === 'disasters' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-500">Active Disasters (Last 7 Days)</h3>
+            <span className="text-xs text-slate-400">Sources: USGS + GDACS</span>
+          </div>
+
+          {disasters.isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            </div>
+          )}
+
+          {disasters.data && disasters.data.disasters.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-500">No significant disasters in the last 7 days</p>
+          )}
+
+          {disasters.data?.disasters.map((d: Disaster) => (
+            <div key={d.id} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block h-2 w-2 rounded-full ${
+                      d.alert_level === 'red' ? 'bg-red-500' :
+                      d.alert_level === 'orange' ? 'bg-orange-500' :
+                      'bg-green-500'
+                    }`} />
+                    <p className="font-medium">{d.name}</p>
+                  </div>
+                  <div className="mt-1 flex gap-3 text-xs text-slate-500">
+                    <span className="capitalize">{d.type.replace('_', ' ')}</span>
+                    {d.severity && <span>Severity: {d.severity}</span>}
+                    {d.date && <span>{d.date.slice(0, 10)}</span>}
+                    <span>{d.source.toUpperCase()}</span>
+                  </div>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  d.alert_level === 'red' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                  d.alert_level === 'orange' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' :
+                  'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                }`}>
+                  {d.alert_level || 'green'}
+                </span>
+              </div>
+              {d.details?.country && (
+                <p className="mt-2 text-xs text-slate-400">
+                  {d.details.country}
+                  {d.details.affected_population && ` · ${Number(d.details.affected_population).toLocaleString()} affected`}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Conflict Tab */}
+      {activeTab === 'conflict' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-500">Active Armed Conflicts</h3>
+            <span className="text-xs text-slate-400">Source: UCDP (Uppsala)</span>
+          </div>
+
+          {conflicts.isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            </div>
+          )}
+
+          {conflicts.data && conflicts.data.conflicts.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-500">No conflict data available</p>
+          )}
+
+          {conflicts.data?.conflicts.map((c: any, i: number) => (
+            <div key={i} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+              <p className="font-medium">{c.name}</p>
+              <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
+                {c.territory && <span>Territory: {c.territory}</span>}
+                {c.region && <span>Region: {c.region}</span>}
+                {c.type && <span>Type: {c.type}</span>}
+                {c.intensity_level && (
+                  <span className={`rounded-full px-2 py-0.5 font-medium ${
+                    c.intensity_level === '2' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                  }`}>
+                    Intensity: {c.intensity_level}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Attribution */}
       <div className="text-center text-xs text-slate-400 dark:text-slate-500">
-        News: GDELT Project · Sanctions: US Treasury OFAC + UN Security Council · Regulatory: Federal Register
+        News: GDELT · Disasters: USGS + GDACS + NASA FIRMS · Conflict: UCDP · Sanctions: OFAC + UN SC · Regulatory: Federal Register
       </div>
     </div>
   );

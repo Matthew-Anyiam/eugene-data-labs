@@ -195,10 +195,12 @@ def _build_mcp(include_rest: bool = False):
     ) -> dict:
         """World intelligence — geopolitical news, sanctions screening, and signals.
 
-        category: news|sanctions
+        category: news|sanctions|disasters|conflict
         action:
           news: get_feed|get_brief|get_sentiment
           sanctions: get_sanctions|screen_entity|get_exposure|get_regulatory_changes
+          disasters: get_active|get_impact|get_historical
+          conflict: get_events|get_escalation_score|get_conflicts|get_affected_assets
         query: Search text for news/sanctions
         topic: News topic (geopolitics, trade, energy, tech, finance, climate)
         ticker: Company ticker for exposure checks
@@ -238,7 +240,38 @@ def _build_mcp(include_rest: bool = False):
                 return get_changes(days=days, limit=limit)
             return {"error": f"Unknown sanctions action: {action}"}
 
-        return {"error": f"Unknown category: {category}. Use: news, sanctions"}
+        elif category == "disasters":
+            from eugene.world.disasters_intel import get_active, get_impact, get_historical
+            if action == "get_active":
+                return get_active(days=days)
+            elif action == "get_impact":
+                if not query:
+                    return {"error": "query required (format: 'lat,lng')"}
+                parts = query.split(",")
+                if len(parts) != 2:
+                    return {"error": "query must be 'lat,lng'"}
+                return get_impact(float(parts[0]), float(parts[1]))
+            elif action == "get_historical":
+                return get_historical(days=days, limit=limit)
+            return {"error": f"Unknown disasters action: {action}"}
+
+        elif category == "conflict":
+            from eugene.world.conflict_intel import get_events, get_escalation, get_conflicts, get_affected
+            if action == "get_events":
+                return get_events(country=query, limit=limit)
+            elif action == "get_escalation_score":
+                if not query:
+                    return {"error": "query (country) required"}
+                return get_escalation(query)
+            elif action == "get_conflicts":
+                return get_conflicts(region=query)
+            elif action == "get_affected_assets":
+                if not query:
+                    return {"error": "query (country) required"}
+                return get_affected(query)
+            return {"error": f"Unknown conflict action: {action}"}
+
+        return {"error": f"Unknown category: {category}. Use: news, sanctions, disasters, conflict"}
 
     @mcp.tool()
     def caps() -> dict:
@@ -943,6 +976,91 @@ def _build_mcp(include_rest: bool = False):
             if isinstance(limit, JSONResponse):
                 return limit
             result = await asyncio.to_thread(get_changes, days=days, limit=limit)
+            return JSONResponse(result)
+
+        # --- Disasters endpoints ---
+
+        @mcp.custom_route("/v1/world/disasters", methods=["GET"])
+        @require_api_key
+        async def world_disasters_active(request: Request) -> JSONResponse:
+            """Get active disasters from USGS + GDACS."""
+            from eugene.world.disasters_intel import get_active
+            days = _safe_int(request.query_params.get("days", "7"), 7, "days")
+            if isinstance(days, JSONResponse):
+                return days
+            min_mag = _safe_float(request.query_params.get("min_magnitude", "4.5"), 4.5, "min_magnitude")
+            if isinstance(min_mag, JSONResponse):
+                return min_mag
+            include_fires = request.query_params.get("fires", "").lower() in ("true", "1", "yes")
+            result = await asyncio.to_thread(get_active, days=days, min_magnitude=min_mag, include_fires=include_fires)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/disasters/earthquakes", methods=["GET"])
+        @require_api_key
+        async def world_earthquakes(request: Request) -> JSONResponse:
+            """Get earthquakes from USGS."""
+            from eugene.sources.disasters import get_earthquakes
+            min_mag = _safe_float(request.query_params.get("min_magnitude", "4.0"), 4.0, "min_magnitude")
+            if isinstance(min_mag, JSONResponse):
+                return min_mag
+            days = _safe_int(request.query_params.get("days", "7"), 7, "days")
+            if isinstance(days, JSONResponse):
+                return days
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_earthquakes, min_magnitude=min_mag, days=days, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/disasters/risk", methods=["GET"])
+        @require_api_key
+        async def world_climate_risk(request: Request) -> JSONResponse:
+            """Assess disaster risk for a location."""
+            from eugene.world.disasters_intel import get_impact
+            lat = _safe_float(request.query_params.get("lat", "0"), 0, "lat")
+            if isinstance(lat, JSONResponse):
+                return lat
+            lng = _safe_float(request.query_params.get("lng", "0"), 0, "lng")
+            if isinstance(lng, JSONResponse):
+                return lng
+            radius = _safe_float(request.query_params.get("radius_km", "500"), 500, "radius_km")
+            if isinstance(radius, JSONResponse):
+                return radius
+            result = await asyncio.to_thread(get_impact, lat, lng, radius)
+            return JSONResponse(result)
+
+        # --- Conflict endpoints ---
+
+        @mcp.custom_route("/v1/world/conflict/events", methods=["GET"])
+        @require_api_key
+        async def world_conflict_events(request: Request) -> JSONResponse:
+            """Get georeferenced conflict events from UCDP."""
+            from eugene.world.conflict_intel import get_events
+            country = request.query_params.get("country")
+            year_str = request.query_params.get("year")
+            year = int(year_str) if year_str else None
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_events, country=country, year=year, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/conflict/escalation/{country}", methods=["GET"])
+        @require_api_key
+        async def world_escalation_score(request: Request) -> JSONResponse:
+            """Get conflict escalation score for a country."""
+            from eugene.world.conflict_intel import get_escalation
+            country = request.path_params["country"]
+            result = await asyncio.to_thread(get_escalation, country)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/conflict", methods=["GET"])
+        @require_api_key
+        async def world_active_conflicts(request: Request) -> JSONResponse:
+            """Get active armed conflicts from UCDP."""
+            from eugene.world.conflict_intel import get_conflicts
+            region = request.query_params.get("region")
+            result = await asyncio.to_thread(get_conflicts, region=region)
             return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])

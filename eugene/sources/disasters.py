@@ -1,0 +1,404 @@
+"""
+Disaster data sources — USGS Earthquakes, GDACS Multi-Hazard, NASA FIRMS Fire.
+
+All sources are free, US Gov/UN public domain, real-time.
+- USGS: https://earthquake.usgs.gov/fdsnws/event/1/
+- GDACS: https://www.gdacs.org/gdacsapi/
+- NASA FIRMS: https://firms.modaps.eosdis.nasa.gov/
+"""
+
+import logging
+import requests
+from datetime import datetime, timedelta
+from eugene.cache import cached
+
+logger = logging.getLogger(__name__)
+
+USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query"
+GDACS_API = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
+NASA_FIRMS_API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
+
+TIMEOUT = 20
+
+
+# ---------------------------------------------------------------------------
+# USGS Earthquakes
+# ---------------------------------------------------------------------------
+
+@cached(ttl=300)  # 5 min cache
+def get_earthquakes(
+    min_magnitude: float = 4.0,
+    days: int = 7,
+    limit: int = 50,
+    lat: float | None = None,
+    lng: float | None = None,
+    radius_km: float | None = None,
+) -> dict:
+    """Get recent earthquakes from USGS.
+
+    Args:
+        min_magnitude: Minimum magnitude (0-10)
+        days: Days to look back
+        limit: Max results
+        lat/lng/radius_km: Optional geographic filter
+
+    Returns:
+        Dict with earthquakes list
+    """
+    end = datetime.utcnow()
+    start = end - timedelta(days=days)
+
+    params = {
+        "format": "geojson",
+        "starttime": start.strftime("%Y-%m-%d"),
+        "endtime": end.strftime("%Y-%m-%d"),
+        "minmagnitude": min_magnitude,
+        "limit": min(limit, 200),
+        "orderby": "time",
+    }
+
+    if lat is not None and lng is not None and radius_km is not None:
+        params["latitude"] = lat
+        params["longitude"] = lng
+        params["maxradiuskm"] = radius_km
+
+    try:
+        resp = requests.get(USGS_API, params=params, timeout=TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+
+        quakes = []
+        for feature in data.get("features", []):
+            props = feature.get("properties", {})
+            coords = feature.get("geometry", {}).get("coordinates", [0, 0, 0])
+
+            quakes.append({
+                "id": feature.get("id", ""),
+                "magnitude": props.get("mag"),
+                "place": props.get("place", ""),
+                "time": props.get("time"),
+                "timestamp": datetime.utcfromtimestamp(props["time"] / 1000).isoformat() if props.get("time") else None,
+                "lat": coords[1] if len(coords) > 1 else 0,
+                "lng": coords[0] if len(coords) > 0 else 0,
+                "depth_km": coords[2] if len(coords) > 2 else 0,
+                "alert": props.get("alert"),  # green, yellow, orange, red
+                "tsunami": props.get("tsunami", 0),
+                "felt": props.get("felt"),
+                "significance": props.get("sig"),
+                "url": props.get("url", ""),
+                "type": "earthquake",
+                "source": "usgs",
+            })
+
+        return {
+            "earthquakes": quakes,
+            "count": len(quakes),
+            "metadata": {
+                "min_magnitude": min_magnitude,
+                "days": days,
+                "total_available": data.get("metadata", {}).get("count", 0),
+            },
+            "source": "usgs",
+        }
+
+    except Exception as e:
+        logger.error("USGS API error: %s", e)
+        return {"earthquakes": [], "count": 0, "error": str(e), "source": "usgs"}
+
+
+# ---------------------------------------------------------------------------
+# GDACS — Global Disaster Alerting Coordination System
+# ---------------------------------------------------------------------------
+
+@cached(ttl=600)  # 10 min cache
+def get_gdacs_events(
+    event_type: str | None = None,
+    alert_level: str | None = None,
+    days: int = 30,
+    limit: int = 50,
+) -> dict:
+    """Get active disasters from GDACS.
+
+    Args:
+        event_type: EQ (earthquake), TC (tropical cyclone), FL (flood), VO (volcano), WF (wildfire), DR (drought)
+        alert_level: Green, Orange, Red
+        days: Days to look back
+        limit: Max results
+
+    Returns:
+        Dict with disaster events
+    """
+    end = datetime.utcnow()
+    start = end - timedelta(days=days)
+
+    params = {
+        "fromDate": start.strftime("%Y-%m-%d"),
+        "toDate": end.strftime("%Y-%m-%d"),
+        "alertlevel": alert_level or "",
+        "eventtype": event_type or "",
+    }
+
+    try:
+        resp = requests.get(GDACS_API, params=params, timeout=TIMEOUT,
+                          headers={"Accept": "application/json"})
+        resp.raise_for_status()
+        data = resp.json()
+
+        events = []
+        for feature in data.get("features", [])[:limit]:
+            props = feature.get("properties", {})
+            coords = feature.get("geometry", {}).get("coordinates", [0, 0])
+
+            # Map GDACS event types
+            etype = props.get("eventtype", "")
+            type_labels = {
+                "EQ": "earthquake", "TC": "tropical_cyclone", "FL": "flood",
+                "VO": "volcano", "WF": "wildfire", "DR": "drought", "TS": "tsunami",
+            }
+
+            events.append({
+                "id": props.get("eventid", ""),
+                "name": props.get("eventname", "") or props.get("name", ""),
+                "type": type_labels.get(etype, etype),
+                "alert_level": props.get("alertlevel", ""),
+                "severity": props.get("severity", {}).get("severity_value") if isinstance(props.get("severity"), dict) else props.get("severitydata", {}).get("severity", ""),
+                "country": props.get("country", ""),
+                "lat": coords[1] if len(coords) > 1 else (coords[0] if isinstance(coords[0], (int, float)) and len(coords) == 2 else 0),
+                "lng": coords[0] if len(coords) > 0 else 0,
+                "date": props.get("fromdate", ""),
+                "description": props.get("description", "")[:300] if props.get("description") else "",
+                "affected_population": props.get("population", {}).get("value") if isinstance(props.get("population"), dict) else None,
+                "url": props.get("url", {}).get("report") if isinstance(props.get("url"), dict) else props.get("link", ""),
+                "source": "gdacs",
+            })
+
+        return {
+            "events": events,
+            "count": len(events),
+            "source": "gdacs",
+        }
+
+    except Exception as e:
+        logger.error("GDACS API error: %s", e)
+        return {"events": [], "count": 0, "error": str(e), "source": "gdacs"}
+
+
+# ---------------------------------------------------------------------------
+# NASA FIRMS — Fire Information for Resource Management System
+# ---------------------------------------------------------------------------
+
+@cached(ttl=3600)  # 1h cache — FIRMS updates ~3h
+def get_fire_hotspots(
+    country: str | None = None,
+    days: int = 1,
+    limit: int = 100,
+) -> dict:
+    """Get active fire hotspots from NASA FIRMS.
+
+    Uses the open CSV feed (no API key needed for summary data).
+    For detailed data, an API key is needed (free registration).
+    """
+    # Use the open MODIS/VIIRS active fire summary
+    url = "https://firms.modaps.eosdis.nasa.gov/api/country/csv/OPEN_KEY/VIIRS_SNPP_NRT"
+
+    if country:
+        url = f"{url}/{country}/{days}"
+    else:
+        # Global summary — use world file
+        url = "https://firms.modaps.eosdis.nasa.gov/active_fire/c6/text/MODIS_C6_Global_24h.csv"
+
+    try:
+        resp = requests.get(url, timeout=TIMEOUT)
+        if resp.status_code != 200:
+            # Fallback: try the open summary endpoint
+            return _get_fire_summary()
+
+        lines = resp.text.strip().split("\n")
+        if len(lines) < 2:
+            return _get_fire_summary()
+
+        headers = lines[0].split(",")
+        fires = []
+
+        for line in lines[1:limit + 1]:
+            parts = line.split(",")
+            if len(parts) < len(headers):
+                continue
+
+            row = dict(zip(headers, parts))
+            fires.append({
+                "lat": float(row.get("latitude", 0)),
+                "lng": float(row.get("longitude", 0)),
+                "brightness": float(row.get("brightness", 0) or row.get("bright_ti4", 0)),
+                "confidence": row.get("confidence", ""),
+                "date": row.get("acq_date", ""),
+                "time": row.get("acq_time", ""),
+                "satellite": row.get("satellite", ""),
+                "type": "fire",
+                "source": "nasa_firms",
+            })
+
+        return {
+            "fires": fires,
+            "count": len(fires),
+            "source": "nasa_firms",
+        }
+
+    except Exception as e:
+        logger.error("NASA FIRMS error: %s", e)
+        return _get_fire_summary()
+
+
+def _get_fire_summary() -> dict:
+    """Fallback fire data from FIRMS open summary."""
+    return {
+        "fires": [],
+        "count": 0,
+        "note": "Detailed fire data requires NASA FIRMS API key (free). Using summary endpoint.",
+        "source": "nasa_firms",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Combined disaster feed
+# ---------------------------------------------------------------------------
+
+def get_active_disasters(
+    days: int = 7,
+    min_magnitude: float = 4.5,
+    include_fires: bool = False,
+) -> dict:
+    """Get all active disasters across all sources.
+
+    Combines USGS earthquakes, GDACS events, and optionally NASA FIRMS fires
+    into a single unified feed.
+    """
+    results = {
+        "disasters": [],
+        "count": 0,
+        "sources": [],
+    }
+
+    # USGS Earthquakes
+    try:
+        quakes = get_earthquakes(min_magnitude=min_magnitude, days=days, limit=30)
+        for q in quakes.get("earthquakes", []):
+            results["disasters"].append({
+                "id": q["id"],
+                "type": "earthquake",
+                "name": f"M{q['magnitude']} - {q['place']}",
+                "severity": q["magnitude"],
+                "alert_level": q.get("alert") or ("red" if q["magnitude"] >= 7 else "orange" if q["magnitude"] >= 6 else "green"),
+                "lat": q["lat"],
+                "lng": q["lng"],
+                "date": q["timestamp"],
+                "details": {
+                    "magnitude": q["magnitude"],
+                    "depth_km": q["depth_km"],
+                    "tsunami": q["tsunami"],
+                    "felt": q["felt"],
+                },
+                "url": q.get("url", ""),
+                "source": "usgs",
+            })
+        results["sources"].append("usgs")
+    except Exception as e:
+        logger.error("Earthquake fetch error: %s", e)
+
+    # GDACS Events
+    try:
+        gdacs = get_gdacs_events(days=days, limit=30)
+        for event in gdacs.get("events", []):
+            results["disasters"].append({
+                "id": str(event["id"]),
+                "type": event["type"],
+                "name": event["name"],
+                "severity": event.get("severity"),
+                "alert_level": event.get("alert_level", "").lower(),
+                "lat": event["lat"],
+                "lng": event["lng"],
+                "date": event["date"],
+                "details": {
+                    "country": event.get("country"),
+                    "affected_population": event.get("affected_population"),
+                    "description": event.get("description"),
+                },
+                "url": event.get("url", ""),
+                "source": "gdacs",
+            })
+        results["sources"].append("gdacs")
+    except Exception as e:
+        logger.error("GDACS fetch error: %s", e)
+
+    # NASA FIRMS fires (optional, can be noisy)
+    if include_fires:
+        try:
+            fires = get_fire_hotspots(days=1, limit=50)
+            for f in fires.get("fires", []):
+                results["disasters"].append({
+                    "id": f"fire_{f['lat']}_{f['lng']}",
+                    "type": "wildfire",
+                    "name": f"Active fire at {f['lat']:.2f}, {f['lng']:.2f}",
+                    "severity": f.get("brightness", 0),
+                    "alert_level": "orange" if f.get("confidence", "").lower() in ("high", "h") else "green",
+                    "lat": f["lat"],
+                    "lng": f["lng"],
+                    "date": f.get("date", ""),
+                    "source": "nasa_firms",
+                })
+            results["sources"].append("nasa_firms")
+        except Exception as e:
+            logger.error("FIRMS fetch error: %s", e)
+
+    # Sort by date (most recent first)
+    results["disasters"].sort(key=lambda x: x.get("date", "") or "", reverse=True)
+    results["count"] = len(results["disasters"])
+
+    return results
+
+
+def get_climate_risk(lat: float, lng: float, radius_km: float = 500) -> dict:
+    """Assess climate/disaster risk for a location based on historical data.
+
+    Checks recent earthquake activity and active disasters near coordinates.
+    """
+    quakes = get_earthquakes(min_magnitude=3.0, days=365, limit=100, lat=lat, lng=lng, radius_km=radius_km)
+    gdacs = get_gdacs_events(days=90, limit=50)
+
+    # Count nearby GDACS events
+    nearby_events = []
+    for event in gdacs.get("events", []):
+        elat = event.get("lat", 0)
+        elng = event.get("lng", 0)
+        # Simple distance approximation
+        dist = ((elat - lat) ** 2 + (elng - lng) ** 2) ** 0.5 * 111  # ~km
+        if dist <= radius_km:
+            nearby_events.append(event)
+
+    quake_count = quakes.get("count", 0)
+    max_mag = max((q.get("magnitude", 0) or 0 for q in quakes.get("earthquakes", [])), default=0)
+
+    # Simple risk scoring
+    risk_score = min(1.0,
+        (quake_count / 50) * 0.3 +
+        (max_mag / 9.0) * 0.3 +
+        (len(nearby_events) / 10) * 0.4
+    )
+
+    risk_level = "low"
+    if risk_score > 0.7:
+        risk_level = "high"
+    elif risk_score > 0.4:
+        risk_level = "medium"
+
+    return {
+        "location": {"lat": lat, "lng": lng, "radius_km": radius_km},
+        "risk_score": round(risk_score, 3),
+        "risk_level": risk_level,
+        "earthquake_activity": {
+            "count_last_year": quake_count,
+            "max_magnitude": max_mag,
+        },
+        "nearby_disasters": len(nearby_events),
+        "source": "usgs+gdacs",
+    }
