@@ -87,7 +87,7 @@ export function OntologyPage() {
             Entity Ontology
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Unified knowledge graph linking companies, people, filings, and signals
+            Unified knowledge graph linking entities, relationships, and signals across all data sources
           </p>
         </div>
         {stats.data && (
@@ -231,8 +231,8 @@ function SearchTab({
         <Network className="mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
         <h3 className="mb-2 text-lg font-semibold">Entity Knowledge Graph</h3>
         <p className="mb-4 max-w-md text-center text-sm text-slate-500 dark:text-slate-400">
-          Search for companies, people, institutions, or filings to explore the entity graph.
-          Ingest companies to build the graph from SEC data.
+          Explore the unified entity graph — companies, people, institutions, indicators, and their
+          relationships. Ingest entities to start building connections across data sources.
         </p>
         <div className="flex gap-2">
           {['AAPL', 'MSFT', 'NVDA', 'TSLA'].map((t) => (
@@ -243,7 +243,7 @@ function SearchTab({
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
             >
               <Plus className="h-3 w-3" />
-              Ingest {t}
+              {t}
             </button>
           ))}
         </div>
@@ -269,7 +269,7 @@ function SearchTab({
           className="mt-3 flex items-center gap-1 mx-auto rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           {ingestPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Ingest {activeSearch.toUpperCase()} from SEC
+          Ingest {activeSearch.toUpperCase()}
         </button>
       </div>
     );
@@ -510,8 +510,8 @@ function ConvergenceTab({
         <Zap className="mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
         <h3 className="mb-2 text-lg font-semibold">No Convergence Alerts</h3>
         <p className="max-w-md text-center text-sm text-slate-500 dark:text-slate-400">
-          Convergence alerts fire when multiple independent signal types co-occur on the same entity.
-          Ingest companies and generate signals to see alerts here.
+          Convergence alerts fire when multiple independent signal types co-occur on the same entity —
+          e.g. insider selling + earnings miss + sentiment shift. Ingest entities to start detecting cross-signal patterns.
         </p>
       </div>
     );
