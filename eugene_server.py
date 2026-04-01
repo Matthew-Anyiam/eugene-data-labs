@@ -193,9 +193,9 @@ def _build_mcp(include_rest: bool = False):
         days: int = 7,
         limit: int = 25,
     ) -> dict:
-        """World intelligence — news, sanctions, disasters, conflict, supply chain, flights, convergence.
+        """World intelligence — news, sanctions, disasters, conflict, supply chain, flights, convergence, private credit.
 
-        category: news|sanctions|disasters|conflict|supply_chain|flights|convergence
+        category: news|sanctions|disasters|conflict|supply_chain|flights|convergence|private_credit
         action:
           news: get_feed|get_brief|get_sentiment
           sanctions: get_sanctions|screen_entity|get_exposure|get_regulatory_changes
@@ -204,6 +204,7 @@ def _build_mcp(include_rest: bool = False):
           supply_chain: get_port_status|get_trade_flows|get_route_risk|get_vessel
           flights: get_flights|get_airport|get_anomalies|get_airspace_status
           convergence: get_alerts|get_entity_signals|get_composite_risk|get_dashboard
+          private_credit: get_overview|get_bdc_universe|get_bdc_holdings|get_credit_spreads
         query: Search text for news/sanctions
         topic: News topic (geopolitics, trade, energy, tech, finance, climate)
         ticker: Company ticker for exposure checks
@@ -323,7 +324,21 @@ def _build_mcp(include_rest: bool = False):
                 return _conv_dash(time_window=timespan)
             return {"error": f"Unknown convergence action: {action}"}
 
-        return {"error": f"Unknown category: {category}. Use: news, sanctions, disasters, conflict, supply_chain, flights, convergence"}
+        elif category == "private_credit":
+            from eugene.sources.private_credit import get_market_overview, get_bdc_universe, get_bdc_holdings, get_credit_spreads
+            if action == "get_overview":
+                return get_market_overview()
+            elif action == "get_bdc_universe":
+                return get_bdc_universe()
+            elif action == "get_bdc_holdings":
+                if not ticker:
+                    return {"error": "ticker required (e.g. ARCC, OBDC, FSK)"}
+                return get_bdc_holdings(ticker, limit=limit)
+            elif action == "get_credit_spreads":
+                return get_credit_spreads(series_id=query)
+            return {"error": f"Unknown private_credit action: {action}"}
+
+        return {"error": f"Unknown category: {category}. Use: news, sanctions, disasters, conflict, supply_chain, flights, convergence, private_credit"}
 
     @mcp.tool()
     def caps() -> dict:
@@ -1272,6 +1287,45 @@ def _build_mcp(include_rest: bool = False):
             from eugene.world.convergence import get_dashboard_summary
             window = request.query_params.get("window", "24h")
             result = await asyncio.to_thread(get_dashboard_summary, time_window=window)
+            return JSONResponse(result)
+
+        # --- Private Credit endpoints ---
+
+        @mcp.custom_route("/v1/world/private-credit", methods=["GET"])
+        @require_api_key
+        async def world_private_credit_overview(request: Request) -> JSONResponse:
+            """Get private credit market overview with stress indicators."""
+            from eugene.sources.private_credit import get_market_overview
+            result = await asyncio.to_thread(get_market_overview)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/private-credit/bdcs", methods=["GET"])
+        @require_api_key
+        async def world_bdc_universe(request: Request) -> JSONResponse:
+            """Get the tracked BDC universe."""
+            from eugene.sources.private_credit import get_bdc_universe
+            result = await asyncio.to_thread(get_bdc_universe)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/private-credit/bdcs/{ticker}", methods=["GET"])
+        @require_api_key
+        async def world_bdc_holdings(request: Request) -> JSONResponse:
+            """Get BDC holdings and recent filings."""
+            from eugene.sources.private_credit import get_bdc_holdings
+            ticker = request.path_params["ticker"]
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_bdc_holdings, ticker, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/private-credit/spreads", methods=["GET"])
+        @require_api_key
+        async def world_credit_spreads(request: Request) -> JSONResponse:
+            """Get credit spread data from FRED."""
+            from eugene.sources.private_credit import get_credit_spreads
+            series_id = request.query_params.get("series_id")
+            result = await asyncio.to_thread(get_credit_spreads, series_id=series_id)
             return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])

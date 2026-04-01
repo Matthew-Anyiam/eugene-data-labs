@@ -1,37 +1,214 @@
 """
-Eugene Intelligence - SQLite persistence layer.
+Eugene Intelligence - Database persistence layer.
 
-Replaces ephemeral /tmp JSONL files with a durable SQLite database.
-Database lives at /tmp/eugene.db (writable by non-root Docker user).
+Supports both SQLite (default) and PostgreSQL (production).
+
+Set DATABASE_URL to a PostgreSQL connection string to use PostgreSQL:
+  DATABASE_URL=postgresql://user:pass@host:5432/eugene
+
+Otherwise defaults to SQLite at /tmp/eugene.db.
 """
 
-import sqlite3
 import logging
+import os
+import re
+import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 DB_PATH = "/tmp/eugene.db"
 
+_pg_pool = None
+
+
+def _is_postgres() -> bool:
+    """Check if PostgreSQL is configured."""
+    return DATABASE_URL.startswith("postgres")
+
 
 # ---------------------------------------------------------------------------
-# Connection helper
+# Connection helpers
 # ---------------------------------------------------------------------------
+
+def _get_pg_pool():
+    """Get or create a PostgreSQL connection pool."""
+    global _pg_pool
+    if _pg_pool is not None:
+        return _pg_pool
+
+    try:
+        from psycopg2 import pool
+
+        _pg_pool = pool.ThreadedConnectionPool(
+            minconn=2,
+            maxconn=10,
+            dsn=DATABASE_URL,
+        )
+        logger.info("PostgreSQL connection pool created")
+        return _pg_pool
+    except ImportError:
+        logger.error("psycopg2 not installed. Install with: pip install psycopg2-binary")
+        raise
+    except Exception as e:
+        logger.error("PostgreSQL connection failed: %s", e)
+        raise
+
+
 @contextmanager
 def _get_conn():
-    """Yield a SQLite connection with WAL mode and auto-commit on success."""
-    conn = sqlite3.connect(DB_PATH, timeout=5)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    """Yield a database connection with auto-commit on success.
+
+    Transparently supports both SQLite and PostgreSQL.
+    """
+    if _is_postgres():
+        pool = _get_pg_pool()
+        conn = pool.getconn()
+        try:
+            yield _PgConnWrapper(conn)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            pool.putconn(conn)
+    else:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+
+class _PgConnWrapper:
+    """Wraps a psycopg2 connection to provide dict-like row access
+    consistent with sqlite3.Row behavior."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, sql: str, params=None):
+        """Execute SQL, translating SQLite syntax to PostgreSQL."""
+        from psycopg2.extras import RealDictCursor
+        sql = _translate_sql(sql)
+        cur = self._conn.cursor(cursor_factory=RealDictCursor)
+        if params:
+            if isinstance(params, list):
+                params = tuple(params)
+            cur.execute(sql, params)
+        else:
+            cur.execute(sql)
+        return _PgCursorWrapper(cur)
+
+    def executescript(self, sql: str):
+        """Execute a multi-statement SQL script."""
+        sql = _translate_schema(sql)
+        cur = self._conn.cursor()
+        cur.execute(sql)
+        return cur
+
+
+class _PgCursorWrapper:
+    """Wraps a psycopg2 cursor to provide sqlite3-compatible interface."""
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        if row is None:
+            return None
+        return _DictRow(row)
+
+    def fetchall(self):
+        rows = self._cursor.fetchall()
+        return [_DictRow(r) for r in rows]
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+
+class _DictRow:
+    """Row that supports both dict-like and index access."""
+
+    def __init__(self, data: dict):
+        self._data = data
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self._data.values())[key]
+        return self._data[key]
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+    def keys(self):
+        return self._data.keys()
+
+    def values(self):
+        return self._data.values()
+
+    def items(self):
+        return self._data.items()
+
+
+def _translate_sql(sql: str) -> str:
+    """Translate SQLite SQL syntax to PostgreSQL equivalents."""
+    sql = sql.replace("?", "%s")
+    sql = sql.replace("datetime('now')", "NOW()")
+    sql = sql.replace("datetime('now', '-1 day')", "NOW() - INTERVAL '1 day'")
+    sql = re.sub(
+        r"json_extract\((\w+),\s*'\$\.(\w+)'\)",
+        r"\1::jsonb->>'\2'",
+        sql,
+    )
+    sql = sql.replace("COLLATE NOCASE", "")
+    sql = re.sub(
+        r"GROUP_CONCAT\(DISTINCT\s+(\S+)\)",
+        r"STRING_AGG(DISTINCT \1::text, ',')",
+        sql,
+    )
+    sql = re.sub(
+        r"GROUP_CONCAT\((\S+)\)",
+        r"STRING_AGG(\1::text, ',')",
+        sql,
+    )
+    sql = re.sub(
+        r"strftime\('([^']+)',\s*(\w+)\)",
+        r"to_char(\2, 'YYYY-MM-DD\"T\"HH24:MI:SS')",
+        sql,
+    )
+    return sql
+
+
+def _translate_schema(sql: str) -> str:
+    """Translate SQLite DDL to PostgreSQL equivalents."""
+    sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+    sql = sql.replace(
+        "TEXT NOT NULL DEFAULT (datetime('now'))",
+        "TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+    )
+    sql = sql.replace(
+        "TEXT DEFAULT (datetime('now'))",
+        "TIMESTAMPTZ DEFAULT NOW()",
+    )
+    sql = sql.replace(" REAL ", " DOUBLE PRECISION ")
+    sql = sql.replace(" REAL,", " DOUBLE PRECISION,")
+    sql = re.sub(r"PRAGMA\s+\w+\s*=\s*\w+\s*;?", "", sql)
+    sql = sql.replace("?", "%s")
+    return sql
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +270,9 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_api_keys_key
                 ON api_keys (key);
         """)
-    logger.info("SQLite database initialised at %s", DB_PATH)
+
+    db_type = "PostgreSQL" if _is_postgres() else "SQLite"
+    logger.info("%s database initialised at %s", db_type, DATABASE_URL or DB_PATH)
 
 
 # ---------------------------------------------------------------------------
@@ -160,10 +339,7 @@ def get_usage_stats() -> dict:
 # Research rate limiting
 # ---------------------------------------------------------------------------
 def check_research_rate_limit(client_ip: str, daily_limit: int = 3) -> dict | None:
-    """Check if *client_ip* has exceeded the daily research limit.
-
-    Returns an error dict when the limit is reached, or ``None`` if OK.
-    """
+    """Check if *client_ip* has exceeded the daily research limit."""
     with _get_conn() as conn:
         cutoff = (datetime.utcnow() - timedelta(days=1)).isoformat()
         row = conn.execute(
