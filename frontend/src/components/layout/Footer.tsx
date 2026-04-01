@@ -9,8 +9,10 @@ const footerLinks: Record<string, FooterLink[]> = {
     { label: 'CLI', to: '/docs' },
     { label: 'Pricing', to: '/pricing' },
   ],
-  Data: [
+  Intelligence: [
     { label: 'Company Explorer', to: '/company/AAPL' },
+    { label: 'World Signals', to: '/world' },
+    { label: 'Convergence Dashboard', to: '/dashboard' },
     { label: 'Stock Screener', to: '/screener' },
     { label: 'Economics', to: '/economics' },
   ],
@@ -30,7 +32,7 @@ export function Footer() {
           <div>
             <p className="font-semibold">Eugene Intelligence</p>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Financial data infrastructure for AI agents and analysts.
+              Full-spectrum intelligence platform for AI agents, analysts, and investors.
             </p>
             <a
               href="mailto:info@eugeneintelligence.com"
@@ -75,7 +77,7 @@ export function Footer() {
 
         <div className="mt-10 border-t border-slate-200 pt-6 dark:border-slate-800">
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            Data from SEC EDGAR and FRED. Not investment advice. &copy; {new Date().getFullYear()} Eugene Intelligence.
+            Data from SEC EDGAR, FRED, GDELT, USGS, NOAA, OFAC, UCDP, and other public sources. Not investment advice. &copy; {new Date().getFullYear()} Eugene Intelligence.
           </p>
         </div>
       </div>

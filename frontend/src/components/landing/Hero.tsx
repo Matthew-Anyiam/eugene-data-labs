@@ -8,9 +8,15 @@ import {
   Swords,
   Drama,
   ArrowRight,
+  Globe,
+  Shield,
+  Ship,
+  TrendingUp,
+  Database,
+  Zap,
 } from 'lucide-react';
 
-/* ── Beta Banner ─────────────────────────────────────────────── */
+/* -- Beta Banner --------------------------------------------------------- */
 export function BetaBanner() {
   return (
     <div className="border-b border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40">
@@ -24,7 +30,7 @@ export function BetaBanner() {
   );
 }
 
-/* ── Waitlist Form ───────────────────────────────────────────── */
+/* -- Waitlist Form ------------------------------------------------------- */
 export function WaitlistForm({ dark = false }: { dark?: boolean }) {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -87,22 +93,21 @@ export function WaitlistForm({ dark = false }: { dark?: boolean }) {
   );
 }
 
-/* ── Hero ────────────────────────────────────────────────────── */
+/* -- Hero ---------------------------------------------------------------- */
 export function Hero() {
   return (
     <section className="relative overflow-hidden px-4 pb-16 pt-20 sm:px-6 sm:pt-28">
-      {/* Subtle gradient background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-white dark:from-slate-900/50 dark:via-slate-950 dark:to-slate-950" />
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-          SEC data + AI research
+          Financial intelligence
           <br />
-          <span className="text-slate-400 dark:text-slate-500">in one search</span>
+          <span className="text-slate-400 dark:text-slate-500">meets world signals</span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
-          Search any public company. Get financials, insider trades, institutional holdings,
-          and AI-generated research briefs — free, with full SEC provenance.
+          SEC filings, economic data, geopolitical events, supply chains, sanctions,
+          and AI research — unified in one platform for agents and analysts.
         </p>
 
         <div className="mx-auto mt-8 max-w-lg">
@@ -120,7 +125,7 @@ export function Hero() {
   );
 }
 
-/* ── Live Demo Section ──────────────────────────────────────── */
+/* -- Live Demo Section --------------------------------------------------- */
 
 interface CompanyProfile {
   company_name?: string;
@@ -170,7 +175,6 @@ function formatLargeNumber(n: number | undefined): string {
 
 function formatPercent(n: number | undefined): string {
   if (n === undefined || n === null) return '--';
-  // If value is already a fraction (< 1), multiply by 100
   const pct = Math.abs(n) < 1 ? n * 100 : n;
   return `${pct.toFixed(1)}%`;
 }
@@ -233,15 +237,13 @@ export function LiveDemo() {
             See it working — right now
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Real SEC data for Apple Inc, fetched from our API on page load.
+            Real company data fetched from our API on page load.
           </p>
         </div>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-5">
-          {/* Company Card */}
           <div className="lg:col-span-3">
             <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-              {/* Card Header */}
               <div className="border-b border-slate-100 px-6 py-4 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
@@ -274,7 +276,6 @@ export function LiveDemo() {
                 </div>
               </div>
 
-              {/* Metrics Grid */}
               <div className="grid grid-cols-2 gap-px bg-slate-100 dark:bg-slate-700 sm:grid-cols-3">
                 {metricItems.map((item) => (
                   <div key={item.label} className="bg-white px-4 py-3.5 dark:bg-slate-800">
@@ -295,7 +296,6 @@ export function LiveDemo() {
                 ))}
               </div>
 
-              {/* Card Footer */}
               <div className="border-t border-slate-100 px-6 py-3 dark:border-slate-700">
                 <Link
                   to="/company/AAPL"
@@ -307,14 +307,13 @@ export function LiveDemo() {
             </div>
           </div>
 
-          {/* Try It */}
           <div className="flex flex-col justify-center lg:col-span-2">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/50">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Try any ticker
               </h3>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                Search 10,000+ public companies. Get financials, insiders, and AI research.
+                Search 10,000+ companies. Get financials, world signals, and AI research.
               </p>
               <form onSubmit={handleTryIt} className="mt-4">
                 <div className="flex gap-2">
@@ -355,26 +354,26 @@ export function LiveDemo() {
   );
 }
 
-/* ── AI Capabilities ────────────────────────────────────────── */
+/* -- AI Capabilities ----------------------------------------------------- */
 export function AICapabilities() {
   const capabilities = [
     {
       icon: Brain,
       title: 'Deep Research',
       tagline: '7 data sources, structured brief',
-      desc: 'Pulls financials, insiders, institutional holdings, technicals, filings, segments, and news into a comprehensive research brief with investment thesis and risk factors.',
+      desc: 'Pulls financials, insiders, institutional holdings, technicals, filings, world signals, and news into a comprehensive research brief with investment thesis and risk factors.',
     },
     {
       icon: Swords,
       title: 'Bull/Bear Debate',
       tagline: '3 AI agents argue, one synthesizes',
-      desc: 'A bull analyst, bear analyst, and moderator debate the investment case. Each cites real SEC data. The synthesis presents both sides with a confidence-weighted verdict.',
+      desc: 'A bull analyst, bear analyst, and moderator debate the investment case. Each cites real data from SEC filings, market signals, and geopolitical context.',
     },
     {
       icon: Drama,
       title: 'Market Simulation',
       tagline: '5 AI personas, emergent consensus',
-      desc: 'Five distinct investor personas — from value investor to momentum trader — independently evaluate the stock. Their consensus reveals where smart money might agree.',
+      desc: 'Five distinct investor personas — from value investor to macro strategist — independently evaluate with financial and world intelligence data. Their consensus reveals where smart money might agree.',
     },
   ];
 
@@ -389,7 +388,7 @@ export function AICapabilities() {
             Three ways AI reads the market
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Every AI analysis is grounded in real SEC filings and market data — not hallucinations.
+            Every AI analysis is grounded in real filings, market data, and world signals — not hallucinations.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -419,23 +418,23 @@ export function AICapabilities() {
   );
 }
 
-/* ── How It Works ───────────────────────────────────────────── */
+/* -- How It Works -------------------------------------------------------- */
 export function HowItWorks() {
   const steps = [
     {
       number: '1',
-      title: 'Search any ticker',
-      desc: 'Type a ticker symbol or company name. We cover 10,000+ public companies filed with the SEC.',
+      title: 'Search or explore',
+      desc: 'Search a ticker for company intelligence, or explore world signals — geopolitical events, supply chains, sanctions, disasters, and more.',
     },
     {
       number: '2',
-      title: 'View SEC data',
-      desc: 'Financials, insider trades, 13F institutional holdings, filing sections, and technicals — all normalized and sourced.',
+      title: 'View connected data',
+      desc: 'Financials, insider trades, credit spreads, conflict zones, shipping routes, and flight patterns — all normalized, sourced, and cross-referenced.',
     },
     {
       number: '3',
-      title: 'Generate AI research',
-      desc: 'One click generates a deep research brief, bull/bear debate, or market simulation grounded in real data.',
+      title: 'Generate AI intelligence',
+      desc: 'One click generates a deep research brief, bull/bear debate, or market simulation grounded in real data across all signal categories.',
     },
   ];
 
@@ -447,7 +446,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            From search to AI-powered research in three steps.
+            From search to AI-powered intelligence in three steps.
           </p>
         </div>
         <div className="mt-12 grid gap-8 sm:grid-cols-3">
@@ -476,9 +475,20 @@ export function HowItWorks() {
   );
 }
 
-/* ── Data Sources ────────────────────────────────────────────── */
+/* -- Data Sources -------------------------------------------------------- */
 export function DataSources() {
-  const sources = ['SEC EDGAR', 'XBRL', 'FRED', 'Form 4', 'Form 13F', '10-K / 10-Q'];
+  const sources = [
+    'SEC EDGAR',
+    'FRED',
+    'GDELT',
+    'USGS',
+    'NOAA',
+    'OFAC',
+    'UCDP',
+    'OpenSky',
+    'UN Comtrade',
+    'AIS',
+  ];
   return (
     <section className="border-y border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/30">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -497,11 +507,11 @@ export function DataSources() {
   );
 }
 
-/* ── Stats Bar ───────────────────────────────────────────────── */
+/* -- Stats Bar ----------------------------------------------------------- */
 export function StatsBar() {
   const stats = [
     { value: '19', label: 'Data extracts' },
-    { value: '50+', label: 'Financial ratios' },
+    { value: '7', label: 'Signal categories' },
     { value: '10K+', label: 'Public companies' },
     { value: '3', label: 'Protocols (REST, MCP, CLI)' },
   ];
@@ -519,7 +529,7 @@ export function StatsBar() {
   );
 }
 
-/* ── Interactive Code Tabs ───────────────────────────────────── */
+/* -- Interactive Code Tabs ----------------------------------------------- */
 export function CodeShowcase() {
   const [tab, setTab] = useState<'cli' | 'api' | 'mcp'>('cli');
 
@@ -534,22 +544,19 @@ export function CodeShowcase() {
 │ Latest Insider: Deirdre O'Brien sold 50K shares    │
 │ Source: SEC EDGAR Form 4 (2025-11-15)              │
 └────────────────────────────────────────────────────┘`,
-    api: `GET /v1/sec/AAPL?extract=financials&period=FY&limit=3
+    api: `GET /v1/world/convergence/dashboard?window=24h
 
 {
-  "status": "success",
-  "resolved": { "ticker": "AAPL", "company": "Apple Inc." },
-  "data": {
-    "periods": [{
-      "period": "FY2024",
-      "income_statement": {
-        "revenue": 394328000000,
-        "net_income": 97000000000,
-        "eps_diluted": 6.42
-      }
-    }]
-  },
-  "provenance": [{ "source": "SEC EDGAR XBRL", "url": "..." }]
+  "entities_tracked": 847,
+  "active_signals": 2341,
+  "signal_types": 12,
+  "alerts": [{
+    "entity_id": "TSMC",
+    "risk_score": 0.87,
+    "signals": ["supply_chain", "conflict", "sanctions"],
+    "pattern": "supply_chain_disruption"
+  }],
+  "risk_distribution": { "critical": 3, "high": 12, ... }
 }`,
     mcp: `// Claude Desktop / Cursor / Windsurf
 // Add to claude_desktop_config.json:
@@ -564,9 +571,9 @@ export function CodeShowcase() {
 }
 
 // Then ask Claude:
-// "What are Apple's latest insider trades?"
-// "Compare MSFT and GOOGL gross margins"
-// "Show me the latest CPI data from FRED"`,
+// "What geopolitical risks affect TSMC's supply chain?"
+// "Screen Gazprom against OFAC sanctions"
+// "Show me the convergence dashboard for the last 7 days"`,
   };
 
   return (
@@ -608,46 +615,52 @@ export function CodeShowcase() {
   );
 }
 
-/* ── Feature Showcase (Tabbed) ───────────────────────────────── */
+/* -- Feature Showcase (Tabbed) ------------------------------------------- */
 export function FeatureShowcase() {
   const [active, setActive] = useState(0);
 
   const features = [
     {
-      title: 'Financial Statements',
-      subtitle: 'Normalized from raw XBRL',
-      desc: 'Income statement, balance sheet, and cash flow — standardized across 10,000+ companies. Annual or quarterly, with 36 canonical XBRL concepts mapped consistently.',
+      icon: Database,
+      title: 'Financial Intelligence',
+      subtitle: 'SEC filings, metrics, insiders',
+      desc: 'Income statements, balance sheets, cash flows, insider trades, institutional holdings, and 50+ financial ratios — standardized across 10,000+ companies with full SEC provenance.',
       example: 'GET /v1/sec/MSFT?extract=financials&period=FY',
     },
     {
-      title: 'Insider & Institutional',
-      subtitle: 'Parsed directly from EDGAR',
-      desc: 'Form 4 insider transactions with transaction type, shares, and price. 13F institutional holdings showing who owns what. All linked to source filings.',
-      example: 'GET /v1/sec/TSLA?extract=insiders',
+      icon: Globe,
+      title: 'World Intelligence',
+      subtitle: 'Geopolitics, news, conflict',
+      desc: 'Real-time GDELT news feeds, UCDP conflict events, escalation scoring, and geopolitical sentiment analysis across six global signal categories.',
+      example: 'GET /v1/world/news?topic=geopolitics',
     },
     {
-      title: 'Market Data & Technicals',
-      subtitle: 'Prices, OHLCV, and indicators',
-      desc: 'Real-time quotes, historical OHLCV, technical indicators (SMA, RSI, MACD), and a stock screener with sector, market cap, and beta filters.',
-      example: 'GET /v1/sec/NVDA?extract=technicals',
+      icon: Ship,
+      title: 'Supply Chain & Trade',
+      subtitle: 'Ports, chokepoints, vessel tracking',
+      desc: '15 major ports, 8 shipping chokepoints, UN Comtrade trade flows, and AIS vessel tracking with risk scoring from disaster and conflict overlays.',
+      example: 'GET /v1/world/supply-chain/routes',
     },
     {
-      title: 'Economic Indicators',
-      subtitle: '9 FRED categories',
-      desc: 'CPI, unemployment, GDP, housing starts, interest rates, money supply, and more. Full time series history from the Federal Reserve.',
-      example: 'GET /v1/economics/inflation',
+      icon: Shield,
+      title: 'Sanctions & Regulatory',
+      subtitle: 'OFAC, EU, UN screening',
+      desc: 'Screen any entity against OFAC SDN, EU Consolidated, and UN sanctions lists. Track regulatory changes from the Federal Register with company exposure analysis.',
+      example: 'GET /v1/world/sanctions/screen?name=Gazprom',
     },
     {
-      title: 'Filing Text Extraction',
-      subtitle: 'MD&A, Risk Factors, Business',
-      desc: 'Extract prose sections from 10-K and 10-Q filings. Read the actual management discussion, risk disclosures, and business descriptions.',
-      example: 'GET /v1/sec/AMZN?extract=sections&section=mdna',
+      icon: TrendingUp,
+      title: 'Private Credit',
+      subtitle: 'BDC universe, credit spreads',
+      desc: '12 tracked BDCs (Ares Capital, Blackstone, Goldman Sachs), FRED credit spreads across 6 risk tiers, and market stress indicators for the $1.7T+ private credit market.',
+      example: 'GET /v1/world/private-credit',
     },
     {
-      title: 'Full Provenance',
-      subtitle: 'Every number traced to source',
-      desc: 'Every API response includes source URLs pointing to the exact SEC filing or data source. Verify any number against the original document.',
-      example: 'All responses include provenance[]',
+      icon: Zap,
+      title: 'Convergence Engine',
+      subtitle: 'Cross-signal risk detection',
+      desc: 'Detects when multiple independent signals co-occur on the same entity — earnings risk, supply chain disruption, geopolitical escalation — with composite risk scoring.',
+      example: 'GET /v1/world/convergence/alerts?window=24h',
     },
   ];
 
@@ -659,32 +672,36 @@ export function FeatureShowcase() {
             Capabilities
           </p>
           <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            Everything you need from SEC filings to market data
+            From SEC filings to global signal intelligence
           </h2>
         </div>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-5">
-          {/* Feature list */}
           <div className="space-y-1 lg:col-span-2">
-            {features.map((f, i) => (
-              <button
-                key={f.title}
-                onClick={() => setActive(i)}
-                className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${
-                  active === i
-                    ? 'bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700'
-                    : 'hover:bg-white/60 dark:hover:bg-slate-800/50'
-                }`}
-              >
-                <p className={`text-sm font-semibold ${active === i ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>
-                  {f.title}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{f.subtitle}</p>
-              </button>
-            ))}
+            {features.map((f, i) => {
+              const Icon = f.icon;
+              return (
+                <button
+                  key={f.title}
+                  onClick={() => setActive(i)}
+                  className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${
+                    active === i
+                      ? 'bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700'
+                      : 'hover:bg-white/60 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`h-4 w-4 ${active === i ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`} />
+                    <p className={`text-sm font-semibold ${active === i ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                      {f.title}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 pl-6.5 text-xs text-slate-400 dark:text-slate-500">{f.subtitle}</p>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Feature detail */}
           <div className="lg:col-span-3">
             <div className="rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
               <h3 className="text-lg font-semibold">{features[active].title}</h3>
@@ -708,23 +725,20 @@ export function FeatureShowcase() {
   );
 }
 
-/* ── Use Cases ───────────────────────────────────────────────── */
+/* -- Use Cases ----------------------------------------------------------- */
 export function UseCases() {
   const cases = [
     {
-      title: 'AI Agents',
-      desc: 'Give your LLM agent real-time access to SEC filings, financial metrics, and economic data through MCP. Works with Claude, GPT, and any MCP-compatible client.',
-      icon: '→',
+      title: 'AI Agents & MCP',
+      desc: 'Give your LLM agent access to financial data, world intelligence, and convergence signals through MCP. Works with Claude, GPT, and any MCP-compatible client.',
+    },
+    {
+      title: 'Risk & Intelligence',
+      desc: 'Monitor geopolitical risk, sanctions exposure, supply chain disruptions, and private credit stress across your portfolio — with cross-signal convergence alerts.',
     },
     {
       title: 'Quantitative Research',
-      desc: 'Pull normalized financials across thousands of companies. Screen by sector, market cap, and ratios. Export to CSV or Parquet for your models.',
-      icon: '→',
-    },
-    {
-      title: 'Investment Analysis',
-      desc: 'Company profiles, insider trades, institutional holdings, and filing text in one place. Every data point links back to the SEC source.',
-      icon: '→',
+      desc: 'Pull normalized financials, screen by sector and ratios, overlay world signals, and export to CSV or Parquet. 10,000+ companies, 7 signal categories.',
     },
   ];
 
@@ -734,7 +748,7 @@ export function UseCases() {
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Built for builders and analysts</h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Whether you're building an AI agent, running a quant screen, or doing fundamental research.
+            Whether you're building an AI agent, monitoring geopolitical risk, or running quantitative research.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -753,13 +767,13 @@ export function UseCases() {
   );
 }
 
-/* ── Bottom CTA ──────────────────────────────────────────────── */
+/* -- Bottom CTA ---------------------------------------------------------- */
 export function BottomCTA() {
   return (
     <section className="border-t border-slate-200 bg-slate-900 px-4 py-20 dark:border-slate-800 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Start building with financial data
+          Start building with intelligence data
         </h2>
         <p className="mt-3 text-slate-400">
           Free during beta. No API key required. Install in 30 seconds.
