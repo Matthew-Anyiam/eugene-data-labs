@@ -100,14 +100,14 @@ export function Hero() {
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-white dark:from-slate-900/50 dark:via-slate-950 dark:to-slate-950" />
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-          Financial intelligence
+          The context layer
           <br />
-          <span className="text-slate-400 dark:text-slate-500">meets world signals</span>
+          <span className="text-slate-400 dark:text-slate-500">for financial decisions</span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
-          SEC filings, economic data, geopolitical events, supply chains, sanctions,
-          and AI research — unified in one platform for agents and analysts.
+          We collect financial data, world events, and market signals — then make it all
+          easy to understand for AI agents and the people who use them.
         </p>
 
         <div className="mx-auto mt-8 max-w-lg">
@@ -237,7 +237,7 @@ export function LiveDemo() {
             See it working — right now
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Real company data fetched from our API on page load.
+            Real company data, fetched live from our platform right now.
           </p>
         </div>
 
@@ -313,7 +313,7 @@ export function LiveDemo() {
                 Try any ticker
               </h3>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                Search 10,000+ companies. Get financials, world signals, and AI research.
+                Search any public company. Get financials, world context, and AI research.
               </p>
               <form onSubmit={handleTryIt} className="mt-4">
                 <div className="flex gap-2">
@@ -360,20 +360,20 @@ export function AICapabilities() {
     {
       icon: Brain,
       title: 'Deep Research',
-      tagline: '7 data sources, structured brief',
-      desc: 'Pulls financials, insiders, institutional holdings, technicals, filings, world signals, and news into a comprehensive research brief with investment thesis and risk factors.',
+      tagline: '7 data sources, one clear brief',
+      desc: 'Pulls together financials, insider trades, institutional holdings, market data, filings, world events, and news — then writes you a research brief that explains what it all means.',
     },
     {
       icon: Swords,
       title: 'Bull/Bear Debate',
-      tagline: '3 AI agents argue, one synthesizes',
-      desc: 'A bull analyst, bear analyst, and moderator debate the investment case. Each cites real data from SEC filings, market signals, and geopolitical context.',
+      tagline: '3 AI analysts argue it out',
+      desc: 'A bull analyst, bear analyst, and moderator debate whether a stock is worth buying. Each backs up their argument with real data. You get both sides and a verdict.',
     },
     {
       icon: Drama,
       title: 'Market Simulation',
-      tagline: '5 AI personas, emergent consensus',
-      desc: 'Five distinct investor personas — from value investor to macro strategist — independently evaluate with financial and world intelligence data. Their consensus reveals where smart money might agree.',
+      tagline: '5 investor types, one consensus',
+      desc: 'Five AI investor personas — value investor, growth hunter, momentum trader, contrarian, and macro strategist — each independently evaluate a stock. Their agreement (or disagreement) tells you something.',
     },
   ];
 
@@ -388,7 +388,7 @@ export function AICapabilities() {
             Three ways AI reads the market
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Every AI analysis is grounded in real filings, market data, and world signals — not hallucinations.
+            Every analysis is built on real data — filings, prices, and world events — not guesswork.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -424,17 +424,17 @@ export function HowItWorks() {
     {
       number: '1',
       title: 'Search or explore',
-      desc: 'Search a ticker for company intelligence, or explore world signals — geopolitical events, supply chains, sanctions, disasters, and more.',
+      desc: 'Type a company name to see everything about it, or browse world events — conflicts, shipping disruptions, sanctions, natural disasters — that move markets.',
     },
     {
       number: '2',
-      title: 'View connected data',
-      desc: 'Financials, insider trades, credit spreads, conflict zones, shipping routes, and flight patterns — all normalized, sourced, and cross-referenced.',
+      title: 'See the full picture',
+      desc: 'Financials, insider trades, who owns what, credit markets, geopolitical risks, and supply chain status — all in one place, all connected.',
     },
     {
       number: '3',
-      title: 'Generate AI intelligence',
-      desc: 'One click generates a deep research brief, bull/bear debate, or market simulation grounded in real data across all signal categories.',
+      title: 'Let AI make sense of it',
+      desc: 'One click generates a research brief, investment debate, or market simulation — built on real data, not hallucinations.',
     },
   ];
 
@@ -446,7 +446,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            From search to AI-powered intelligence in three steps.
+            From search to understanding in three steps.
           </p>
         </div>
         <div className="mt-12 grid gap-8 sm:grid-cols-3">
@@ -622,44 +622,44 @@ export function FeatureShowcase() {
   const features = [
     {
       icon: Database,
-      title: 'Financial Intelligence',
-      subtitle: 'SEC filings, metrics, insiders',
-      desc: 'Income statements, balance sheets, cash flows, insider trades, institutional holdings, and 50+ financial ratios — standardized across 10,000+ companies with full SEC provenance.',
+      title: 'Company Data',
+      subtitle: 'Financials, insiders, who owns what',
+      desc: 'Revenue, profits, balance sheets, insider trades, institutional holdings, and 50+ ratios for 10,000+ public companies. Every number links back to its SEC filing.',
       example: 'GET /v1/sec/MSFT?extract=financials&period=FY',
     },
     {
       icon: Globe,
-      title: 'World Intelligence',
-      subtitle: 'Geopolitics, news, conflict',
-      desc: 'Real-time GDELT news feeds, UCDP conflict events, escalation scoring, and geopolitical sentiment analysis across six global signal categories.',
+      title: 'World Events',
+      subtitle: 'News, conflicts, disasters',
+      desc: 'What\'s happening in the world that affects markets — geopolitical events, armed conflicts, natural disasters, and breaking news, updated every 15 minutes.',
       example: 'GET /v1/world/news?topic=geopolitics',
     },
     {
       icon: Ship,
-      title: 'Supply Chain & Trade',
-      subtitle: 'Ports, chokepoints, vessel tracking',
-      desc: '15 major ports, 8 shipping chokepoints, UN Comtrade trade flows, and AIS vessel tracking with risk scoring from disaster and conflict overlays.',
+      title: 'Supply Chains',
+      subtitle: 'Ports, shipping, trade flows',
+      desc: 'Track goods moving around the world — 15 major ports, 8 critical shipping chokepoints, international trade data, and vessel tracking. See where disruptions are building.',
       example: 'GET /v1/world/supply-chain/routes',
     },
     {
       icon: Shield,
-      title: 'Sanctions & Regulatory',
-      subtitle: 'OFAC, EU, UN screening',
-      desc: 'Screen any entity against OFAC SDN, EU Consolidated, and UN sanctions lists. Track regulatory changes from the Federal Register with company exposure analysis.',
+      title: 'Sanctions & Regulation',
+      subtitle: 'Who\'s on the list, what\'s changing',
+      desc: 'Check any company or person against US, EU, and UN sanctions lists. Track new regulations and see which companies are exposed to compliance risk.',
       example: 'GET /v1/world/sanctions/screen?name=Gazprom',
     },
     {
       icon: TrendingUp,
       title: 'Private Credit',
-      subtitle: 'BDC universe, credit spreads',
-      desc: '12 tracked BDCs (Ares Capital, Blackstone, Goldman Sachs), FRED credit spreads across 6 risk tiers, and market stress indicators for the $1.7T+ private credit market.',
+      subtitle: 'The $1.7T market, tracked',
+      desc: 'The private credit market is opaque — we make it visible. 12 major BDCs, credit spreads across 6 risk tiers, and stress indicators that show when trouble is brewing.',
       example: 'GET /v1/world/private-credit',
     },
     {
       icon: Zap,
-      title: 'Convergence Engine',
-      subtitle: 'Cross-signal risk detection',
-      desc: 'Detects when multiple independent signals co-occur on the same entity — earnings risk, supply chain disruption, geopolitical escalation — with composite risk scoring.',
+      title: 'Connected Alerts',
+      subtitle: 'When signals line up, you know first',
+      desc: 'The real edge is seeing when separate events point to the same thing — earnings risk meets supply chain trouble meets sanctions exposure. We detect these patterns automatically.',
       example: 'GET /v1/world/convergence/alerts?window=24h',
     },
   ];
@@ -672,7 +672,7 @@ export function FeatureShowcase() {
             Capabilities
           </p>
           <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            From SEC filings to global signal intelligence
+            Everything that matters, in one place
           </h2>
         </div>
 
@@ -729,16 +729,16 @@ export function FeatureShowcase() {
 export function UseCases() {
   const cases = [
     {
-      title: 'AI Agents & MCP',
-      desc: 'Give your LLM agent access to financial data, world intelligence, and convergence signals through MCP. Works with Claude, GPT, and any MCP-compatible client.',
+      title: 'For AI Agents',
+      desc: 'Give your AI the context it needs — company data, world events, risk signals — through a single API or MCP connection. Your agent stops guessing and starts knowing.',
     },
     {
-      title: 'Risk & Intelligence',
-      desc: 'Monitor geopolitical risk, sanctions exposure, supply chain disruptions, and private credit stress across your portfolio — with cross-signal convergence alerts.',
+      title: 'For Analysts & PMs',
+      desc: 'Stop tab-switching between Bloomberg, SEC, and news sites. One workspace for financials, geopolitical risk, supply chains, sanctions, and AI-generated briefs you can email to your team.',
     },
     {
-      title: 'Quantitative Research',
-      desc: 'Pull normalized financials, screen by sector and ratios, overlay world signals, and export to CSV or Parquet. 10,000+ companies, 7 signal categories.',
+      title: 'For Developers',
+      desc: 'Build on top of clean, normalized data. REST API, MCP server, CLI, CSV and Parquet export. 10,000+ companies and 7 categories of world data, ready to plug into your stack.',
     },
   ];
 
@@ -746,9 +746,9 @@ export function UseCases() {
     <section className="border-t border-slate-200 px-4 py-20 dark:border-slate-800 sm:px-6">
       <div className="mx-auto max-w-4xl">
         <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Built for builders and analysts</h2>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">One workspace, many uses</h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Whether you're building an AI agent, monitoring geopolitical risk, or running quantitative research.
+            Whether you're an AI agent that needs context, an analyst writing a brief, or a developer building a product.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -773,10 +773,10 @@ export function BottomCTA() {
     <section className="border-t border-slate-200 bg-slate-900 px-4 py-20 dark:border-slate-800 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Start building with intelligence data
+          Start making better decisions
         </h2>
         <p className="mt-3 text-slate-400">
-          Free during beta. No API key required. Install in 30 seconds.
+          Free during beta. No signup needed. Install in 30 seconds.
         </p>
         <div className="mx-auto mt-6 max-w-sm rounded-md border border-slate-700 bg-slate-800 px-4 py-3">
           <code className="text-sm text-emerald-400">pip install eugene-intelligence</code>

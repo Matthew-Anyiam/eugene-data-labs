@@ -32,7 +32,7 @@ export function Footer() {
           <div>
             <p className="font-semibold">Eugene Intelligence</p>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Full-spectrum intelligence platform for AI agents, analysts, and investors.
+              Data, context, and intelligence for AI agents and the people who use them.
             </p>
             <a
               href="mailto:info@eugeneintelligence.com"
