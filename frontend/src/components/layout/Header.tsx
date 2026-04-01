@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { to: '/economics', label: 'Economics' },
   { to: '/predictions', label: 'Predictions' },
   { to: '/world', label: 'World Intel' },
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/docs', label: 'Docs' },
   { to: '/pricing', label: 'Pricing' },
 ];

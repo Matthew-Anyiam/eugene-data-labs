@@ -10,6 +10,7 @@ import { EconomicsPage } from './pages/EconomicsPage';
 import { PredictionsPage } from './pages/PredictionsPage';
 import { OntologyPage } from './pages/OntologyPage';
 import { WorldPage } from './pages/WorldPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { DocsPage } from './pages/DocsPage';
 import { PricingPage } from './pages/PricingPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -22,6 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/predictions': 'Predictions — Eugene Intelligence',
   '/ontology': 'Ontology — Eugene Intelligence',
   '/world': 'World Intelligence — Eugene Intelligence',
+  '/dashboard': 'Dashboard — Eugene Intelligence',
   '/docs': 'Documentation — Eugene Intelligence',
   '/pricing': 'Pricing — Eugene Intelligence',
 };
@@ -59,6 +61,7 @@ export default function App() {
             <Route path="/predictions" element={<PredictionsPage />} />
             <Route path="/ontology" element={<OntologyPage />} />
             <Route path="/world" element={<WorldPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/docs" element={<DocsPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="*" element={<NotFoundPage />} />

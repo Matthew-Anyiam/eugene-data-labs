@@ -193,14 +193,15 @@ def _build_mcp(include_rest: bool = False):
         days: int = 7,
         limit: int = 25,
     ) -> dict:
-        """World intelligence — geopolitical news, sanctions screening, and signals.
+        """World intelligence — geopolitical news, sanctions, disasters, conflict, and convergence.
 
-        category: news|sanctions|disasters|conflict
+        category: news|sanctions|disasters|conflict|convergence
         action:
           news: get_feed|get_brief|get_sentiment
           sanctions: get_sanctions|screen_entity|get_exposure|get_regulatory_changes
           disasters: get_active|get_impact|get_historical
           conflict: get_events|get_escalation_score|get_conflicts|get_affected_assets
+          convergence: get_alerts|get_entity_signals|get_composite_risk|get_dashboard
         query: Search text for news/sanctions
         topic: News topic (geopolitics, trade, energy, tech, finance, climate)
         ticker: Company ticker for exposure checks
@@ -271,7 +272,21 @@ def _build_mcp(include_rest: bool = False):
                 return get_affected(query)
             return {"error": f"Unknown conflict action: {action}"}
 
-        return {"error": f"Unknown category: {category}. Use: news, sanctions, disasters, conflict"}
+        elif category == "convergence":
+            from eugene.world.convergence import get_alerts as _conv_alerts, get_entity_signals as _conv_signals, get_composite_risk as _conv_risk, get_dashboard_summary as _conv_dash
+            if action == "get_alerts":
+                return _conv_alerts(time_window=timespan, limit=limit)
+            elif action == "get_entity_signals":
+                if not query:
+                    return {"error": "query (entity_id) required"}
+                return _conv_signals(query, time_window=timespan)
+            elif action == "get_composite_risk":
+                return _conv_risk(entity_id=query, time_window=timespan, limit=limit)
+            elif action == "get_dashboard":
+                return _conv_dash(time_window=timespan)
+            return {"error": f"Unknown convergence action: {action}"}
+
+        return {"error": f"Unknown category: {category}. Use: news, sanctions, disasters, conflict, convergence"}
 
     @mcp.tool()
     def caps() -> dict:
@@ -1061,6 +1076,57 @@ def _build_mcp(include_rest: bool = False):
             from eugene.world.conflict_intel import get_conflicts
             region = request.query_params.get("region")
             result = await asyncio.to_thread(get_conflicts, region=region)
+            return JSONResponse(result)
+
+        # --- Convergence + Dashboard endpoints ---
+
+        @mcp.custom_route("/v1/world/convergence/alerts", methods=["GET"])
+        @require_api_key
+        async def world_convergence_alerts(request: Request) -> JSONResponse:
+            """Get convergence alerts — entities with multiple co-occurring signals."""
+            from eugene.world.convergence import get_alerts
+            window = request.query_params.get("window", "24h")
+            min_types = _safe_int(request.query_params.get("min_types", "2"), 2, "min_types")
+            if isinstance(min_types, JSONResponse):
+                return min_types
+            entity_type = request.query_params.get("type")
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_alerts, time_window=window, min_signal_types=min_types, entity_type=entity_type, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/convergence/entity/{entity_id}", methods=["GET"])
+        @require_api_key
+        async def world_convergence_entity(request: Request) -> JSONResponse:
+            """Get cross-stream signal aggregation for an entity."""
+            from eugene.world.convergence import get_entity_signals
+            entity_id = request.path_params["entity_id"]
+            window = request.query_params.get("window", "7d")
+            result = await asyncio.to_thread(get_entity_signals, entity_id, time_window=window)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/convergence/risk", methods=["GET"])
+        @require_api_key
+        async def world_convergence_risk(request: Request) -> JSONResponse:
+            """Get composite risk scores across entities."""
+            from eugene.world.convergence import get_composite_risk
+            window = request.query_params.get("window", "24h")
+            entity_type = request.query_params.get("type")
+            entity_id = request.query_params.get("entity_id")
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_composite_risk, entity_id=entity_id, entity_type=entity_type, time_window=window, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/convergence/dashboard", methods=["GET"])
+        @require_api_key
+        async def world_convergence_dashboard(request: Request) -> JSONResponse:
+            """Get complete intelligence dashboard summary."""
+            from eugene.world.convergence import get_dashboard_summary
+            window = request.query_params.get("window", "24h")
+            result = await asyncio.to_thread(get_dashboard_summary, time_window=window)
             return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])
