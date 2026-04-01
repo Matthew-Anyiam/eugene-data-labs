@@ -180,6 +180,67 @@ def _build_mcp(include_rest: bool = False):
             return {"error": f"Unknown action: {action}"}
 
     @mcp.tool()
+    def world(
+        category: str = "news",
+        action: str = "get_feed",
+        query: str = None,
+        topic: str = None,
+        ticker: str = None,
+        name: str = None,
+        timespan: str = "24h",
+        threshold: float = 0.8,
+        source: str = "all",
+        days: int = 7,
+        limit: int = 25,
+    ) -> dict:
+        """World intelligence — geopolitical news, sanctions screening, and signals.
+
+        category: news|sanctions
+        action:
+          news: get_feed|get_brief|get_sentiment
+          sanctions: get_sanctions|screen_entity|get_exposure|get_regulatory_changes
+        query: Search text for news/sanctions
+        topic: News topic (geopolitics, trade, energy, tech, finance, climate)
+        ticker: Company ticker for exposure checks
+        name: Entity name for sanctions screening
+        timespan: Time window (1h, 24h, 7d, 30d)
+        threshold: Match threshold for sanctions screening (0.0-1.0)
+        source: Sanctions list source (ofac, un, all)
+        days: Days to look back for regulatory changes
+        limit: Max results
+        """
+        if category == "news":
+            from eugene.world.news import get_feed, get_brief, get_sentiment
+            if action == "get_feed":
+                return get_feed(query=query, topic=topic, timespan=timespan, limit=limit)
+            elif action == "get_brief":
+                return get_brief(query=query, topic=topic)
+            elif action == "get_sentiment":
+                if not query:
+                    return {"error": "query required for get_sentiment"}
+                return get_sentiment(query, timespan=timespan)
+            return {"error": f"Unknown news action: {action}"}
+
+        elif category == "sanctions":
+            from eugene.world.sanctions_intel import screen, get_list, check_exposure, get_changes
+            if action == "screen_entity":
+                if not name:
+                    return {"error": "name required for screen_entity"}
+                lists = [source] if source != "all" else None
+                return screen(name, threshold=threshold, lists=lists)
+            elif action == "get_sanctions":
+                return get_list(source=source, limit=limit)
+            elif action == "get_exposure":
+                if not ticker:
+                    return {"error": "ticker required for get_exposure"}
+                return check_exposure(ticker)
+            elif action == "get_regulatory_changes":
+                return get_changes(days=days, limit=limit)
+            return {"error": f"Unknown sanctions action: {action}"}
+
+        return {"error": f"Unknown category: {category}. Use: news, sanctions"}
+
+    @mcp.tool()
     def caps() -> dict:
         """List all available Eugene tools, extracts, and capabilities."""
         return capabilities()
@@ -790,6 +851,98 @@ def _build_mcp(include_rest: bool = False):
             """Get ontology statistics."""
             from eugene.ontology.ingest import get_ingestion_stats
             result = await asyncio.to_thread(get_ingestion_stats)
+            return JSONResponse(result)
+
+        # --- World Intelligence endpoints ---
+
+        @mcp.custom_route("/v1/world/news", methods=["GET"])
+        @require_api_key
+        async def world_news_feed(request: Request) -> JSONResponse:
+            """Get geopolitical/financial news feed from GDELT."""
+            from eugene.world.news import get_feed
+            q = request.query_params.get("q")
+            topic = request.query_params.get("topic")
+            timespan = request.query_params.get("timespan", "24h")
+            limit = _safe_int(request.query_params.get("limit", "25"), 25, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_feed, query=q, topic=topic, timespan=timespan, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/news/brief", methods=["GET"])
+        @require_api_key
+        async def world_news_brief(request: Request) -> JSONResponse:
+            """Get AI-powered intelligence brief from recent news."""
+            from eugene.world.news import get_brief
+            q = request.query_params.get("q")
+            topic = request.query_params.get("topic")
+            result = await asyncio.to_thread(get_brief, query=q, topic=topic)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/news/sentiment", methods=["GET"])
+        @require_api_key
+        async def world_news_sentiment(request: Request) -> JSONResponse:
+            """Get sentiment analysis for a topic or entity."""
+            from eugene.world.news import get_sentiment
+            q = request.query_params.get("q", "")
+            if not q:
+                return JSONResponse({"error": "q parameter required"}, status_code=400)
+            timespan = request.query_params.get("timespan", "30d")
+            result = await asyncio.to_thread(get_sentiment, q, timespan=timespan)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/sanctions/screen", methods=["GET"])
+        @require_api_key
+        async def world_sanctions_screen(request: Request) -> JSONResponse:
+            """Screen an entity against OFAC + UN sanctions lists."""
+            from eugene.world.sanctions_intel import screen
+            name = request.query_params.get("name", "").strip()
+            if not name:
+                return JSONResponse({"error": "name parameter required"}, status_code=400)
+            threshold = _safe_float(request.query_params.get("threshold", "0.8"), 0.8, "threshold")
+            if isinstance(threshold, JSONResponse):
+                return threshold
+            result = await asyncio.to_thread(screen, name, threshold=threshold)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/sanctions", methods=["GET"])
+        @require_api_key
+        async def world_sanctions_list(request: Request) -> JSONResponse:
+            """Browse sanctions list entries."""
+            from eugene.world.sanctions_intel import get_list
+            source = request.query_params.get("source", "ofac")
+            entity_type = request.query_params.get("type")
+            program = request.query_params.get("program")
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            offset = _safe_int(request.query_params.get("offset", "0"), 0, "offset")
+            if isinstance(offset, JSONResponse):
+                return offset
+            result = await asyncio.to_thread(get_list, source=source, entity_type=entity_type, program=program, limit=limit, offset=offset)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/sanctions/exposure/{ticker}", methods=["GET"])
+        @require_api_key
+        async def world_sanctions_exposure(request: Request) -> JSONResponse:
+            """Check a company's sanctions exposure."""
+            from eugene.world.sanctions_intel import check_exposure
+            ticker = request.path_params["ticker"]
+            result = await asyncio.to_thread(check_exposure, ticker)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/sanctions/changes", methods=["GET"])
+        @require_api_key
+        async def world_regulatory_changes(request: Request) -> JSONResponse:
+            """Get recent sanctions/regulatory changes from Federal Register."""
+            from eugene.world.sanctions_intel import get_changes
+            days = _safe_int(request.query_params.get("days", "7"), 7, "days")
+            if isinstance(days, JSONResponse):
+                return days
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_changes, days=days, limit=limit)
             return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])
