@@ -100,9 +100,9 @@ export function Hero() {
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-white dark:from-slate-900/50 dark:via-slate-950 dark:to-slate-950" />
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-          Look up any company.
+          Data and context
           <br />
-          <span className="text-slate-400 dark:text-slate-500">Know what's going on.</span>
+          <span className="text-slate-400 dark:text-slate-500">infrastructure.</span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
