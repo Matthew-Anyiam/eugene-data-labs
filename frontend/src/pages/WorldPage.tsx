@@ -7,12 +7,17 @@ import {
   useRegulatoryChanges,
 } from '../hooks/useWorld';
 import { useActiveDisasters, useActiveConflicts } from '../hooks/useDisasters';
+import { usePortStatus, useRouteRisk } from '../hooks/useSupplyChain';
+import { useAirportStatus, useAirspaceStatus } from '../hooks/useFlights';
 import type { NewsArticle, RegulatoryChange } from '../hooks/useWorld';
 import type { Disaster } from '../hooks/useDisasters';
+import type { Port, Chokepoint } from '../hooks/useSupplyChain';
+import type { Airport } from '../hooks/useFlights';
 import {
   Globe, Newspaper, Shield, Search, TrendingUp, TrendingDown,
   Minus, CheckCircle, XCircle, Loader2, ExternalLink,
   Clock, FileText, Zap, BarChart3, AlertTriangle, Swords,
+  Anchor, Plane,
 } from 'lucide-react';
 
 const NEWS_TOPICS = [
@@ -40,7 +45,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export function WorldPage() {
-  const [activeTab, setActiveTab] = useState<'news' | 'sanctions' | 'regulatory' | 'disasters' | 'conflict'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'sanctions' | 'regulatory' | 'disasters' | 'conflict' | 'supply_chain' | 'flights'>('news');
   const [newsTopic, setNewsTopic] = useState<string | undefined>();
   const [newsQuery, setNewsQuery] = useState('');
   const [activeNewsQuery, setActiveNewsQuery] = useState('');
@@ -55,6 +60,10 @@ export function WorldPage() {
   const regulatory = useRegulatoryChanges(7);
   const disasters = useActiveDisasters(7);
   const conflicts = useActiveConflicts();
+  const ports = usePortStatus();
+  const routes = useRouteRisk();
+  const airports = useAirportStatus();
+  const airspace = useAirspaceStatus();
 
   const handleNewsSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +85,7 @@ export function WorldPage() {
           World Intelligence
         </h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Real-time geopolitical news, sanctions screening, and regulatory monitoring
+          Real-time geopolitical signals across news, sanctions, disasters, conflict, supply chains, and flights
         </p>
       </div>
 
@@ -86,6 +95,8 @@ export function WorldPage() {
           { key: 'news', label: 'News & Signals', icon: Newspaper },
           { key: 'disasters', label: 'Disasters', icon: AlertTriangle },
           { key: 'conflict', label: 'Conflict', icon: Swords },
+          { key: 'supply_chain', label: 'Supply Chain', icon: Anchor },
+          { key: 'flights', label: 'Flights', icon: Plane },
           { key: 'sanctions', label: 'Sanctions', icon: Shield },
           { key: 'regulatory', label: 'Regulatory', icon: FileText },
         ].map(({ key, label, icon: Icon }) => (
@@ -439,9 +450,167 @@ export function WorldPage() {
         </div>
       )}
 
+      {/* Supply Chain Tab */}
+      {activeTab === 'supply_chain' && (
+        <div className="space-y-6">
+          {/* Port Status */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-500">Global Port Status</h3>
+              <span className="text-xs text-slate-400">15 major ports monitored</span>
+            </div>
+
+            {ports.isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+              </div>
+            )}
+
+            {ports.data && (
+              <>
+                <div className="flex gap-4 text-sm">
+                  <span className="text-green-500">{ports.data.operational} operational</span>
+                  <span className="text-amber-500">{ports.data.congested} congested</span>
+                  <span className="text-red-500">{ports.data.disrupted} disrupted</span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {ports.data.ports.map((port: Port) => (
+                    <div key={port.port_code} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Anchor className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium text-sm">{port.name}</span>
+                        </div>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          port.status === 'operational' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                          port.status === 'congested' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                          'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                        }`}>
+                          {port.status}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+                        <span>{port.country} · {port.port_code}</span>
+                        <span>Risk: {(port.risk_score * 100).toFixed(0)}%</span>
+                      </div>
+                      {port.risk_factors.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {port.risk_factors.map((f, i) => (
+                            <span key={i} className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Chokepoint Risk */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-500">Shipping Chokepoint Risk</h3>
+              <span className="text-xs text-slate-400">
+                {routes.data ? `Avg risk: ${(routes.data.avg_risk * 100).toFixed(0)}%` : ''}
+              </span>
+            </div>
+
+            {routes.data?.chokepoints.map((cp: Chokepoint) => (
+              <div key={cp.name} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-sm">{cp.name}</span>
+                    <span className="ml-2 text-xs text-slate-400">{cp.trade_share_pct}% of global trade</span>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    cp.status === 'high_risk' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                    cp.status === 'elevated' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                    'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                  }`}>
+                    {cp.status.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Flights Tab */}
+      {activeTab === 'flights' && (
+        <div className="space-y-6">
+          {/* Airport Status */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-500">Airport Status</h3>
+              <span className="text-xs text-slate-400">Source: OpenSky Network</span>
+            </div>
+
+            {airports.isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+              </div>
+            )}
+
+            {airports.data && (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {airports.data.airports.map((ap: Airport) => (
+                  <div key={ap.icao} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Plane className="h-4 w-4 text-sky-500" />
+                        <span className="font-medium text-sm">{ap.name}</span>
+                      </div>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        ap.status === 'normal' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                        ap.status === 'busy' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                        ap.status === 'delays_likely' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                        'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                      }`}>
+                        {ap.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+                      <span>{ap.city}, {ap.country} · {ap.icao}</span>
+                      <span>{ap.traffic_count} aircraft nearby</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Airspace Status */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-500">Regional Airspace Status</h3>
+            {airspace.data?.regions.map((r) => (
+              <div key={r.region} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-sm">{r.label}</span>
+                    <span className="ml-2 text-xs text-slate-400">{r.traffic_count} aircraft tracked</span>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    r.density === 'high' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                    r.density === 'moderate' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                    r.density === 'low' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                  }`}>
+                    {r.density} density
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Attribution */}
       <div className="text-center text-xs text-slate-400 dark:text-slate-500">
-        News: GDELT · Disasters: USGS + GDACS + NASA FIRMS · Conflict: UCDP · Sanctions: OFAC + UN SC · Regulatory: Federal Register
+        News: GDELT · Disasters: USGS + GDACS + NASA FIRMS · Conflict: UCDP · Supply Chain: UN Comtrade + AIS · Flights: OpenSky · Sanctions: OFAC + UN SC · Regulatory: Federal Register
       </div>
     </div>
   );

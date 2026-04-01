@@ -193,14 +193,16 @@ def _build_mcp(include_rest: bool = False):
         days: int = 7,
         limit: int = 25,
     ) -> dict:
-        """World intelligence — geopolitical news, sanctions, disasters, conflict, and convergence.
+        """World intelligence — news, sanctions, disasters, conflict, supply chain, flights, convergence.
 
-        category: news|sanctions|disasters|conflict|convergence
+        category: news|sanctions|disasters|conflict|supply_chain|flights|convergence
         action:
           news: get_feed|get_brief|get_sentiment
           sanctions: get_sanctions|screen_entity|get_exposure|get_regulatory_changes
           disasters: get_active|get_impact|get_historical
           conflict: get_events|get_escalation_score|get_conflicts|get_affected_assets
+          supply_chain: get_port_status|get_trade_flows|get_route_risk|get_vessel
+          flights: get_flights|get_airport|get_anomalies|get_airspace_status
           convergence: get_alerts|get_entity_signals|get_composite_risk|get_dashboard
         query: Search text for news/sanctions
         topic: News topic (geopolitics, trade, energy, tech, finance, climate)
@@ -272,6 +274,41 @@ def _build_mcp(include_rest: bool = False):
                 return get_affected(query)
             return {"error": f"Unknown conflict action: {action}"}
 
+        elif category == "supply_chain":
+            from eugene.world.supply_chain_intel import get_ports, get_trade, get_routes, get_vessel as _get_vessel
+            if action == "get_port_status":
+                return get_ports(port_code=query, country=ticker, limit=limit)
+            elif action == "get_trade_flows":
+                reporter = query or "US"
+                return get_trade(reporter=reporter, partner=ticker, commodity=name, flow=source if source != "all" else "X", limit=limit)
+            elif action == "get_route_risk":
+                return get_routes(origin=query, destination=ticker)
+            elif action == "get_vessel":
+                if query and query.isdigit():
+                    return _get_vessel(mmsi=query)
+                elif query and "," in query:
+                    parts = query.split(",")
+                    return _get_vessel(lat=float(parts[0]), lng=float(parts[1]))
+                return {"error": "query must be MMSI number or 'lat,lng'"}
+            return {"error": f"Unknown supply_chain action: {action}"}
+
+        elif category == "flights":
+            from eugene.world.flights_intel import get_aircraft, get_airport, get_airspace_anomalies, get_airspace
+            if action == "get_flights":
+                if query and "," in query:
+                    parts = query.split(",")
+                    return get_aircraft(lat=float(parts[0]), lng=float(parts[1]), limit=limit)
+                elif query:
+                    return get_aircraft(icao24=query, limit=limit)
+                return {"error": "query must be 'lat,lng' or icao24 address"}
+            elif action == "get_airport":
+                return get_airport(icao=query, country=ticker, limit=limit)
+            elif action == "get_anomalies":
+                return get_airspace_anomalies(region=query, limit=limit)
+            elif action == "get_airspace_status":
+                return get_airspace(region=query)
+            return {"error": f"Unknown flights action: {action}"}
+
         elif category == "convergence":
             from eugene.world.convergence import get_alerts as _conv_alerts, get_entity_signals as _conv_signals, get_composite_risk as _conv_risk, get_dashboard_summary as _conv_dash
             if action == "get_alerts":
@@ -286,7 +323,7 @@ def _build_mcp(include_rest: bool = False):
                 return _conv_dash(time_window=timespan)
             return {"error": f"Unknown convergence action: {action}"}
 
-        return {"error": f"Unknown category: {category}. Use: news, sanctions, disasters, conflict, convergence"}
+        return {"error": f"Unknown category: {category}. Use: news, sanctions, disasters, conflict, supply_chain, flights, convergence"}
 
     @mcp.tool()
     def caps() -> dict:
@@ -1076,6 +1113,114 @@ def _build_mcp(include_rest: bool = False):
             from eugene.world.conflict_intel import get_conflicts
             region = request.query_params.get("region")
             result = await asyncio.to_thread(get_conflicts, region=region)
+            return JSONResponse(result)
+
+        # --- Supply Chain endpoints ---
+
+        @mcp.custom_route("/v1/world/supply-chain/ports", methods=["GET"])
+        @require_api_key
+        async def world_ports(request: Request) -> JSONResponse:
+            """Get port status with congestion and disruption risk."""
+            from eugene.world.supply_chain_intel import get_ports
+            port_code = request.query_params.get("port")
+            country = request.query_params.get("country")
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_ports, port_code=port_code, country=country, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/supply-chain/trade", methods=["GET"])
+        @require_api_key
+        async def world_trade_flows(request: Request) -> JSONResponse:
+            """Get international trade flow data from UN Comtrade."""
+            from eugene.world.supply_chain_intel import get_trade
+            reporter = request.query_params.get("reporter", "US")
+            partner = request.query_params.get("partner")
+            commodity = request.query_params.get("commodity")
+            flow = request.query_params.get("flow", "X")
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_trade, reporter=reporter, partner=partner, commodity=commodity, flow=flow, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/supply-chain/routes", methods=["GET"])
+        @require_api_key
+        async def world_route_risk(request: Request) -> JSONResponse:
+            """Get shipping route risk across major chokepoints."""
+            from eugene.world.supply_chain_intel import get_routes
+            origin = request.query_params.get("origin")
+            destination = request.query_params.get("destination")
+            result = await asyncio.to_thread(get_routes, origin=origin, destination=destination)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/supply-chain/vessels", methods=["GET"])
+        @require_api_key
+        async def world_vessels(request: Request) -> JSONResponse:
+            """Get vessel positions from AIS data."""
+            from eugene.world.supply_chain_intel import get_vessel
+            mmsi = request.query_params.get("mmsi")
+            lat_str = request.query_params.get("lat")
+            lng_str = request.query_params.get("lng")
+            lat = float(lat_str) if lat_str else None
+            lng = float(lng_str) if lng_str else None
+            result = await asyncio.to_thread(get_vessel, mmsi=mmsi, lat=lat, lng=lng)
+            return JSONResponse(result)
+
+        # --- Flight Intelligence endpoints ---
+
+        @mcp.custom_route("/v1/world/flights", methods=["GET"])
+        @require_api_key
+        async def world_flights(request: Request) -> JSONResponse:
+            """Get real-time aircraft positions from OpenSky Network."""
+            from eugene.world.flights_intel import get_aircraft
+            icao24 = request.query_params.get("icao24")
+            lat_str = request.query_params.get("lat")
+            lng_str = request.query_params.get("lng")
+            radius = _safe_float(request.query_params.get("radius", "200"), 200, "radius")
+            if isinstance(radius, JSONResponse):
+                return radius
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            lat = float(lat_str) if lat_str else None
+            lng = float(lng_str) if lng_str else None
+            result = await asyncio.to_thread(get_aircraft, lat=lat, lng=lng, radius_km=radius, icao24=icao24, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/flights/airports", methods=["GET"])
+        @require_api_key
+        async def world_airports(request: Request) -> JSONResponse:
+            """Get airport status with traffic density and risk."""
+            from eugene.world.flights_intel import get_airport
+            icao = request.query_params.get("icao")
+            country = request.query_params.get("country")
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_airport, icao=icao, country=country, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/flights/anomalies", methods=["GET"])
+        @require_api_key
+        async def world_flight_anomalies(request: Request) -> JSONResponse:
+            """Detect airspace anomalies — unusual patterns, military activity."""
+            from eugene.world.flights_intel import get_airspace_anomalies
+            region = request.query_params.get("region")
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_airspace_anomalies, region=region, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/flights/airspace", methods=["GET"])
+        @require_api_key
+        async def world_airspace_status(request: Request) -> JSONResponse:
+            """Get airspace status overview by region."""
+            from eugene.world.flights_intel import get_airspace
+            region = request.query_params.get("region")
+            result = await asyncio.to_thread(get_airspace, region=region)
             return JSONResponse(result)
 
         # --- Convergence + Dashboard endpoints ---
