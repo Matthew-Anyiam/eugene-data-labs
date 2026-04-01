@@ -120,6 +120,66 @@ def _build_mcp(include_rest: bool = False):
         return get_historical_bars(symbol, interval=type)
 
     @mcp.tool()
+    def ontology(
+        action: str = "resolve_entity",
+        query: str = None,
+        entity_id: str = None,
+        entity_type: str = None,
+        relationship: str = None,
+        direction: str = "both",
+        max_depth: int = 2,
+        time_window: str = "24h",
+        limit: int = 20,
+    ) -> dict:
+        """Entity graph — resolve, traverse, and query relationships across all Eugene data.
+
+        action: resolve_entity|get_entity|get_relationships|traverse|search_entities|get_convergence|get_stats|ingest
+        query: Search string for resolve/search (ticker, name, CIK)
+        entity_id: Entity UUID for get/traverse/relationships
+        entity_type: Filter by type (company, person, institution, filing, transaction, economic_indicator)
+        relationship: Filter edges (officer_of, holds, filed, transacted, peer_of, exposed_to)
+        direction: Edge direction (outbound, inbound, both)
+        max_depth: Traversal depth (1-4)
+        time_window: Signal window (1h, 24h, 7d, 30d)
+        limit: Max results
+        """
+        from eugene.ontology import (
+            resolve_entity as _resolve, get_entity as _get, get_relationships as _rels,
+            traverse as _traverse, search_entities as _search, get_convergence as _conv,
+        )
+        from eugene.ontology.ingest import ingest_company, get_ingestion_stats
+
+        if action == "resolve_entity":
+            if not query:
+                return {"error": "query parameter required for resolve_entity"}
+            return {"matches": _resolve(query, entity_type=entity_type, limit=limit)}
+        elif action == "get_entity":
+            if not entity_id:
+                return {"error": "entity_id required"}
+            result = _get(entity_id)
+            return result or {"error": "Entity not found"}
+        elif action == "get_relationships":
+            if not entity_id:
+                return {"error": "entity_id required"}
+            return _rels(entity_id, relationship=relationship, direction=direction, limit=limit)
+        elif action == "traverse":
+            if not entity_id:
+                return {"error": "entity_id required"}
+            return _traverse(entity_id, max_depth=max_depth, relationship_filter=relationship, limit=limit)
+        elif action == "search_entities":
+            return _search(query=query, entity_type=entity_type, limit=limit)
+        elif action == "get_convergence":
+            return _conv(entity_id=entity_id, time_window=time_window, limit=limit)
+        elif action == "get_stats":
+            return get_ingestion_stats()
+        elif action == "ingest":
+            if not query:
+                return {"error": "query (ticker) required for ingest"}
+            return ingest_company(query)
+        else:
+            return {"error": f"Unknown action: {action}"}
+
+    @mcp.tool()
     def caps() -> dict:
         """List all available Eugene tools, extracts, and capabilities."""
         return capabilities()
@@ -581,6 +641,156 @@ def _build_mcp(include_rest: bool = False):
                      "error": str(e), "source": "eugene-simulation-engine"},
                     status_code=500,
                 )
+
+        # --- Ontology endpoints ---
+
+        @mcp.custom_route("/v1/ontology/resolve", methods=["GET"])
+        @require_api_key
+        async def ontology_resolve(request: Request) -> JSONResponse:
+            """Resolve an entity by name, ticker, CIK, or any identifier."""
+            from eugene.ontology import resolve_entity as _resolve
+            q = request.query_params.get("q", "").strip()
+            if not q:
+                return JSONResponse({"error": "q parameter required"}, status_code=400)
+            entity_type = request.query_params.get("type")
+            limit = _safe_int(request.query_params.get("limit", "5"), 5, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            matches = await asyncio.to_thread(_resolve, q, entity_type=entity_type, limit=limit)
+            return JSONResponse({"query": q, "matches": matches})
+
+        @mcp.custom_route("/v1/ontology/entity/{entity_id}", methods=["GET"])
+        @require_api_key
+        async def ontology_get_entity(request: Request) -> JSONResponse:
+            """Get full entity profile with relationships."""
+            from eugene.ontology import get_entity as _get
+            entity_id = request.path_params["entity_id"]
+            result = await asyncio.to_thread(_get, entity_id)
+            if not result:
+                return JSONResponse({"error": "Entity not found"}, status_code=404)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/ontology/entity/{entity_id}/relationships", methods=["GET"])
+        @require_api_key
+        async def ontology_relationships(request: Request) -> JSONResponse:
+            """Get edges for an entity."""
+            from eugene.ontology import get_relationships as _rels
+            entity_id = request.path_params["entity_id"]
+            relationship = request.query_params.get("relationship")
+            direction = request.query_params.get("direction", "both")
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(_rels, entity_id, relationship=relationship, direction=direction, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/ontology/entity/{entity_id}/traverse", methods=["GET"])
+        @require_api_key
+        async def ontology_traverse(request: Request) -> JSONResponse:
+            """Multi-hop graph traversal from an entity."""
+            from eugene.ontology import traverse as _traverse
+            entity_id = request.path_params["entity_id"]
+            max_depth = _safe_int(request.query_params.get("depth", "2"), 2, "depth")
+            if isinstance(max_depth, JSONResponse):
+                return max_depth
+            relationship = request.query_params.get("relationship")
+            limit = _safe_int(request.query_params.get("limit", "100"), 100, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(_traverse, entity_id, max_depth=max_depth, relationship_filter=relationship, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/ontology/search", methods=["GET"])
+        @require_api_key
+        async def ontology_search(request: Request) -> JSONResponse:
+            """Full-text + attribute search across entities."""
+            from eugene.ontology import search_entities as _search
+            q = request.query_params.get("q")
+            entity_type = request.query_params.get("type")
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            offset = _safe_int(request.query_params.get("offset", "0"), 0, "offset")
+            if isinstance(offset, JSONResponse):
+                return offset
+            result = await asyncio.to_thread(_search, query=q, entity_type=entity_type, limit=limit, offset=offset)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/ontology/convergence", methods=["GET"])
+        @require_api_key
+        async def ontology_convergence(request: Request) -> JSONResponse:
+            """Get convergence alerts — entities with multiple signal types."""
+            from eugene.ontology import get_convergence as _conv
+            entity_id = request.query_params.get("entity_id")
+            time_window = request.query_params.get("window", "24h")
+            min_types = _safe_int(request.query_params.get("min_types", "2"), 2, "min_types")
+            if isinstance(min_types, JSONResponse):
+                return min_types
+            limit = _safe_int(request.query_params.get("limit", "20"), 20, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(_conv, entity_id=entity_id, time_window=time_window, min_signal_types=min_types, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/ontology/entity/{entity_id}/signals", methods=["GET"])
+        @require_api_key
+        async def ontology_signals(request: Request) -> JSONResponse:
+            """Get signals for an entity."""
+            from eugene.ontology.signals import get_entity_signals
+            entity_id = request.path_params["entity_id"]
+            signal_type = request.query_params.get("type")
+            time_window = request.query_params.get("window", "7d")
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_entity_signals, entity_id, signal_type=signal_type, time_window=time_window, limit=limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/ontology/ingest", methods=["POST"])
+        @require_api_key
+        async def ontology_ingest(request: Request) -> JSONResponse:
+            """Ingest a company into the ontology from SEC data."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body) if body else {}
+                ticker = data.get("ticker", "").strip().upper()
+                if not ticker:
+                    return JSONResponse({"error": "ticker required"}, status_code=400)
+                from eugene.ontology.ingest import ingest_company
+                result = await asyncio.to_thread(ingest_company, ticker)
+                return JSONResponse({"ticker": ticker, **result})
+            except Exception as e:
+                logger.exception("Ontology ingest failed")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        @mcp.custom_route("/v1/ontology/ingest/batch", methods=["POST"])
+        @require_api_key
+        async def ontology_ingest_batch(request: Request) -> JSONResponse:
+            """Ingest multiple companies into the ontology."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body) if body else {}
+                tickers = data.get("tickers", [])
+                if not tickers:
+                    return JSONResponse({"error": "tickers list required"}, status_code=400)
+                if len(tickers) > 50:
+                    return JSONResponse({"error": "Max 50 tickers per batch"}, status_code=400)
+                from eugene.ontology.ingest import ingest_batch
+                result = await asyncio.to_thread(ingest_batch, [t.strip().upper() for t in tickers])
+                return JSONResponse(result)
+            except Exception as e:
+                logger.exception("Batch ingest failed")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        @mcp.custom_route("/v1/ontology/stats", methods=["GET"])
+        @require_api_key
+        async def ontology_stats(request: Request) -> JSONResponse:
+            """Get ontology statistics."""
+            from eugene.ontology.ingest import get_ingestion_stats
+            result = await asyncio.to_thread(get_ingestion_stats)
+            return JSONResponse(result)
 
         @mcp.custom_route("/v1/sec/{identifier}/export", methods=["GET"])
         @require_api_key
