@@ -51,7 +51,7 @@ def sync_sanctions(self):
         entities = list_entities(entity_type="company", limit=500)
         count = 0
         for entity in entities:
-            name = entity.get("name", "")
+            name = entity.get("canonical_name", "")
             if not name:
                 continue
             result = screen(name, threshold=0.85)
@@ -79,23 +79,27 @@ def ingest_disaster_signals(self):
         from eugene.ontology.signals import record_signal
 
         result = get_active(days=1)
-        events = result.get("events", [])
+        disasters = result.get("disasters", [])
         count = 0
-        for event in events:
-            severity = event.get("severity", 0)
+        for event in disasters:
+            severity = event.get("severity", 0) or 0
             if severity >= 3:
+                # Use place name or lat/lng as entity
+                entity_id = event.get("name", "UNKNOWN")[:100]
                 record_signal(
-                    entity_id=event.get("location", "UNKNOWN"),
+                    entity_id=entity_id,
                     signal_type="disaster_event",
-                    magnitude=severity / 10.0,
+                    magnitude=min(severity / 10.0, 1.0),
                     metadata={
                         "type": event.get("type", "unknown"),
-                        "title": event.get("title", "")[:200],
+                        "name": event.get("name", "")[:200],
+                        "alert_level": event.get("alert_level", ""),
+                        "severity_tier": event.get("severity_tier", ""),
                     },
                 )
                 count += 1
-        logger.info("Ingested %d disaster signals from %d events", count, len(events))
-        return {"ingested": count, "total": len(events)}
+        logger.info("Ingested %d disaster signals from %d events", count, len(disasters))
+        return {"ingested": count, "total": len(disasters)}
     except Exception as exc:
         logger.warning("Disaster ingestion failed: %s", exc)
         raise self.retry(exc=exc)
@@ -166,7 +170,7 @@ def ingest_sec_signals(self):
         entities = list_entities(entity_type="company", limit=100)
         count = 0
         for entity in entities:
-            ticker = entity.get("ticker")
+            ticker = entity.get("source_id") or entity.get("attributes", {}).get("ticker")
             if ticker:
                 try:
                     ingest_company(ticker)

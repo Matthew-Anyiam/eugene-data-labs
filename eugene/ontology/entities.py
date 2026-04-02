@@ -324,6 +324,39 @@ def add_alias(entity_id: str, alias: str, alias_type: str | None = None, source:
     return {"id": alias_id, "entity_id": entity_id, "alias": alias, "alias_type": alias_type}
 
 
+def list_entities(
+    entity_type: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict]:
+    """List entities, optionally filtered by type.
+
+    Used by worker tasks to iterate over tracked entities
+    for batch operations (sanctions screening, SEC re-ingestion).
+
+    Returns:
+        List of entity dicts with id, canonical_name, entity_type, attributes
+    """
+    with _get_conn() as conn:
+        if entity_type:
+            rows = conn.execute(
+                """SELECT * FROM entities
+                   WHERE entity_type = ?
+                   ORDER BY updated_at DESC
+                   LIMIT ? OFFSET ?""",
+                (entity_type, limit, offset),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT * FROM entities
+                   ORDER BY updated_at DESC
+                   LIMIT ? OFFSET ?""",
+                (limit, offset),
+            ).fetchall()
+
+    return [_row_to_dict(r) for r in rows]
+
+
 def get_entity_count(entity_type: str | None = None) -> int:
     """Count entities, optionally filtered by type."""
     with _get_conn() as conn:

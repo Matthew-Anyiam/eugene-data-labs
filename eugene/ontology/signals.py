@@ -234,6 +234,33 @@ def get_convergence(
     }
 
 
+def cleanup_signals(days: int = 90) -> int:
+    """Delete signals older than the given number of days.
+
+    Used by the weekly cleanup worker task to prevent unbounded growth.
+
+    Args:
+        days: Delete signals older than this many days
+
+    Returns:
+        Number of signals deleted
+    """
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+    with _get_conn() as conn:
+        # Count first
+        row = conn.execute(
+            "SELECT COUNT(*) FROM signals WHERE occurred_at < ?", (cutoff,)
+        ).fetchone()
+        count = row[0]
+
+        if count > 0:
+            conn.execute("DELETE FROM signals WHERE occurred_at < ?", (cutoff,))
+            logger.info("Cleaned up %d signals older than %d days", count, days)
+
+    return count
+
+
 def _parse_window(window: str) -> str:
     """Parse time window string to ISO datetime cutoff."""
     now = datetime.utcnow()
