@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
+  Star, Moon, Sun,
 } from 'lucide-react';
+import { useWatchlist } from '../../hooks/useWatchlist';
+import { useDarkMode } from '../../hooks/useDarkMode';
 import { cn } from '../../lib/utils';
 
 interface CommandPaletteProps {
@@ -32,6 +35,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const { addTicker, hasTicker } = useWatchlist();
+  const { dark, toggle: toggleDark } = useDarkMode();
 
   const go = useCallback((path: string) => {
     navigate(path);
@@ -51,6 +56,18 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing'), category: 'Pages' },
   ];
 
+  // Quick actions
+  const actions: CommandItem[] = [
+    {
+      id: 'toggle-dark',
+      label: dark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+      description: 'Toggle theme',
+      icon: dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />,
+      action: () => { toggleDark(); onClose(); },
+      category: 'Actions',
+    },
+  ];
+
   const q = query.trim().toUpperCase();
 
   // Filter tickers
@@ -61,14 +78,14 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         .map((t) => ({
           id: `company-${t}`,
           label: t,
-          description: 'View company',
-          icon: <Building2 className="h-4 w-4" />,
+          description: hasTicker(t) ? 'In watchlist' : 'View company',
+          icon: hasTicker(t) ? <Star className="h-4 w-4 text-amber-400" /> : <Building2 className="h-4 w-4" />,
           action: () => go(`/company/${t}`),
           category: 'Companies',
         }))
     : [];
 
-  // If query looks like a ticker and isn't in popular list, add direct nav
+  // If query looks like a ticker and isn't in popular list, add direct nav + watchlist add
   const isTickerLike = /^[A-Z]{1,5}$/.test(q);
   if (isTickerLike && q.length >= 1 && !tickerMatches.find((t) => t.label === q)) {
     tickerMatches.unshift({
@@ -81,6 +98,22 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     });
   }
 
+  // Add "add to watchlist" action for ticker queries
+  if (isTickerLike && q.length >= 1 && !hasTicker(q)) {
+    tickerMatches.push({
+      id: `watchlist-add-${q}`,
+      label: `Add ${q} to watchlist`,
+      description: 'Star this ticker',
+      icon: <Star className="h-4 w-4" />,
+      action: () => {
+        addTicker(q);
+        onClose();
+        setQuery('');
+      },
+      category: 'Actions',
+    });
+  }
+
   // Filter pages
   const pageMatches = query.length > 0
     ? pages.filter(
@@ -90,7 +123,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       )
     : pages;
 
-  const allItems = [...tickerMatches, ...pageMatches];
+  // Filter actions
+  const actionMatches = query.length > 0
+    ? actions.filter(
+        (a) =>
+          a.label.toLowerCase().includes(query.toLowerCase()) ||
+          (a.description && a.description.toLowerCase().includes(query.toLowerCase()))
+      )
+    : actions;
+
+  const allItems = [...tickerMatches, ...pageMatches, ...actionMatches];
 
   // Reset selection on query change
   useEffect(() => {

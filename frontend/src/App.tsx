@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/workspace/Sidebar';
 import { CommandPalette } from './components/workspace/CommandPalette';
+import { ActivityPanel } from './components/workspace/ActivityPanel';
 import { FeedbackWidget } from './components/ui/FeedbackWidget';
 
 const CompanyPage = lazy(() => import('./pages/CompanyPage').then(m => ({ default: m.CompanyPage })));
@@ -61,6 +62,13 @@ function WorkspaceLayout() {
     }
   });
   const [commandOpen, setCommandOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(() => {
+    try {
+      return localStorage.getItem('eugene_activity') === 'open';
+    } catch {
+      return false;
+    }
+  });
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => {
@@ -73,12 +81,30 @@ function WorkspaceLayout() {
   const openCommand = useCallback(() => setCommandOpen(true), []);
   const closeCommand = useCallback(() => setCommandOpen(false), []);
 
-  // Global keyboard shortcut: Cmd+K / Ctrl+K
+  const toggleActivity = useCallback(() => {
+    setActivityOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('eugene_activity', next ? 'open' : 'closed');
+      return next;
+    });
+  }, []);
+
+  // Global keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Cmd+K / Ctrl+K — command palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setCommandOpen((prev) => !prev);
+      }
+      // Cmd+. / Ctrl+. — activity panel
+      if ((e.metaKey || e.ctrlKey) && e.key === '.') {
+        e.preventDefault();
+        setActivityOpen((prev) => {
+          const next = !prev;
+          localStorage.setItem('eugene_activity', next ? 'open' : 'closed');
+          return next;
+        });
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -95,7 +121,7 @@ function WorkspaceLayout() {
 
       <main className="flex-1 overflow-y-auto">
         {/* Page breadcrumb bar */}
-        <PageHeader />
+        <PageHeader onToggleActivity={toggleActivity} activityOpen={activityOpen} />
 
         <div className="mx-auto max-w-6xl px-6 py-6">
           <Suspense fallback={<LoadingSpinner />}>
@@ -116,6 +142,7 @@ function WorkspaceLayout() {
         </div>
       </main>
 
+      <ActivityPanel open={activityOpen} onClose={toggleActivity} />
       <CommandPalette open={commandOpen} onClose={closeCommand} />
       <FeedbackWidget />
     </div>
@@ -133,7 +160,7 @@ function DashboardRedirect() {
 }
 
 /** Minimal breadcrumb bar at top of content area */
-function PageHeader() {
+function PageHeader({ onToggleActivity, activityOpen }: { onToggleActivity: () => void; activityOpen: boolean }) {
   const { pathname } = useLocation();
 
   const parts = pathname.split('/').filter(Boolean);
@@ -152,7 +179,7 @@ function PageHeader() {
   };
 
   return (
-    <div className="flex h-10 items-center border-b border-slate-100 px-6 dark:border-slate-800/50">
+    <div className="flex h-10 items-center justify-between border-b border-slate-100 px-6 dark:border-slate-800/50">
       <div className="flex items-center gap-1.5 text-xs text-slate-400">
         {parts.map((part, i) => (
           <span key={i} className="flex items-center gap-1.5">
@@ -162,6 +189,22 @@ function PageHeader() {
             </span>
           </span>
         ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onToggleActivity}
+          className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+            activityOpen
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+              : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300'
+          }`}
+          title="Toggle activity panel (Cmd+.)"
+        >
+          Activity
+        </button>
+        <kbd className="hidden text-[10px] text-slate-300 dark:text-slate-600 sm:inline">
+          {navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}.
+        </kbd>
       </div>
     </div>
   );

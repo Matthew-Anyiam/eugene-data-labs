@@ -4,6 +4,8 @@ export async function fetchSEC<T = any>(ticker: string, params: URLSearchParams)
   return eugeneApi<T>(`/v1/sec/${encodeURIComponent(ticker)}?${params.toString()}`);
 }
 
+export const apiFetch = eugeneApi;
+
 export async function eugeneApi<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
   const url = new URL(path, window.location.origin);
   if (params) {

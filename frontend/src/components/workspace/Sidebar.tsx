@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Search, Globe, BarChart3, TrendingUp, LineChart,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
-  Moon, Sun, Star, Plus, CreditCard, Zap,
+  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
+import { useWatchlist } from '../../hooks/useWatchlist';
 import { cn } from '../../lib/utils';
 
 interface SidebarProps {
@@ -39,28 +40,37 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-// Saved tickers (will be persisted in localStorage later)
-const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'GOOGL'];
-
 export function Sidebar({ collapsed, onToggle, onCommandPalette }: SidebarProps) {
   const location = useLocation();
   const { dark, toggle: toggleDark } = useDarkMode();
+  const { tickers: watchlist, addTicker, removeTicker } = useWatchlist();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     Intelligence: true,
     Data: true,
     Watchlist: true,
   });
-  const [watchlist] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('eugene_watchlist');
-      return stored ? JSON.parse(stored) : DEFAULT_WATCHLIST;
-    } catch {
-      return DEFAULT_WATCHLIST;
-    }
-  });
+  const [addingTicker, setAddingTicker] = useState(false);
+  const [newTicker, setNewTicker] = useState('');
+  const addInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSection = (label: string) => {
     setExpandedSections((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  // Focus the add-ticker input when it opens
+  useEffect(() => {
+    if (addingTicker) {
+      setTimeout(() => addInputRef.current?.focus(), 50);
+    }
+  }, [addingTicker]);
+
+  const handleAddTicker = () => {
+    const ticker = newTicker.trim().toUpperCase();
+    if (ticker && /^[A-Z.]{1,10}$/.test(ticker)) {
+      addTicker(ticker);
+      setNewTicker('');
+      setAddingTicker(false);
+    }
   };
 
   if (collapsed) {
@@ -89,6 +99,23 @@ export function Sidebar({ collapsed, onToggle, onCommandPalette }: SidebarProps)
               {item.icon}
             </Link>
           ))}
+          {/* Watchlist icons in collapsed mode */}
+          <div className="my-1 h-px w-6 bg-slate-200 dark:bg-slate-800" />
+          {watchlist.slice(0, 5).map((ticker) => (
+            <Link
+              key={ticker}
+              to={`/company/${ticker}`}
+              title={ticker}
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-md text-[10px] font-bold transition-colors',
+                location.pathname === `/company/${ticker}`
+                  ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-white'
+                  : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800/50 dark:hover:text-slate-300'
+              )}
+            >
+              {ticker.slice(0, 3)}
+            </Link>
+          ))}
         </div>
       </aside>
     );
@@ -105,6 +132,9 @@ export function Sidebar({ collapsed, onToggle, onCommandPalette }: SidebarProps)
         <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
           BETA
         </span>
+        <div className="ml-auto flex items-center gap-1">
+          <Activity className="h-3 w-3 animate-pulse text-emerald-500" />
+        </div>
       </div>
 
       {/* Search trigger */}
@@ -175,31 +205,85 @@ export function Sidebar({ collapsed, onToggle, onCommandPalette }: SidebarProps)
               <ChevronRight className="h-3 w-3" />
             )}
             Watchlist
+            <span className="ml-auto rounded-full bg-slate-200 px-1.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+              {watchlist.length}
+            </span>
           </button>
           {expandedSections.Watchlist && (
             <div className="space-y-0.5">
               {watchlist.map((ticker) => (
-                <Link
+                <div
                   key={ticker}
-                  to={`/company/${ticker}`}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors',
+                    'group flex items-center rounded-md transition-colors',
                     location.pathname === `/company/${ticker}`
-                      ? 'bg-slate-200 font-medium text-slate-900 dark:bg-slate-800 dark:text-white'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-white'
+                      ? 'bg-slate-200 dark:bg-slate-800'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
                   )}
                 >
-                  <Star className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="font-mono text-xs">{ticker}</span>
-                </Link>
+                  <Link
+                    to={`/company/${ticker}`}
+                    className={cn(
+                      'flex flex-1 items-center gap-2.5 px-2 py-1.5 text-sm transition-colors',
+                      location.pathname === `/company/${ticker}`
+                        ? 'font-medium text-slate-900 dark:text-white'
+                        : 'text-slate-600 dark:text-slate-400 dark:hover:text-white'
+                    )}
+                  >
+                    <Star className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="font-mono text-xs">{ticker}</span>
+                  </Link>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTicker(ticker);
+                    }}
+                    className="mr-1 rounded p-0.5 text-slate-300 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100 dark:text-slate-600 dark:hover:text-red-400"
+                    title={`Remove ${ticker}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
               ))}
-              <button
-                onClick={onCommandPalette}
-                className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="text-xs">Add ticker</span>
-              </button>
+
+              {/* Add ticker inline */}
+              {addingTicker ? (
+                <div className="flex items-center gap-1 px-2 py-1">
+                  <Star className="h-3.5 w-3.5 text-slate-300" />
+                  <input
+                    ref={addInputRef}
+                    type="text"
+                    value={newTicker}
+                    onChange={(e) => setNewTicker(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddTicker();
+                      if (e.key === 'Escape') { setAddingTicker(false); setNewTicker(''); }
+                    }}
+                    onBlur={() => {
+                      if (!newTicker.trim()) {
+                        setAddingTicker(false);
+                      }
+                    }}
+                    placeholder="TICKER"
+                    maxLength={10}
+                    className="w-full bg-transparent font-mono text-xs text-slate-700 placeholder:text-slate-300 focus:outline-none dark:text-slate-300 dark:placeholder:text-slate-600"
+                  />
+                  <button
+                    onClick={handleAddTicker}
+                    className="rounded px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+                  >
+                    Add
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingTicker(true)}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="text-xs">Add ticker</span>
+                </button>
+              )}
             </div>
           )}
         </div>
