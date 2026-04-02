@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Search, Globe, BarChart3, TrendingUp, LineChart,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
-  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity,
+  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useWatchlist } from '../../hooks/useWatchlist';
@@ -299,6 +299,13 @@ export function Sidebar({ collapsed, onToggle, onCommandPalette }: SidebarProps)
             {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             <span className="text-xs">{dark ? 'Light' : 'Dark'}</span>
           </button>
+          <Link
+            to="/settings"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            <span className="text-xs">Settings</span>
+          </Link>
           <Link
             to="/pricing"
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"

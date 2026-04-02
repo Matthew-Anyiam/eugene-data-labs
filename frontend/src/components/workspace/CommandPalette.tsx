@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
-  Star, Moon, Sun,
+  Star, Moon, Sun, Settings,
 } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -54,6 +54,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'ontology', label: 'Ontology', description: 'Entity graph', icon: <Network className="h-4 w-4" />, action: () => go('/ontology'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing'), category: 'Pages' },
+    { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings'), category: 'Pages' },
   ];
 
   // Quick actions

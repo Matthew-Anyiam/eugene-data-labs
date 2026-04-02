@@ -4,6 +4,7 @@ import { Sidebar } from './components/workspace/Sidebar';
 import { CommandPalette } from './components/workspace/CommandPalette';
 import { ActivityPanel } from './components/workspace/ActivityPanel';
 import { FeedbackWidget } from './components/ui/FeedbackWidget';
+import { ToastContainer } from './components/workspace/ToastContainer';
 
 const CompanyPage = lazy(() => import('./pages/CompanyPage').then(m => ({ default: m.CompanyPage })));
 const ScreenerPage = lazy(() => import('./pages/ScreenerPage').then(m => ({ default: m.ScreenerPage })));
@@ -14,6 +15,7 @@ const WorldPage = lazy(() => import('./pages/WorldPage').then(m => ({ default: m
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const DocsPage = lazy(() => import('./pages/DocsPage').then(m => ({ default: m.DocsPage })));
 const PricingPage = lazy(() => import('./pages/PricingPage').then(m => ({ default: m.PricingPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -26,6 +28,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard — Eugene',
   '/docs': 'Docs — Eugene',
   '/pricing': 'Pricing — Eugene',
+  '/settings': 'Settings — Eugene',
 };
 
 function TitleUpdater() {
@@ -136,6 +139,7 @@ function WorkspaceLayout() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -144,6 +148,7 @@ function WorkspaceLayout() {
 
       <ActivityPanel open={activityOpen} onClose={toggleActivity} />
       <CommandPalette open={commandOpen} onClose={closeCommand} />
+      <ToastContainer />
       <FeedbackWidget />
     </div>
   );
@@ -176,6 +181,7 @@ function PageHeader({ onToggleActivity, activityOpen }: { onToggleActivity: () =
     dashboard: 'Dashboard',
     docs: 'Documentation',
     pricing: 'Pricing',
+    settings: 'Settings',
   };
 
   return (
