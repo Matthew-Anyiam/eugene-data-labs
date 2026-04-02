@@ -6,6 +6,7 @@ import { CommandPalette } from './components/workspace/CommandPalette';
 import { ActivityPanel } from './components/workspace/ActivityPanel';
 import { FeedbackWidget } from './components/ui/FeedbackWidget';
 import { ToastContainer } from './components/workspace/ToastContainer';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const CompanyPage = lazy(() => import('./pages/CompanyPage').then(m => ({ default: m.CompanyPage })));
 const ScreenerPage = lazy(() => import('./pages/ScreenerPage').then(m => ({ default: m.ScreenerPage })));
@@ -100,6 +101,9 @@ function WorkspaceLayout() {
       return next;
     });
   }, []);
+
+  // Power-user keyboard shortcuts (g+d, g+w, etc.)
+  useKeyboardShortcuts();
 
   // Global keyboard shortcuts
   useEffect(() => {

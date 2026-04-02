@@ -372,9 +372,15 @@ function DataSettings() {
         <div className="grid grid-cols-2 gap-2 text-sm">
           {[
             ['Command Palette', '\u2318K'],
+            ['Quick Search', '/'],
             ['Activity Panel', '\u2318.'],
-            ['Toggle Sidebar', 'Click logo'],
-            ['Toggle Dark Mode', 'Settings or palette'],
+            ['Go to Dashboard', 'g d'],
+            ['Go to World', 'g w'],
+            ['Go to Screener', 'g s'],
+            ['Go to Economics', 'g e'],
+            ['Go to Ontology', 'g o'],
+            ['Go to Predictions', 'g p'],
+            ['Go to Settings', 'g .'],
           ].map(([label, shortcut]) => (
             <div key={label} className="flex items-center justify-between rounded px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50">
               <span className="text-slate-600 dark:text-slate-400">{label}</span>

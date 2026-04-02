@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
-  Star, Moon, Sun, Settings,
+  Star, Moon, Sun, Settings, Loader2, Clock, Database,
 } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { useDarkMode } from '../../hooks/useDarkMode';
+import { eugeneApi } from '../../lib/api';
 import { cn } from '../../lib/utils';
 
 interface CommandPaletteProps {
@@ -29,32 +30,111 @@ const POPULAR_TICKERS = [
   'KO', 'PFE', 'LLY', 'NFLX', 'AMD', 'CRM', 'DIS', 'GS', 'MS',
 ];
 
+const ENTITY_ICONS: Record<string, string> = {
+  company: '\uD83C\uDFE2',
+  person: '\uD83D\uDC64',
+  institution: '\uD83C\uDFDB\uFE0F',
+  filing: '\uD83D\uDCC4',
+  economic_indicator: '\uD83D\uDCCA',
+};
+
+// Recent navigation history
+const HISTORY_KEY = 'eugene_nav_history';
+const MAX_HISTORY = 8;
+
+function getHistory(): { path: string; label: string; timestamp: number }[] {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch { return []; }
+}
+
+export function recordNavigation(path: string, label: string) {
+  try {
+    const history = getHistory().filter((h) => h.path !== path);
+    history.unshift({ path, label, timestamp: Date.now() });
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+  } catch { /* ignore */ }
+}
+
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [apiResults, setApiResults] = useState<CommandItem[]>([]);
+  const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { addTicker, hasTicker } = useWatchlist();
   const { dark, toggle: toggleDark } = useDarkMode();
 
-  const go = useCallback((path: string) => {
+  const go = useCallback((path: string, label?: string) => {
+    if (label) recordNavigation(path, label);
     navigate(path);
     onClose();
     setQuery('');
+    setApiResults([]);
   }, [navigate, onClose]);
+
+  // Debounced API search
+  useEffect(() => {
+    if (!open) return;
+    const q = query.trim();
+    if (q.length < 2) {
+      setApiResults([]);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const data = await eugeneApi<{ matches?: any[] }>(`/v1/ontology/resolve?q=${encodeURIComponent(q)}&limit=5`);
+        if (data?.matches && data.matches.length > 0) {
+          const items: CommandItem[] = data.matches.map((m: any) => {
+            const entityType = m.entity_type || 'company';
+            const icon = ENTITY_ICONS[entityType] || '\uD83D\uDCC1';
+            const isCompany = entityType === 'company';
+            const ticker = m.source_id || m.attributes?.ticker;
+            const path = isCompany && ticker ? `/company/${ticker}` : `/entity/${m.id}`;
+            const label = m.canonical_name || m.name || m.source_id || 'Unknown';
+
+            return {
+              id: `api-${m.id}`,
+              label,
+              description: entityType.replace(/_/g, ' '),
+              icon: <span className="text-sm">{icon}</span>,
+              action: () => go(path, label),
+              category: 'Entities',
+            };
+          });
+          setApiResults(items);
+        } else {
+          setApiResults([]);
+        }
+      } catch {
+        setApiResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query, open, go]);
 
   // Build command list
   const pages: CommandItem[] = [
-    { id: 'dashboard', label: 'Dashboard', description: 'Convergence overview', icon: <LayoutDashboard className="h-4 w-4" />, action: () => go('/dashboard'), category: 'Pages' },
-    { id: 'world', label: 'World Intelligence', description: 'News, disasters, conflict, sanctions', icon: <Globe className="h-4 w-4" />, action: () => go('/world'), category: 'Pages' },
-    { id: 'screener', label: 'Stock Screener', description: 'Filter companies', icon: <BarChart3 className="h-4 w-4" />, action: () => go('/screener'), category: 'Pages' },
-    { id: 'economics', label: 'Economics', description: 'FRED indicators', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/economics'), category: 'Pages' },
-    { id: 'predictions', label: 'Predictions', description: 'Forward estimates', icon: <LineChart className="h-4 w-4" />, action: () => go('/predictions'), category: 'Pages' },
-    { id: 'ontology', label: 'Ontology', description: 'Entity graph', icon: <Network className="h-4 w-4" />, action: () => go('/ontology'), category: 'Pages' },
-    { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs'), category: 'Pages' },
-    { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing'), category: 'Pages' },
-    { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings'), category: 'Pages' },
+    { id: 'dashboard', label: 'Dashboard', description: 'Convergence overview', icon: <LayoutDashboard className="h-4 w-4" />, action: () => go('/dashboard', 'Dashboard'), category: 'Pages' },
+    { id: 'world', label: 'World Intelligence', description: 'News, disasters, conflict, sanctions', icon: <Globe className="h-4 w-4" />, action: () => go('/world', 'World'), category: 'Pages' },
+    { id: 'screener', label: 'Stock Screener', description: 'Filter companies', icon: <BarChart3 className="h-4 w-4" />, action: () => go('/screener', 'Screener'), category: 'Pages' },
+    { id: 'economics', label: 'Economics', description: 'FRED indicators', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/economics', 'Economics'), category: 'Pages' },
+    { id: 'predictions', label: 'Predictions', description: 'Forward estimates', icon: <LineChart className="h-4 w-4" />, action: () => go('/predictions', 'Predictions'), category: 'Pages' },
+    { id: 'ontology', label: 'Ontology', description: 'Entity graph', icon: <Network className="h-4 w-4" />, action: () => go('/ontology', 'Ontology'), category: 'Pages' },
+    { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
+    { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
+    { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
   ];
 
   // Quick actions
@@ -81,12 +161,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           label: t,
           description: hasTicker(t) ? 'In watchlist' : 'View company',
           icon: hasTicker(t) ? <Star className="h-4 w-4 text-amber-400" /> : <Building2 className="h-4 w-4" />,
-          action: () => go(`/company/${t}`),
+          action: () => go(`/company/${t}`, t),
           category: 'Companies',
         }))
     : [];
 
-  // If query looks like a ticker and isn't in popular list, add direct nav + watchlist add
+  // Direct ticker navigation
   const isTickerLike = /^[A-Z]{1,5}$/.test(q);
   if (isTickerLike && q.length >= 1 && !tickerMatches.find((t) => t.label === q)) {
     tickerMatches.unshift({
@@ -94,46 +174,52 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       label: q,
       description: 'Look up company',
       icon: <ArrowRight className="h-4 w-4" />,
-      action: () => go(`/company/${q}`),
+      action: () => go(`/company/${q}`, q),
       category: 'Companies',
     });
   }
 
-  // Add "add to watchlist" action for ticker queries
+  // Watchlist add action
   if (isTickerLike && q.length >= 1 && !hasTicker(q)) {
     tickerMatches.push({
       id: `watchlist-add-${q}`,
       label: `Add ${q} to watchlist`,
       description: 'Star this ticker',
       icon: <Star className="h-4 w-4" />,
-      action: () => {
-        addTicker(q);
-        onClose();
-        setQuery('');
-      },
+      action: () => { addTicker(q); onClose(); setQuery(''); },
       category: 'Actions',
     });
   }
 
   // Filter pages
   const pageMatches = query.length > 0
-    ? pages.filter(
-        (p) =>
-          p.label.toLowerCase().includes(query.toLowerCase()) ||
-          (p.description && p.description.toLowerCase().includes(query.toLowerCase()))
+    ? pages.filter((p) =>
+        p.label.toLowerCase().includes(query.toLowerCase()) ||
+        (p.description && p.description.toLowerCase().includes(query.toLowerCase()))
       )
     : pages;
 
   // Filter actions
   const actionMatches = query.length > 0
-    ? actions.filter(
-        (a) =>
-          a.label.toLowerCase().includes(query.toLowerCase()) ||
-          (a.description && a.description.toLowerCase().includes(query.toLowerCase()))
+    ? actions.filter((a) =>
+        a.label.toLowerCase().includes(query.toLowerCase()) ||
+        (a.description && a.description.toLowerCase().includes(query.toLowerCase()))
       )
     : actions;
 
-  const allItems = [...tickerMatches, ...pageMatches, ...actionMatches];
+  // Recent history (shown when no query)
+  const historyItems: CommandItem[] = query.length === 0
+    ? getHistory().slice(0, 4).map((h) => ({
+        id: `history-${h.path}`,
+        label: h.label,
+        description: h.path,
+        icon: <Clock className="h-4 w-4" />,
+        action: () => go(h.path, h.label),
+        category: 'Recent',
+      }))
+    : [];
+
+  const allItems = [...historyItems, ...tickerMatches, ...apiResults, ...pageMatches, ...actionMatches];
 
   // Reset selection on query change
   useEffect(() => {
@@ -145,6 +231,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     if (open) {
       setQuery('');
       setSelectedIndex(0);
+      setApiResults([]);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -196,14 +283,18 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       <div className="fixed left-1/2 top-[20%] z-50 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         {/* Input */}
         <div className="flex items-center border-b border-slate-200 px-4 dark:border-slate-700">
-          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          {searching ? (
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-violet-500" />
+          ) : (
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          )}
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search companies, pages, commands..."
+            placeholder="Search companies, entities, pages..."
             className="flex-1 bg-transparent px-3 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
           />
           <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800">
@@ -213,15 +304,25 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
         {/* Results */}
         <div ref={listRef} className="max-h-80 overflow-y-auto py-2">
-          {allItems.length === 0 && (
+          {allItems.length === 0 && !searching && (
             <div className="px-4 py-8 text-center text-sm text-slate-400">
-              No results for &ldquo;{query}&rdquo;
+              {query.length > 0 ? (
+                <>No results for &ldquo;{query}&rdquo;</>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <Database className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                  <span>Type to search companies, entities, and pages</span>
+                </div>
+              )}
             </div>
           )}
           {Object.entries(grouped).map(([category, items]) => (
             <div key={category}>
               <div className="px-4 py-1 text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 {category}
+                {category === 'Entities' && searching && (
+                  <Loader2 className="ml-1.5 inline h-3 w-3 animate-spin" />
+                )}
               </div>
               {items.map((item) => {
                 const idx = flatIndex++;
@@ -238,9 +339,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                     )}
                   >
                     <span className="shrink-0 text-slate-400">{item.icon}</span>
-                    <span className="flex-1 font-medium">{item.label}</span>
+                    <span className="flex-1 truncate font-medium">{item.label}</span>
                     {item.description && (
-                      <span className="text-xs text-slate-400">{item.description}</span>
+                      <span className="shrink-0 text-xs text-slate-400">{item.description}</span>
                     )}
                   </button>
                 );
@@ -254,6 +355,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           <span><kbd className="font-mono">&uarr;&darr;</kbd> navigate</span>
           <span><kbd className="font-mono">Enter</kbd> select</span>
           <span><kbd className="font-mono">Esc</kbd> close</span>
+          {searching && <span className="ml-auto text-violet-400">Searching...</span>}
         </div>
       </div>
     </>
