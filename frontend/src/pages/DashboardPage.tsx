@@ -9,6 +9,7 @@ import { MarketTicker } from '../components/dashboard/MarketTicker';
 import { WorldFeed } from '../components/dashboard/WorldFeed';
 import { SourceHealth } from '../components/dashboard/SourceHealth';
 import { QuickActions } from '../components/dashboard/QuickActions';
+import { WatchlistPerformance } from '../components/dashboard/WatchlistPerformance';
 import {
   Activity, AlertTriangle, BarChart3, Loader2, Shield,
   TrendingUp, Zap, Clock, Database, Layers,
@@ -146,8 +147,9 @@ export function DashboardPage() {
         />
       )}
 
-      {/* Bottom widgets: World Feed + Source Health */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Bottom widgets: Watchlist + World Feed + Source Health */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <WatchlistPerformance />
         <WorldFeed />
         <SourceHealth />
       </div>
