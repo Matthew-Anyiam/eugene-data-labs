@@ -226,3 +226,34 @@ export interface SectionsData {
   };
   sections: Record<string, SectionData>;
 }
+
+// Crypto
+export interface CryptoQuote {
+  symbol: string;
+  price: number;
+  change: number;
+  change_percent: number;
+  volume: number;
+  market_cap: number;
+  day_high: number;
+  day_low: number;
+  source: string;
+  error?: string;
+}
+
+export interface CryptoBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface CryptoBarsData {
+  symbol: string;
+  interval: string;
+  bars: CryptoBar[];
+  count: number;
+  error?: string;
+}

@@ -54,6 +54,7 @@ export function useKeyboardShortcuts() {
           e: '/economics',
           o: '/ontology',
           p: '/predictions',
+          c: '/crypto',
           '.': '/settings',
         };
 

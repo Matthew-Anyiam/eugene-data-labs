@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Building2, Globe, BarChart3, TrendingUp, LineChart,
+  Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
   Star, Moon, Sun, Settings, Loader2, Clock, Database,
 } from 'lucide-react';
@@ -132,6 +132,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'economics', label: 'Economics', description: 'FRED indicators', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/economics', 'Economics'), category: 'Pages' },
     { id: 'predictions', label: 'Predictions', description: 'Forward estimates', icon: <LineChart className="h-4 w-4" />, action: () => go('/predictions', 'Predictions'), category: 'Pages' },
     { id: 'ontology', label: 'Ontology', description: 'Entity graph', icon: <Network className="h-4 w-4" />, action: () => go('/ontology', 'Ontology'), category: 'Pages' },
+    { id: 'crypto', label: 'Crypto Markets', description: 'Bitcoin, Ethereum, Solana', icon: <Bitcoin className="h-4 w-4" />, action: () => go('/crypto', 'Crypto'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },

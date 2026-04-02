@@ -19,6 +19,7 @@ const DocsPage = lazy(() => import('./pages/DocsPage').then(m => ({ default: m.D
 const PricingPage = lazy(() => import('./pages/PricingPage').then(m => ({ default: m.PricingPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const EntityPage = lazy(() => import('./pages/EntityPage').then(m => ({ default: m.EntityPage })));
+const CryptoPage = lazy(() => import('./pages/CryptoPage').then(m => ({ default: m.CryptoPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -32,6 +33,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/docs': 'Docs — Eugene',
   '/pricing': 'Pricing — Eugene',
   '/settings': 'Settings — Eugene',
+  '/crypto': 'Crypto — Eugene',
 };
 
 function TitleUpdater() {
@@ -175,6 +177,7 @@ function WorkspaceLayout() {
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/crypto" element={<CryptoPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -228,6 +231,7 @@ function PageHeader({
     docs: 'Documentation',
     pricing: 'Pricing',
     settings: 'Settings',
+    crypto: 'Crypto Markets',
   };
 
   return (
