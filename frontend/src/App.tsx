@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { Sidebar } from './components/workspace/Sidebar';
 import { CommandPalette } from './components/workspace/CommandPalette';
 import { ActivityPanel } from './components/workspace/ActivityPanel';
@@ -16,6 +17,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ de
 const DocsPage = lazy(() => import('./pages/DocsPage').then(m => ({ default: m.DocsPage })));
 const PricingPage = lazy(() => import('./pages/PricingPage').then(m => ({ default: m.PricingPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const EntityPage = lazy(() => import('./pages/EntityPage').then(m => ({ default: m.EntityPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -37,9 +39,9 @@ function TitleUpdater() {
   useEffect(() => {
     if (pathname.startsWith('/company/')) {
       const ticker = pathname.split('/')[2]?.toUpperCase();
-      document.title = ticker
-        ? `${ticker} — Eugene`
-        : 'Company — Eugene';
+      document.title = ticker ? `${ticker} — Eugene` : 'Company — Eugene';
+    } else if (pathname.startsWith('/entity/')) {
+      document.title = 'Entity — Eugene';
     } else {
       document.title = PAGE_TITLES[pathname] ?? 'Eugene Intelligence';
     }
@@ -57,6 +59,7 @@ function LoadingSpinner() {
 }
 
 function WorkspaceLayout() {
+  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem('eugene_sidebar') === 'collapsed';
@@ -64,6 +67,7 @@ function WorkspaceLayout() {
       return false;
     }
   });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(() => {
     try {
@@ -72,6 +76,11 @@ function WorkspaceLayout() {
       return false;
     }
   });
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => {
@@ -95,12 +104,10 @@ function WorkspaceLayout() {
   // Global keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Cmd+K / Ctrl+K — command palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setCommandOpen((prev) => !prev);
       }
-      // Cmd+. / Ctrl+. — activity panel
       if ((e.metaKey || e.ctrlKey) && e.key === '.') {
         e.preventDefault();
         setActivityOpen((prev) => {
@@ -116,21 +123,45 @@ function WorkspaceLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-slate-950">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-        onCommandPalette={openCommand}
-      />
+      {/* Desktop sidebar */}
+      <div className="hidden md:block">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={toggleSidebar}
+          onCommandPalette={openCommand}
+        />
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 md:hidden">
+            <Sidebar
+              collapsed={false}
+              onToggle={() => setMobileMenuOpen(false)}
+              onCommandPalette={() => { openCommand(); setMobileMenuOpen(false); }}
+            />
+          </div>
+        </>
+      )}
 
       <main className="flex-1 overflow-y-auto">
-        {/* Page breadcrumb bar */}
-        <PageHeader onToggleActivity={toggleActivity} activityOpen={activityOpen} />
+        <PageHeader
+          onToggleActivity={toggleActivity}
+          activityOpen={activityOpen}
+          onMobileMenu={() => setMobileMenuOpen(true)}
+        />
 
-        <div className="mx-auto max-w-6xl px-6 py-6">
+        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
               <Route path="/" element={<DashboardRedirect />} />
               <Route path="/company/:ticker" element={<CompanyPage />} />
+              <Route path="/entity/:entityId" element={<EntityPage />} />
               <Route path="/screener" element={<ScreenerPage />} />
               <Route path="/economics" element={<EconomicsPage />} />
               <Route path="/predictions" element={<PredictionsPage />} />
@@ -146,7 +177,11 @@ function WorkspaceLayout() {
         </div>
       </main>
 
-      <ActivityPanel open={activityOpen} onClose={toggleActivity} />
+      {/* Activity panel — hidden on mobile */}
+      <div className="hidden lg:block">
+        <ActivityPanel open={activityOpen} onClose={toggleActivity} />
+      </div>
+
       <CommandPalette open={commandOpen} onClose={closeCommand} />
       <ToastContainer />
       <FeedbackWidget />
@@ -154,7 +189,6 @@ function WorkspaceLayout() {
   );
 }
 
-/** Redirect / to /dashboard — no more landing page in app mode */
 function DashboardRedirect() {
   const DashboardPageLazy = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
   return (
@@ -164,8 +198,15 @@ function DashboardRedirect() {
   );
 }
 
-/** Minimal breadcrumb bar at top of content area */
-function PageHeader({ onToggleActivity, activityOpen }: { onToggleActivity: () => void; activityOpen: boolean }) {
+function PageHeader({
+  onToggleActivity,
+  activityOpen,
+  onMobileMenu,
+}: {
+  onToggleActivity: () => void;
+  activityOpen: boolean;
+  onMobileMenu: () => void;
+}) {
   const { pathname } = useLocation();
 
   const parts = pathname.split('/').filter(Boolean);
@@ -173,6 +214,7 @@ function PageHeader({ onToggleActivity, activityOpen }: { onToggleActivity: () =
 
   const labels: Record<string, string> = {
     company: 'Company',
+    entity: 'Entity',
     screener: 'Screener',
     economics: 'Economics',
     predictions: 'Predictions',
@@ -185,21 +227,31 @@ function PageHeader({ onToggleActivity, activityOpen }: { onToggleActivity: () =
   };
 
   return (
-    <div className="flex h-10 items-center justify-between border-b border-slate-100 px-6 dark:border-slate-800/50">
-      <div className="flex items-center gap-1.5 text-xs text-slate-400">
-        {parts.map((part, i) => (
-          <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span className="text-slate-300 dark:text-slate-600">/</span>}
-            <span className={i === parts.length - 1 ? 'text-slate-600 dark:text-slate-300' : ''}>
-              {labels[part] || part.toUpperCase()}
+    <div className="flex h-10 items-center justify-between border-b border-slate-100 px-4 sm:px-6 dark:border-slate-800/50">
+      <div className="flex items-center gap-2">
+        {/* Mobile hamburger */}
+        <button
+          onClick={onMobileMenu}
+          className="rounded p-1 text-slate-400 hover:text-slate-600 md:hidden dark:hover:text-slate-300"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
+
+        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          {parts.map((part, i) => (
+            <span key={i} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-slate-300 dark:text-slate-600">/</span>}
+              <span className={i === parts.length - 1 ? 'text-slate-600 dark:text-slate-300' : ''}>
+                {labels[part] || part.toUpperCase()}
+              </span>
             </span>
-          </span>
-        ))}
+          ))}
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <button
           onClick={onToggleActivity}
-          className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+          className={`hidden rounded-md px-2 py-1 text-[11px] font-medium transition-colors lg:block ${
             activityOpen
               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
               : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300'
@@ -208,7 +260,7 @@ function PageHeader({ onToggleActivity, activityOpen }: { onToggleActivity: () =
         >
           Activity
         </button>
-        <kbd className="hidden text-[10px] text-slate-300 dark:text-slate-600 sm:inline">
+        <kbd className="hidden text-[10px] text-slate-300 dark:text-slate-600 lg:inline">
           {navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}.
         </kbd>
       </div>
