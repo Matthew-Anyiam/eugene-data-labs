@@ -218,6 +218,40 @@ def ingest_economic_signals(self):
         raise self.retry(exc=exc)
 
 
+@app.task(bind=True, max_retries=2, default_retry_delay=60)
+def run_delta_sweep(self):
+    """Run delta sweep and evaluate alerts every 30 minutes.
+
+    Captures current signal state, computes changes since last sweep,
+    and dispatches alerts through configured channels (Telegram, Discord, webhook).
+    """
+    try:
+        from eugene.world.delta import run_sweep
+        from eugene.world.convergence import get_alerts
+        from eugene.alerts.channels import evaluate_and_alert
+
+        # Run delta
+        delta = run_sweep(window="1h")
+        total_changes = delta.get("summary", {}).get("total_changes", 0)
+        direction = delta.get("summary", {}).get("direction", "unknown")
+        logger.info("Delta sweep: %d changes, direction=%s", total_changes, direction)
+
+        # Evaluate convergence alerts if there are changes
+        dispatched = 0
+        if total_changes > 0:
+            alerts = get_alerts(time_window="1h", min_signal_types=2)
+            for alert in alerts.get("alerts", []):
+                result = evaluate_and_alert(alert, delta_summary=delta.get("summary"))
+                if result and result.get("sent"):
+                    dispatched += 1
+
+        logger.info("Alert evaluation: %d dispatched", dispatched)
+        return {"changes": total_changes, "direction": direction, "alerts_dispatched": dispatched}
+    except Exception as exc:
+        logger.warning("Delta sweep failed: %s", exc)
+        raise self.retry(exc=exc)
+
+
 @app.task
 def cleanup_old_signals():
     """Delete signals older than 90 days. Runs weekly."""

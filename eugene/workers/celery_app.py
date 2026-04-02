@@ -64,6 +64,10 @@ app.conf.beat_schedule = {
         "task": "eugene.workers.tasks.ingest_economic_signals",
         "schedule": 21600.0,
     },
+    "delta-sweep-30m": {
+        "task": "eugene.workers.tasks.run_delta_sweep",
+        "schedule": 1800.0,  # 30 minutes — runs after data ingestion tasks
+    },
     "cleanup-weekly": {
         "task": "eugene.workers.tasks.cleanup_old_signals",
         "schedule": crontab(hour=3, minute=0, day_of_week="sunday"),

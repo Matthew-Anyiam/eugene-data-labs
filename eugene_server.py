@@ -1301,6 +1301,69 @@ def _build_mcp(include_rest: bool = False):
             result = await asyncio.to_thread(get_dashboard_summary, time_window=window)
             return JSONResponse(result)
 
+        # --- Delta engine endpoints ---
+
+        @mcp.custom_route("/v1/world/convergence/delta", methods=["GET"])
+        @require_api_key
+        async def world_convergence_delta(request: Request) -> JSONResponse:
+            """Run a delta sweep — detect what changed since the last check."""
+            from eugene.world.delta import run_sweep
+            window = request.query_params.get("window", "1h")
+            result = await asyncio.to_thread(run_sweep, window=window)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/convergence/delta/history", methods=["GET"])
+        @require_api_key
+        async def world_convergence_delta_history(request: Request) -> JSONResponse:
+            """Get hot sweep history (last 3 snapshots)."""
+            from eugene.world.delta import get_sweep_history
+            return JSONResponse({"sweeps": get_sweep_history()})
+
+        # --- Alerting endpoints ---
+
+        @mcp.custom_route("/v1/alerts/status", methods=["GET"])
+        @require_api_key
+        async def alerts_status(request: Request) -> JSONResponse:
+            """Get alerting system status — channels, rate limits, tracking."""
+            from eugene.alerts.channels import get_alert_status
+            return JSONResponse(get_alert_status())
+
+        @mcp.custom_route("/v1/alerts/evaluate", methods=["POST"])
+        @require_api_key
+        async def alerts_evaluate(request: Request) -> JSONResponse:
+            """Evaluate current convergence alerts and dispatch if warranted."""
+            from eugene.world.convergence import get_alerts
+            from eugene.world.delta import run_sweep
+            from eugene.alerts.channels import evaluate_and_alert
+
+            window = request.query_params.get("window", "24h")
+            alerts = await asyncio.to_thread(get_alerts, time_window=window, min_signal_types=2)
+            delta = await asyncio.to_thread(run_sweep, window="1h")
+
+            results = []
+            for alert in alerts.get("alerts", []):
+                result = evaluate_and_alert(alert, delta_summary=delta.get("summary"))
+                if result:
+                    results.append(result)
+
+            return JSONResponse({
+                "evaluated": len(alerts.get("alerts", [])),
+                "dispatched": len(results),
+                "results": results,
+            })
+
+        # --- LLM stats endpoint ---
+
+        @mcp.custom_route("/v1/llm/usage", methods=["GET"])
+        @require_api_key
+        async def llm_usage(request: Request) -> JSONResponse:
+            """Get LLM token usage and provider statistics."""
+            from eugene.llm import get_token_usage, available_providers
+            return JSONResponse({
+                "usage": get_token_usage(),
+                "providers": available_providers(),
+            })
+
         # --- Private Credit endpoints ---
 
         @mcp.custom_route("/v1/world/private-credit", methods=["GET"])
@@ -1381,6 +1444,7 @@ def _build_mcp(include_rest: bool = False):
                 "sec": "eugene.workers.tasks.ingest_sec_signals",
                 "economics": "eugene.workers.tasks.ingest_economic_signals",
                 "cleanup": "eugene.workers.tasks.cleanup_old_signals",
+                "delta": "eugene.workers.tasks.run_delta_sweep",
             }
             if task_name not in allowed:
                 return JSONResponse({"error": f"Unknown task: {task_name}. Available: {', '.join(allowed.keys())}"}, status_code=400)
