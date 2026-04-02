@@ -9,7 +9,7 @@ All sources are free, US Gov/UN public domain, real-time.
 
 import logging
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from eugene.cache import cached
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,39 @@ GDACS_API = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
 NASA_FIRMS_API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
 
 TIMEOUT = 20
+
+
+# ---------------------------------------------------------------------------
+# Severity classification (inspired by tiered alerting patterns)
+# ---------------------------------------------------------------------------
+
+def _classify_quake_severity(mag: float, felt: int | None, tsunami: int, alert: str | None) -> dict:
+    """Classify earthquake severity into actionable tiers.
+
+    Returns tier (critical/high/moderate/low), whether it's notable,
+    and extracted signals for convergence engine.
+    """
+    signals = []
+
+    if tsunami:
+        signals.append("tsunami_warning")
+    if felt and felt > 100:
+        signals.append("widely_felt")
+    elif felt and felt > 10:
+        signals.append("felt_reports")
+    if alert in ("red", "orange"):
+        signals.append(f"usgs_alert_{alert}")
+
+    if mag >= 7.0 or alert == "red" or tsunami:
+        tier = "critical"
+    elif mag >= 6.0 or alert == "orange":
+        tier = "high"
+    elif mag >= 5.0 or (felt and felt > 50):
+        tier = "moderate"
+    else:
+        tier = "low"
+
+    return {"tier": tier, "signals": signals}
 
 
 # ---------------------------------------------------------------------------
@@ -45,13 +78,16 @@ def get_earthquakes(
     Returns:
         Dict with earthquakes list
     """
-    end = datetime.utcnow()
-    start = end - timedelta(days=days)
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=days)
+    # Use ISO format with time component so we don't exclude today's events.
+    # USGS treats date-only endtime as midnight, cutting off the current day.
+    end = now + timedelta(hours=1)  # small buffer to catch very recent events
 
     params = {
         "format": "geojson",
-        "starttime": start.strftime("%Y-%m-%d"),
-        "endtime": end.strftime("%Y-%m-%d"),
+        "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
+        "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
         "minmagnitude": min_magnitude,
         "limit": min(limit, 200),
         "orderby": "time",
@@ -71,32 +107,58 @@ def get_earthquakes(
         for feature in data.get("features", []):
             props = feature.get("properties", {})
             coords = feature.get("geometry", {}).get("coordinates", [0, 0, 0])
+            mag = props.get("mag") or 0
+            felt = props.get("felt")
+            tsunami_flag = props.get("tsunami", 0)
+            alert_level = props.get("alert")
+
+            severity = _classify_quake_severity(mag, felt, tsunami_flag, alert_level)
 
             quakes.append({
                 "id": feature.get("id", ""),
-                "magnitude": props.get("mag"),
+                "magnitude": mag,
                 "place": props.get("place", ""),
                 "time": props.get("time"),
-                "timestamp": datetime.utcfromtimestamp(props["time"] / 1000).isoformat() if props.get("time") else None,
+                "timestamp": datetime.fromtimestamp(props["time"] / 1000, tz=timezone.utc).isoformat() if props.get("time") else None,
                 "lat": coords[1] if len(coords) > 1 else 0,
                 "lng": coords[0] if len(coords) > 0 else 0,
                 "depth_km": coords[2] if len(coords) > 2 else 0,
-                "alert": props.get("alert"),  # green, yellow, orange, red
-                "tsunami": props.get("tsunami", 0),
-                "felt": props.get("felt"),
+                "alert": alert_level,  # green, yellow, orange, red
+                "tsunami": tsunami_flag,
+                "felt": felt,
                 "significance": props.get("sig"),
+                "severity_tier": severity["tier"],
+                "signals": severity["signals"],
                 "url": props.get("url", ""),
                 "type": "earthquake",
                 "source": "usgs",
             })
 
+        # Extract top-level signals for convergence
+        top_signals = []
+        critical_count = sum(1 for q in quakes if q["severity_tier"] == "critical")
+        high_count = sum(1 for q in quakes if q["severity_tier"] == "high")
+        if critical_count:
+            top_signals.append(f"{critical_count}_critical_earthquakes")
+        if high_count:
+            top_signals.append(f"{high_count}_significant_earthquakes")
+        if any(q["tsunami"] for q in quakes):
+            top_signals.append("tsunami_warning_active")
+
         return {
             "earthquakes": quakes,
             "count": len(quakes),
+            "signals": top_signals,
             "metadata": {
                 "min_magnitude": min_magnitude,
                 "days": days,
                 "total_available": data.get("metadata", {}).get("count", 0),
+                "severity_breakdown": {
+                    "critical": critical_count,
+                    "high": high_count,
+                    "moderate": sum(1 for q in quakes if q["severity_tier"] == "moderate"),
+                    "low": sum(1 for q in quakes if q["severity_tier"] == "low"),
+                },
             },
             "source": "usgs",
         }
@@ -265,7 +327,7 @@ def _get_fire_summary() -> dict:
 
 def get_active_disasters(
     days: int = 7,
-    min_magnitude: float = 4.5,
+    min_magnitude: float = 4.0,
     include_fires: bool = False,
 ) -> dict:
     """Get all active disasters across all sources.
@@ -276,19 +338,28 @@ def get_active_disasters(
     results = {
         "disasters": [],
         "count": 0,
+        "signals": [],
         "sources": [],
     }
 
-    # USGS Earthquakes
     try:
-        quakes = get_earthquakes(min_magnitude=min_magnitude, days=days, limit=30)
+        from eugene.world.health import get_tracker
+        _health = get_tracker()
+    except Exception:
+        _health = None
+
+    # USGS Earthquakes
+    _t0 = __import__('time').time()
+    try:
+        quakes = get_earthquakes(min_magnitude=min_magnitude, days=days, limit=50)
         for q in quakes.get("earthquakes", []):
             results["disasters"].append({
                 "id": q["id"],
                 "type": "earthquake",
                 "name": f"M{q['magnitude']} - {q['place']}",
                 "severity": q["magnitude"],
-                "alert_level": q.get("alert") or ("red" if q["magnitude"] >= 7 else "orange" if q["magnitude"] >= 6 else "green"),
+                "severity_tier": q.get("severity_tier", "low"),
+                "alert_level": q.get("alert") or ("red" if q["magnitude"] >= 7 else "orange" if q["magnitude"] >= 6 else "yellow" if q["magnitude"] >= 5 else "green"),
                 "lat": q["lat"],
                 "lng": q["lng"],
                 "date": q["timestamp"],
@@ -297,15 +368,24 @@ def get_active_disasters(
                     "depth_km": q["depth_km"],
                     "tsunami": q["tsunami"],
                     "felt": q["felt"],
+                    "significance": q.get("significance"),
                 },
+                "signals": q.get("signals", []),
                 "url": q.get("url", ""),
                 "source": "usgs",
             })
+        # Propagate earthquake signals
+        results["signals"] = quakes.get("signals", [])
         results["sources"].append("usgs")
+        if _health:
+            _health.record_success("usgs", "disasters", (__import__('time').time() - _t0) * 1000)
     except Exception as e:
         logger.error("Earthquake fetch error: %s", e)
+        if _health:
+            _health.record_error("usgs", "disasters", str(e))
 
     # GDACS Events
+    _t0 = __import__('time').time()
     try:
         gdacs = get_gdacs_events(days=days, limit=30)
         for event in gdacs.get("events", []):
@@ -327,8 +407,12 @@ def get_active_disasters(
                 "source": "gdacs",
             })
         results["sources"].append("gdacs")
+        if _health:
+            _health.record_success("gdacs", "disasters", (__import__('time').time() - _t0) * 1000)
     except Exception as e:
         logger.error("GDACS fetch error: %s", e)
+        if _health:
+            _health.record_error("gdacs", "disasters", str(e))
 
     # NASA FIRMS fires (optional, can be noisy)
     if include_fires:

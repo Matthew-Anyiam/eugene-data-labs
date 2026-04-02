@@ -6,11 +6,13 @@ export interface Disaster {
   type: string;
   name: string;
   severity: number | null;
+  severity_tier?: 'critical' | 'high' | 'moderate' | 'low';
   alert_level: string;
   lat: number;
   lng: number;
   date: string;
   details?: Record<string, any>;
+  signals?: string[];
   url?: string;
   source: string;
 }
@@ -41,7 +43,7 @@ export interface EscalationScore {
 }
 
 export function useActiveDisasters(days: number = 7) {
-  return useQuery<{ disasters: Disaster[]; count: number; sources: string[] }>({
+  return useQuery<{ disasters: Disaster[]; count: number; signals: string[]; sources: string[] }>({
     queryKey: ['world', 'disasters', days],
     queryFn: () => eugeneApi('/v1/world/disasters', { days }),
     staleTime: 5 * 60 * 1000,

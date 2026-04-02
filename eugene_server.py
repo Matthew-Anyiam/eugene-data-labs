@@ -1055,7 +1055,7 @@ def _build_mcp(include_rest: bool = False):
             days = _safe_int(request.query_params.get("days", "7"), 7, "days")
             if isinstance(days, JSONResponse):
                 return days
-            min_mag = _safe_float(request.query_params.get("min_magnitude", "4.5"), 4.5, "min_magnitude")
+            min_mag = _safe_float(request.query_params.get("min_magnitude", "4.0"), 4.0, "min_magnitude")
             if isinstance(min_mag, JSONResponse):
                 return min_mag
             include_fires = request.query_params.get("fires", "").lower() in ("true", "1", "yes")
@@ -1094,6 +1094,18 @@ def _build_mcp(include_rest: bool = False):
             if isinstance(radius, JSONResponse):
                 return radius
             result = await asyncio.to_thread(get_impact, lat, lng, radius)
+            return JSONResponse(result)
+
+        # --- Source health endpoint ---
+
+        @mcp.custom_route("/v1/world/health", methods=["GET"])
+        @require_api_key
+        async def world_source_health(request: Request) -> JSONResponse:
+            """Get health status of all world intelligence data sources."""
+            from eugene.world.health import get_tracker
+            category = request.query_params.get("category")
+            tracker = get_tracker()
+            result = tracker.get_status(category=category)
             return JSONResponse(result)
 
         # --- Conflict endpoints ---

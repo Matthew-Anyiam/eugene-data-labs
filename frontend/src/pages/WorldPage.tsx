@@ -363,6 +363,23 @@ export function WorldPage() {
             <span className="text-xs text-slate-400">Sources: USGS + GDACS</span>
           </div>
 
+          {/* Signal summary banner */}
+          {disasters.data?.signals && disasters.data.signals.length > 0 && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/40 dark:bg-red-950/30">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <span className="text-sm font-medium text-red-700 dark:text-red-300">Active signals</span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {disasters.data.signals.map((s: string) => (
+                  <span key={s} className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                    {s.replace(/_/g, ' ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {disasters.isLoading && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
@@ -373,41 +390,78 @@ export function WorldPage() {
             <p className="py-8 text-center text-sm text-slate-500">No significant disasters in the last 7 days</p>
           )}
 
-          {disasters.data?.disasters.map((d: Disaster) => (
-            <div key={d.id} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-block h-2 w-2 rounded-full ${
-                      d.alert_level === 'red' ? 'bg-red-500' :
-                      d.alert_level === 'orange' ? 'bg-orange-500' :
-                      'bg-green-500'
-                    }`} />
-                    <p className="font-medium">{d.name}</p>
+          {disasters.data?.disasters.map((d: Disaster) => {
+            const tierColors = {
+              critical: 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20',
+              high: 'border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20',
+              moderate: 'border-l-yellow-500',
+              low: 'border-l-slate-300 dark:border-l-slate-600',
+            };
+            const tierClass = d.severity_tier ? tierColors[d.severity_tier] || '' : '';
+            const alertColors: Record<string, string> = {
+              red: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+              orange: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+              yellow: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+              green: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+            };
+            const dotColors: Record<string, string> = {
+              red: 'bg-red-500', orange: 'bg-orange-500', yellow: 'bg-yellow-500', green: 'bg-green-500',
+            };
+
+            return (
+              <div key={d.id} className={`rounded-lg border border-l-4 border-slate-200 p-4 dark:border-slate-700 ${tierClass}`}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block h-2 w-2 rounded-full ${dotColors[d.alert_level] || 'bg-green-500'}`} />
+                      <p className="font-medium">{d.name}</p>
+                      {d.severity_tier && d.severity_tier !== 'low' && (
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                          d.severity_tier === 'critical' ? 'bg-red-600 text-white' :
+                          d.severity_tier === 'high' ? 'bg-orange-500 text-white' :
+                          'bg-yellow-400 text-yellow-900'
+                        }`}>
+                          {d.severity_tier}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
+                      <span className="capitalize">{d.type.replace('_', ' ')}</span>
+                      {d.severity != null && <span>M{typeof d.severity === 'number' ? d.severity.toFixed(1) : d.severity}</span>}
+                      {d.details?.depth_km != null && <span>{d.details.depth_km.toFixed(0)} km deep</span>}
+                      {d.details?.felt != null && d.details.felt > 0 && <span>{d.details.felt} felt reports</span>}
+                      {d.date && <span>{d.date.slice(0, 16).replace('T', ' ')} UTC</span>}
+                      <span>{d.source.toUpperCase()}</span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex gap-3 text-xs text-slate-500">
-                    <span className="capitalize">{d.type.replace('_', ' ')}</span>
-                    {d.severity && <span>Severity: {d.severity}</span>}
-                    {d.date && <span>{d.date.slice(0, 10)}</span>}
-                    <span>{d.source.toUpperCase()}</span>
-                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${alertColors[d.alert_level] || alertColors.green}`}>
+                    {d.alert_level || 'green'}
+                  </span>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  d.alert_level === 'red' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
-                  d.alert_level === 'orange' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' :
-                  'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                }`}>
-                  {d.alert_level || 'green'}
-                </span>
+                {/* Signals */}
+                {d.signals && d.signals.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {d.signals.map((s: string) => (
+                      <span key={s} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                        {s.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {d.details?.country && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    {d.details.country}
+                    {d.details.affected_population && ` · ${Number(d.details.affected_population).toLocaleString()} affected`}
+                  </p>
+                )}
+                {d.url && (
+                  <a href={d.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700">
+                    Details <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
-              {d.details?.country && (
-                <p className="mt-2 text-xs text-slate-400">
-                  {d.details.country}
-                  {d.details.affected_population && ` · ${Number(d.details.affected_population).toLocaleString()} affected`}
-                </p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

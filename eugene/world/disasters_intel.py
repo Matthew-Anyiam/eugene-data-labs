@@ -11,7 +11,7 @@ from eugene.sources.disasters import (
 )
 
 
-def get_active(days: int = 7, min_magnitude: float = 4.5, include_fires: bool = False) -> dict:
+def get_active(days: int = 7, min_magnitude: float = 4.0, include_fires: bool = False) -> dict:
     """Get all active disasters across sources."""
     return get_active_disasters(days=days, min_magnitude=min_magnitude, include_fires=include_fires)
 
