@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   useDashboardSummary,
   useConvergenceAlerts,
   useCompositeRisk,
 } from '../hooks/useConvergence';
 import type { ConvergenceAlert, CompositeRiskEntity } from '../hooks/useConvergence';
+import { MarketTicker } from '../components/dashboard/MarketTicker';
+import { WorldFeed } from '../components/dashboard/WorldFeed';
+import { SourceHealth } from '../components/dashboard/SourceHealth';
+import { QuickActions } from '../components/dashboard/QuickActions';
 import {
   Activity, AlertTriangle, BarChart3, Loader2, Shield,
   TrendingUp, Zap, Clock, Database, Layers,
@@ -55,6 +59,11 @@ export function DashboardPage() {
   const alerts = useConvergenceAlerts(timeWindow);
   const risk = useCompositeRisk(timeWindow);
 
+  // Dispatch a custom event to trigger the command palette from App.tsx
+  const openSearch = useCallback(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
+  }, []);
+
   const tabs = [
     { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
     { key: 'alerts' as const, label: 'Convergence Alerts', icon: AlertTriangle },
@@ -63,7 +72,10 @@ export function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      {/* Header */}
+      {/* Market Ticker Bar */}
+      <MarketTicker />
+
+      {/* Header + Quick Actions */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
@@ -90,6 +102,9 @@ export function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* Quick Actions */}
+      <QuickActions onSearch={openSearch} />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
@@ -130,6 +145,12 @@ export function DashboardPage() {
           total={risk.data?.total ?? 0}
         />
       )}
+
+      {/* Bottom widgets: World Feed + Source Health */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <WorldFeed />
+        <SourceHealth />
+      </div>
     </div>
   );
 }
