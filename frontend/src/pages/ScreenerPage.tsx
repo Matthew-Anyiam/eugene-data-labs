@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Filter } from 'lucide-react';
 import { ScreenerFilters } from '../components/screener/ScreenerFilters';
 import { ScreenerResults, ScreenerResultsSkeleton } from '../components/screener/ScreenerResults';
+import { SectorHeatmap } from '../components/screener/SectorHeatmap';
 import { useScreener, type ScreenerFilters as Filters } from '../hooks/useScreener';
 
 const DEFAULT_FILTERS: Filters = { limit: 50 };
@@ -71,7 +72,12 @@ export function ScreenerPage() {
               </p>
             </div>
           ) : (
-            !isLoading && !error && data && <ScreenerResults results={results} />
+            !isLoading && !error && data && (
+              <div className="space-y-6">
+                {results.length > 5 && <SectorHeatmap results={results} />}
+                <ScreenerResults results={results} />
+              </div>
+            )
           )}
         </div>
       </div>
