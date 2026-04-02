@@ -20,6 +20,7 @@ const PricingPage = lazy(() => import('./pages/PricingPage').then(m => ({ defaul
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const EntityPage = lazy(() => import('./pages/EntityPage').then(m => ({ default: m.EntityPage })));
 const CryptoPage = lazy(() => import('./pages/CryptoPage').then(m => ({ default: m.CryptoPage })));
+const ComparePage = lazy(() => import('./pages/ComparePage').then(m => ({ default: m.ComparePage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -34,6 +35,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/pricing': 'Pricing — Eugene',
   '/settings': 'Settings — Eugene',
   '/crypto': 'Crypto — Eugene',
+  '/compare': 'Compare — Eugene',
 };
 
 function TitleUpdater() {
@@ -178,6 +180,7 @@ function WorkspaceLayout() {
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/crypto" element={<CryptoPage />} />
+              <Route path="/compare" element={<ComparePage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -232,6 +235,7 @@ function PageHeader({
     pricing: 'Pricing',
     settings: 'Settings',
     crypto: 'Crypto Markets',
+    compare: 'Compare Companies',
   };
 
   return (

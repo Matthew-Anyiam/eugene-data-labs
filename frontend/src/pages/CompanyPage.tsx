@@ -1,5 +1,5 @@
-import { useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useState, useCallback } from 'react';
 import {
   TrendingUp, TrendingDown, DollarSign, BarChart3,
   Activity, Layers, Building2, Globe, Calendar,
@@ -39,7 +39,20 @@ const PAGE_TABS = ['Overview', 'Research', 'Debate', 'Simulation', 'Financials',
 
 export function CompanyPage() {
   const { ticker = '' } = useParams();
-  const [tab, setTab] = useState(PAGE_TABS[0]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = PAGE_TABS.find((t) => t.toLowerCase() === searchParams.get('tab')) || PAGE_TABS[0];
+  const [tab, setTabState] = useState(initialTab);
+
+  const setTab = useCallback((t: string) => {
+    setTabState(t);
+    const next = new URLSearchParams(searchParams);
+    if (t === PAGE_TABS[0]) {
+      next.delete('tab');
+    } else {
+      next.set('tab', t.toLowerCase());
+    }
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [sectionType, setSectionType] = useState('mdna');
   const [financialPeriod, setFinancialPeriod] = useState<'FY' | 'Q'>('FY');
   const [researchRequested, setResearchRequested] = useState(false);

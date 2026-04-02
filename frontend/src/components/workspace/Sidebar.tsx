@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import {
-  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin,
+  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
   Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings,
 } from 'lucide-react';
@@ -30,6 +30,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/economics', label: 'Economics', icon: <TrendingUp className="h-4 w-4" /> },
       { to: '/predictions', label: 'Predictions', icon: <LineChart className="h-4 w-4" /> },
       { to: '/crypto', label: 'Crypto', icon: <Bitcoin className="h-4 w-4" /> },
+      { to: '/compare', label: 'Compare', icon: <GitCompareArrows className="h-4 w-4" /> },
     ],
   },
   {
