@@ -1,5 +1,9 @@
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
+import {
+  TrendingUp, TrendingDown, DollarSign, BarChart3,
+  Activity, Layers, Building2, Globe, Calendar,
+} from 'lucide-react';
 import { useProfile } from '../hooks/useProfile';
 import { usePrices } from '../hooks/usePrices';
 import { useFinancials } from '../hooks/useFinancials';
@@ -29,6 +33,7 @@ import { Tabs } from '../components/ui/Tabs';
 import { ProvenanceBar } from '../components/ui/Provenance';
 import { SkeletonCompanyHeader, SkeletonStatsGrid, SkeletonChart, SkeletonTable } from '../components/ui/Skeleton';
 import { formatPrice } from '../lib/utils';
+import { cn } from '../lib/utils';
 
 const PAGE_TABS = ['Overview', 'Research', 'Debate', 'Simulation', 'Financials', 'Metrics', 'Filings', 'Insiders', 'News', 'Predictions', 'Sections'];
 
@@ -36,6 +41,7 @@ export function CompanyPage() {
   const { ticker = '' } = useParams();
   const [tab, setTab] = useState(PAGE_TABS[0]);
   const [sectionType, setSectionType] = useState('mdna');
+  const [financialPeriod, setFinancialPeriod] = useState<'FY' | 'Q'>('FY');
   const [researchRequested, setResearchRequested] = useState(false);
   const [researchScenario, setResearchScenario] = useState<string | undefined>();
   const [debateRequested, setDebateRequested] = useState(false);
@@ -44,7 +50,7 @@ export function CompanyPage() {
 
   const profile = useProfile(ticker);
   const prices = usePrices(ticker);
-  const financials = useFinancials(ticker);
+  const financials = useFinancials(ticker, financialPeriod);
   const ohlcv = useOHLCV(ticker);
   const metrics = useMetrics(ticker);
   const filings = useFilings(ticker);
@@ -92,6 +98,7 @@ export function CompanyPage() {
             </>
           ) : (
             <>
+              {/* Price stats grid */}
               {prices.data && (
                 <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 text-sm dark:border-slate-800 dark:bg-slate-800 sm:grid-cols-4">
                   {[
@@ -108,12 +115,20 @@ export function CompanyPage() {
                 </div>
               )}
 
+              {/* Key metrics quick view (from latest metrics data) */}
+              {metrics.data?.data?.periods?.[0]?.metrics && (
+                <OverviewMetrics m={metrics.data.data.periods[0].metrics} />
+              )}
+
+              {/* Price chart with time range selector */}
               {ohlcv.isLoading && <SkeletonChart />}
               {ohlcv.data?.bars && ohlcv.data.bars.length > 0 && (
-                <div>
-                  <h3 className="mb-3 text-sm font-medium text-slate-500 dark:text-slate-400">Price history</h3>
-                  <PriceChart bars={ohlcv.data.bars} />
-                </div>
+                <PriceChart bars={ohlcv.data.bars} />
+              )}
+
+              {/* Company info card */}
+              {profile.data?.data && (
+                <CompanyInfoCard profile={profile.data.data} />
               )}
             </>
           )}
@@ -157,7 +172,27 @@ export function CompanyPage() {
       )}
 
       {tab === 'Financials' && (
-        <div>
+        <div className="space-y-4">
+          {/* Annual / Quarterly toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500 dark:text-slate-400">Period:</span>
+            <div className="flex gap-0.5 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700">
+              {(['FY', 'Q'] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setFinancialPeriod(p)}
+                  className={cn(
+                    'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                    financialPeriod === p
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  )}
+                >
+                  {p === 'FY' ? 'Annual' : 'Quarterly'}
+                </button>
+              ))}
+            </div>
+          </div>
           {financials.isLoading && <SkeletonTable rows={8} cols={5} />}
           {financials.data?.data?.periods && (
             <>
@@ -252,6 +287,132 @@ export function CompanyPage() {
           {sections.error && <p className="text-sm text-red-500">Failed to load filing sections</p>}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Overview helper components ───────────────────────────────────────
+
+interface MetricCategory {
+  profitability?: Record<string, number>;
+  liquidity?: Record<string, number>;
+  leverage?: Record<string, number>;
+  efficiency?: Record<string, number>;
+  valuation?: Record<string, number>;
+  growth?: Record<string, number>;
+  per_share?: Record<string, number>;
+}
+
+function OverviewMetrics({ m }: { m: MetricCategory }) {
+  const items: { label: string; value: string; icon: React.ReactNode; delta?: number }[] = [];
+
+  // P/E ratio
+  const pe = m.valuation?.pe_ratio;
+  if (pe != null) items.push({ label: 'P/E Ratio', value: pe.toFixed(1), icon: <BarChart3 className="h-3.5 w-3.5" /> });
+
+  // EPS
+  const eps = m.per_share?.eps_diluted ?? m.per_share?.eps_basic;
+  if (eps != null) items.push({ label: 'EPS', value: `$${eps.toFixed(2)}`, icon: <DollarSign className="h-3.5 w-3.5" /> });
+
+  // ROE
+  const roe = m.profitability?.return_on_equity;
+  if (roe != null) items.push({ label: 'ROE', value: `${(roe * 100).toFixed(1)}%`, icon: <TrendingUp className="h-3.5 w-3.5" />, delta: roe });
+
+  // Gross margin
+  const gm = m.profitability?.gross_margin;
+  if (gm != null) items.push({ label: 'Gross Margin', value: `${(gm * 100).toFixed(1)}%`, icon: <Activity className="h-3.5 w-3.5" /> });
+
+  // Debt-to-equity
+  const de = m.leverage?.debt_to_equity;
+  if (de != null) items.push({ label: 'D/E Ratio', value: de.toFixed(2), icon: <Layers className="h-3.5 w-3.5" /> });
+
+  // Current ratio
+  const cr = m.liquidity?.current_ratio;
+  if (cr != null) items.push({ label: 'Current Ratio', value: cr.toFixed(2), icon: <Activity className="h-3.5 w-3.5" /> });
+
+  // Revenue growth
+  const rg = m.growth?.revenue_growth;
+  if (rg != null) items.push({ label: 'Rev Growth', value: `${(rg * 100).toFixed(1)}%`, icon: rg >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />, delta: rg });
+
+  // Net margin
+  const nm = m.profitability?.net_margin;
+  if (nm != null) items.push({ label: 'Net Margin', value: `${(nm * 100).toFixed(1)}%`, icon: <DollarSign className="h-3.5 w-3.5" /> });
+
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      <h3 className="mb-3 text-sm font-medium text-slate-500 dark:text-slate-400">Key metrics</h3>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {items.slice(0, 8).map((item) => (
+          <div
+            key={item.label}
+            className="rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-700"
+          >
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+              {item.icon}
+              {item.label}
+            </div>
+            <p className={cn(
+              'mt-1 text-lg font-semibold tabular-nums',
+              item.delta != null && item.delta >= 0 && 'text-emerald-600 dark:text-emerald-400',
+              item.delta != null && item.delta < 0 && 'text-red-600 dark:text-red-400',
+            )}>
+              {item.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CompanyInfoCard({ profile }: { profile: import('../lib/types').ProfileData }) {
+  const infoItems: { label: string; value: string; icon: React.ReactNode }[] = [];
+
+  if (profile.exchanges?.length > 0) {
+    infoItems.push({ label: 'Exchange', value: profile.exchanges.join(', '), icon: <Building2 className="h-3.5 w-3.5" /> });
+  }
+  if (profile.sic_description) {
+    infoItems.push({ label: 'Industry', value: profile.sic_description, icon: <Layers className="h-3.5 w-3.5" /> });
+  }
+  if (profile.state) {
+    infoItems.push({ label: 'State', value: profile.state, icon: <Globe className="h-3.5 w-3.5" /> });
+  }
+  if (profile.fiscal_year_end) {
+    infoItems.push({ label: 'Fiscal Year End', value: profile.fiscal_year_end, icon: <Calendar className="h-3.5 w-3.5" /> });
+  }
+  if (profile.website) {
+    infoItems.push({ label: 'Website', value: profile.website, icon: <Globe className="h-3.5 w-3.5" /> });
+  }
+
+  if (infoItems.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-700">
+      <h3 className="mb-3 text-sm font-medium text-slate-500 dark:text-slate-400">Company information</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {infoItems.map((item) => (
+          <div key={item.label} className="flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-slate-400">{item.icon}</span>
+            <div>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{item.label}</p>
+              {item.label === 'Website' ? (
+                <a
+                  href={item.value.startsWith('http') ? item.value : `https://${item.value}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  {item.value}
+                </a>
+              ) : (
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.value}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
