@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { ScreenerResult } from '../../lib/types';
 import { formatCurrency, cn } from '../../lib/utils';
-import { ChevronUp, ChevronDown, GitCompareArrows, Star } from 'lucide-react';
+import { ChevronUp, ChevronDown, GitCompareArrows, Star, Download } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
+import { downloadCSV } from '../../lib/export';
 
 interface ScreenerResultsProps {
   results: ScreenerResult[];
@@ -71,6 +72,36 @@ export function ScreenerResults({ results }: ScreenerResultsProps) {
     }
   }
 
+  const exportCSV = useCallback(() => {
+    downloadCSV(
+      sorted.map((r) => ({
+        ticker: r.ticker,
+        company: r.name,
+        sector: r.sector,
+        industry: r.industry,
+        price: r.price,
+        market_cap: r.market_cap,
+        volume: r.volume,
+        beta: r.beta,
+        exchange: r.exchange,
+        country: r.country,
+      })),
+      `eugene-screener-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        { key: 'ticker', label: 'Ticker' },
+        { key: 'company', label: 'Company' },
+        { key: 'sector', label: 'Sector' },
+        { key: 'industry', label: 'Industry' },
+        { key: 'price', label: 'Price' },
+        { key: 'market_cap', label: 'Market Cap' },
+        { key: 'volume', label: 'Volume' },
+        { key: 'beta', label: 'Beta' },
+        { key: 'exchange', label: 'Exchange' },
+        { key: 'country', label: 'Country' },
+      ],
+    );
+  }, [sorted]);
+
   if (results.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 px-6 py-16 text-center dark:border-slate-800">
@@ -85,9 +116,18 @@ export function ScreenerResults({ results }: ScreenerResultsProps) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs text-slate-400">
-          Showing {results.length} result{results.length !== 1 ? 's' : ''}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-slate-400">
+            Showing {results.length} result{results.length !== 1 ? 's' : ''}
+          </p>
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          >
+            <Download className="h-3 w-3" />
+            CSV
+          </button>
+        </div>
         {selected.size > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">
