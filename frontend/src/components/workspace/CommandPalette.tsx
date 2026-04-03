@@ -185,6 +185,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'earnings-surprises', label: 'Earnings Surprises', description: 'Biggest EPS beats & misses', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/earnings-surprises', 'Earnings Surprises'), category: 'Pages' },
     { id: 'insider-sentiment', label: 'Insider Sentiment', description: 'Aggregate insider buy/sell signal', icon: <UserCheck className="h-4 w-4" />, action: () => go('/insider-sentiment', 'Insider Sentiment'), category: 'Pages' },
     { id: 'market-profile', label: 'Market Profile', description: 'Volume profile, VWAP, price distribution', icon: <BarChart3 className="h-4 w-4" />, action: () => go('/market-profile', 'Market Profile'), category: 'Pages' },
+    { id: 'peer-analysis', label: 'Peer Analysis', description: 'Side-by-side company comparison', icon: <GitCompareArrows className="h-4 w-4" />, action: () => go('/peer-analysis', 'Peer Analysis'), category: 'Pages' },
+    { id: 'dividend-tracker', label: 'Dividend Tracker', description: 'Dividend history, yield, payout ratios', icon: <CreditCard className="h-4 w-4" />, action: () => go('/dividend-tracker', 'Dividend Tracker'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },

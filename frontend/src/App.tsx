@@ -73,6 +73,8 @@ const MarginCalculatorPage = lazy(() => import('./pages/MarginCalculatorPage').t
 const EarningsSurprisesPage = lazy(() => import('./pages/EarningsSurprisesPage').then(m => ({ default: m.EarningsSurprisesPage })));
 const InsiderSentimentPage = lazy(() => import('./pages/InsiderSentimentPage').then(m => ({ default: m.InsiderSentimentPage })));
 const MarketProfilePage = lazy(() => import('./pages/MarketProfilePage').then(m => ({ default: m.MarketProfilePage })));
+const PeerAnalysisPage = lazy(() => import('./pages/PeerAnalysisPage').then(m => ({ default: m.PeerAnalysisPage })));
+const DividendTrackerPage = lazy(() => import('./pages/DividendTrackerPage').then(m => ({ default: m.DividendTrackerPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -139,6 +141,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/earnings-surprises': 'Earnings Surprises — Eugene',
   '/insider-sentiment': 'Insider Sentiment — Eugene',
   '/market-profile': 'Market Profile — Eugene',
+  '/peer-analysis': 'Peer Analysis — Eugene',
+  '/dividend-tracker': 'Dividend Tracker — Eugene',
 };
 
 function TitleUpdater() {
@@ -335,6 +339,8 @@ function WorkspaceLayout() {
               <Route path="/earnings-surprises" element={<EarningsSurprisesPage />} />
               <Route path="/insider-sentiment" element={<InsiderSentimentPage />} />
               <Route path="/market-profile" element={<MarketProfilePage />} />
+              <Route path="/peer-analysis" element={<PeerAnalysisPage />} />
+              <Route path="/dividend-tracker" element={<DividendTrackerPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -441,6 +447,8 @@ function PageHeader({
     'earnings-surprises': 'Earnings Surprises',
     'insider-sentiment': 'Insider Sentiment',
     'market-profile': 'Market Profile',
+    'peer-analysis': 'Peer Analysis',
+    'dividend-tracker': 'Dividend Tracker',
   };
 
   return (

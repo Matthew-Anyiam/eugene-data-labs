@@ -62,6 +62,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/earnings-surprises', label: 'Surprises', icon: <Zap className="h-4 w-4" /> },
       { to: '/insider-sentiment', label: 'Insider Signal', icon: <UserCheck className="h-4 w-4" /> },
       { to: '/market-profile', label: 'Market Profile', icon: <BarChart3 className="h-4 w-4" /> },
+      { to: '/peer-analysis', label: 'Peer Analysis', icon: <GitCompareArrows className="h-4 w-4" /> },
+      { to: '/dividend-tracker', label: 'Dividend Tracker', icon: <CircleDollarSign className="h-4 w-4" /> },
     ],
   },
   {
