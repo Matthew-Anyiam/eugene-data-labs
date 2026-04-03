@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { Menu } from 'lucide-react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, Bell } from 'lucide-react';
 import { Sidebar } from './components/workspace/Sidebar';
 import { CommandPalette } from './components/workspace/CommandPalette';
 import { ActivityPanel } from './components/workspace/ActivityPanel';
 import { FeedbackWidget } from './components/ui/FeedbackWidget';
 import { ToastContainer } from './components/workspace/ToastContainer';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useAlerts } from './hooks/useAlerts';
 
 const CompanyPage = lazy(() => import('./pages/CompanyPage').then(m => ({ default: m.CompanyPage })));
 const ScreenerPage = lazy(() => import('./pages/ScreenerPage').then(m => ({ default: m.ScreenerPage })));
@@ -21,6 +22,10 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ defa
 const EntityPage = lazy(() => import('./pages/EntityPage').then(m => ({ default: m.EntityPage })));
 const CryptoPage = lazy(() => import('./pages/CryptoPage').then(m => ({ default: m.CryptoPage })));
 const ComparePage = lazy(() => import('./pages/ComparePage').then(m => ({ default: m.ComparePage })));
+const AgentsPage = lazy(() => import('./pages/AgentsPage').then(m => ({ default: m.AgentsPage })));
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(m => ({ default: m.PortfolioPage })));
+const AlertsPage = lazy(() => import('./pages/AlertsPage').then(m => ({ default: m.AlertsPage })));
+const NewsPage = lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -36,6 +41,10 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings': 'Settings — Eugene',
   '/crypto': 'Crypto — Eugene',
   '/compare': 'Compare — Eugene',
+  '/agents': 'AI Agents — Eugene',
+  '/portfolio': 'Portfolio — Eugene',
+  '/alerts': 'Alerts — Eugene',
+  '/news': 'News — Eugene',
 };
 
 function TitleUpdater() {
@@ -181,6 +190,10 @@ function WorkspaceLayout() {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/crypto" element={<CryptoPage />} />
               <Route path="/compare" element={<ComparePage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/portfolio" element={<PortfolioPage />} />
+              <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/news" element={<NewsPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -236,6 +249,10 @@ function PageHeader({
     settings: 'Settings',
     crypto: 'Crypto Markets',
     compare: 'Compare Companies',
+    agents: 'AI Agents',
+    portfolio: 'Portfolio',
+    alerts: 'Alerts',
+    news: 'News Feed',
   };
 
   return (
@@ -261,6 +278,7 @@ function PageHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <button
           onClick={onToggleActivity}
           className={`hidden rounded-md px-2 py-1 text-[11px] font-medium transition-colors lg:block ${
@@ -277,6 +295,26 @@ function PageHeader({
         </kbd>
       </div>
     </div>
+  );
+}
+
+function NotificationBell() {
+  const { unreadCount } = useAlerts();
+  const navigate = useNavigate();
+
+  return (
+    <button
+      onClick={() => navigate('/alerts')}
+      className="relative rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+      title={unreadCount > 0 ? `${unreadCount} unread alert${unreadCount !== 1 ? 's' : ''}` : 'Alerts'}
+    >
+      <Bell className="h-4 w-4" />
+      {unreadCount > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </span>
+      )}
+    </button>
   );
 }
 

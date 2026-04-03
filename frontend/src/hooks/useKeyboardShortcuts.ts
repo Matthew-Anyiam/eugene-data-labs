@@ -55,6 +55,9 @@ export function useKeyboardShortcuts() {
           o: '/ontology',
           p: '/predictions',
           c: '/crypto',
+          a: '/agents',
+          f: '/portfolio',
+          n: '/alerts',
           '.': '/settings',
         };
 

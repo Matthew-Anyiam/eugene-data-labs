@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows,
+  Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
   Star, Moon, Sun, Settings, Loader2, Clock, Database,
 } from 'lucide-react';
@@ -134,6 +134,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'ontology', label: 'Ontology', description: 'Entity graph', icon: <Network className="h-4 w-4" />, action: () => go('/ontology', 'Ontology'), category: 'Pages' },
     { id: 'crypto', label: 'Crypto Markets', description: 'Bitcoin, Ethereum, Solana', icon: <Bitcoin className="h-4 w-4" />, action: () => go('/crypto', 'Crypto'), category: 'Pages' },
     { id: 'compare', label: 'Compare Companies', description: 'Side-by-side analysis', icon: <GitCompareArrows className="h-4 w-4" />, action: () => go('/compare', 'Compare'), category: 'Pages' },
+    { id: 'agents', label: 'AI Agents', description: 'Research, debate, simulation', icon: <Bot className="h-4 w-4" />, action: () => go('/agents', 'AI Agents'), category: 'Pages' },
+    { id: 'portfolio', label: 'Portfolio', description: 'Track positions & P&L', icon: <Briefcase className="h-4 w-4" />, action: () => go('/portfolio', 'Portfolio'), category: 'Pages' },
+    { id: 'alerts', label: 'Alerts', description: 'Price alerts & notifications', icon: <Bell className="h-4 w-4" />, action: () => go('/alerts', 'Alerts'), category: 'Pages' },
+    { id: 'news', label: 'News Feed', description: 'Financial news & headlines', icon: <Newspaper className="h-4 w-4" />, action: () => go('/news', 'News'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
