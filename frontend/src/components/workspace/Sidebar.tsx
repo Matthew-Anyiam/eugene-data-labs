@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
-  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles, BookOpen, Map, Calculator, SlidersHorizontal,
+  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles, BookOpen, Map, Calculator, SlidersHorizontal, BarChartHorizontal, Building2,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useWatchlist } from '../../hooks/useWatchlist';
@@ -46,6 +46,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/dark-pool', label: 'Dark Pool', icon: <EyeOff className="h-4 w-4" /> },
       { to: '/short-interest', label: 'Short Interest', icon: <ArrowDownUp className="h-4 w-4" /> },
       { to: '/trending', label: 'Trending', icon: <Sparkles className="h-4 w-4" />, badge: 'HOT' },
+      { to: '/estimates', label: 'Estimates', icon: <BarChartHorizontal className="h-4 w-4" /> },
+      { to: '/institutional', label: 'Institutions', icon: <Building2 className="h-4 w-4" /> },
     ],
   },
   {

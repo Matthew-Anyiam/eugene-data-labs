@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
-  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles, BookOpen, Map, Calculator, SlidersHorizontal,
+  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles, BookOpen, Map, Calculator, SlidersHorizontal, BarChartHorizontal,
 } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -169,6 +169,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'macro', label: 'Macro Dashboard', description: 'Global macro indicators & regime', icon: <Map className="h-4 w-4" />, action: () => go('/macro', 'Macro'), category: 'Pages' },
     { id: 'position-sizer', label: 'Position Sizer', description: 'Calculate position size & risk', icon: <Calculator className="h-4 w-4" />, action: () => go('/position-sizer', 'Position Sizer'), category: 'Pages' },
     { id: 'screener-builder', label: 'Custom Screener', description: 'Build custom stock screeners', icon: <SlidersHorizontal className="h-4 w-4" />, action: () => go('/screener-builder', 'Screener Builder'), category: 'Pages' },
+    { id: 'estimates', label: 'Earnings Estimates', description: 'EPS & revenue consensus estimates', icon: <BarChartHorizontal className="h-4 w-4" />, action: () => go('/estimates', 'Estimates'), category: 'Pages' },
+    { id: 'institutional', label: 'Institutional Holdings', description: '13F filings, fund positions', icon: <Building2 className="h-4 w-4" />, action: () => go('/institutional', 'Institutional'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },

@@ -57,6 +57,8 @@ const TradeJournalPage = lazy(() => import('./pages/TradeJournalPage').then(m =>
 const MacroPage = lazy(() => import('./pages/MacroPage').then(m => ({ default: m.MacroPage })));
 const PositionSizerPage = lazy(() => import('./pages/PositionSizerPage').then(m => ({ default: m.PositionSizerPage })));
 const ScreenerBuilderPage = lazy(() => import('./pages/ScreenerBuilderPage').then(m => ({ default: m.ScreenerBuilderPage })));
+const EstimatesPage = lazy(() => import('./pages/EstimatesPage').then(m => ({ default: m.EstimatesPage })));
+const InstitutionalPage = lazy(() => import('./pages/InstitutionalPage').then(m => ({ default: m.InstitutionalPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -107,6 +109,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/macro': 'Macro Dashboard — Eugene',
   '/position-sizer': 'Position Sizer — Eugene',
   '/screener-builder': 'Screener Builder — Eugene',
+  '/estimates': 'Earnings Estimates — Eugene',
+  '/institutional': 'Institutional Holdings — Eugene',
 };
 
 function TitleUpdater() {
@@ -287,6 +291,8 @@ function WorkspaceLayout() {
               <Route path="/macro" element={<MacroPage />} />
               <Route path="/position-sizer" element={<PositionSizerPage />} />
               <Route path="/screener-builder" element={<ScreenerBuilderPage />} />
+              <Route path="/estimates" element={<EstimatesPage />} />
+              <Route path="/institutional" element={<InstitutionalPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -377,6 +383,8 @@ function PageHeader({
     macro: 'Macro Dashboard',
     'position-sizer': 'Position Sizer',
     'screener-builder': 'Screener Builder',
+    estimates: 'Earnings Estimates',
+    institutional: 'Institutional Holdings',
   };
 
   return (
