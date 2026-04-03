@@ -26,6 +26,7 @@ const AgentsPage = lazy(() => import('./pages/AgentsPage').then(m => ({ default:
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(m => ({ default: m.PortfolioPage })));
 const AlertsPage = lazy(() => import('./pages/AlertsPage').then(m => ({ default: m.AlertsPage })));
 const NewsPage = lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -45,6 +46,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/portfolio': 'Portfolio — Eugene',
   '/alerts': 'Alerts — Eugene',
   '/news': 'News — Eugene',
+  '/reports': 'Reports — Eugene',
 };
 
 function TitleUpdater() {
@@ -194,6 +196,7 @@ function WorkspaceLayout() {
               <Route path="/portfolio" element={<PortfolioPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/news" element={<NewsPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -253,6 +256,7 @@ function PageHeader({
     portfolio: 'Portfolio',
     alerts: 'Alerts',
     news: 'News Feed',
+    reports: 'Reports',
   };
 
   return (

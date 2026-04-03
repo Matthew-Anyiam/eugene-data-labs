@@ -58,6 +58,7 @@ export function useKeyboardShortcuts() {
           a: '/agents',
           f: '/portfolio',
           n: '/alerts',
+          r: '/reports',
           '.': '/settings',
         };
 

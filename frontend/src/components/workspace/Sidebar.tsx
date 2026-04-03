@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import {
-  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper,
+  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
   Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings,
 } from 'lucide-react';
@@ -41,6 +41,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Data',
     items: [
       { to: '/ontology', label: 'Ontology', icon: <Network className="h-4 w-4" /> },
+      { to: '/reports', label: 'Reports', icon: <FileBarChart className="h-4 w-4" /> },
       { to: '/docs', label: 'API Docs', icon: <FileText className="h-4 w-4" /> },
     ],
   },
