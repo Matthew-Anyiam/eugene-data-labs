@@ -71,6 +71,8 @@ const DebtMonitorPage = lazy(() => import('./pages/DebtMonitorPage').then(m => (
 const CurrencyConverterPage = lazy(() => import('./pages/CurrencyConverterPage').then(m => ({ default: m.CurrencyConverterPage })));
 const MarginCalculatorPage = lazy(() => import('./pages/MarginCalculatorPage').then(m => ({ default: m.MarginCalculatorPage })));
 const EarningsSurprisesPage = lazy(() => import('./pages/EarningsSurprisesPage').then(m => ({ default: m.EarningsSurprisesPage })));
+const InsiderSentimentPage = lazy(() => import('./pages/InsiderSentimentPage').then(m => ({ default: m.InsiderSentimentPage })));
+const MarketProfilePage = lazy(() => import('./pages/MarketProfilePage').then(m => ({ default: m.MarketProfilePage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -135,6 +137,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/currency-converter': 'Currency Converter — Eugene',
   '/margin-calculator': 'Margin Calculator — Eugene',
   '/earnings-surprises': 'Earnings Surprises — Eugene',
+  '/insider-sentiment': 'Insider Sentiment — Eugene',
+  '/market-profile': 'Market Profile — Eugene',
 };
 
 function TitleUpdater() {
@@ -329,6 +333,8 @@ function WorkspaceLayout() {
               <Route path="/currency-converter" element={<CurrencyConverterPage />} />
               <Route path="/margin-calculator" element={<MarginCalculatorPage />} />
               <Route path="/earnings-surprises" element={<EarningsSurprisesPage />} />
+              <Route path="/insider-sentiment" element={<InsiderSentimentPage />} />
+              <Route path="/market-profile" element={<MarketProfilePage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -433,6 +439,8 @@ function PageHeader({
     'currency-converter': 'Currency Converter',
     'margin-calculator': 'Margin Calculator',
     'earnings-surprises': 'Earnings Surprises',
+    'insider-sentiment': 'Insider Sentiment',
+    'market-profile': 'Market Profile',
   };
 
   return (

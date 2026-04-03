@@ -60,6 +60,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/currency-converter', label: 'Currency', icon: <ArrowLeftRight className="h-4 w-4" /> },
       { to: '/margin-calculator', label: 'Margin Calc', icon: <Calculator className="h-4 w-4" /> },
       { to: '/earnings-surprises', label: 'Surprises', icon: <Zap className="h-4 w-4" /> },
+      { to: '/insider-sentiment', label: 'Insider Signal', icon: <UserCheck className="h-4 w-4" /> },
+      { to: '/market-profile', label: 'Market Profile', icon: <BarChart3 className="h-4 w-4" /> },
     ],
   },
   {
