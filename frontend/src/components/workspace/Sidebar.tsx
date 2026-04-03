@@ -76,6 +76,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/sector-rotation', label: 'Sector Rotation', icon: <PieChart className="h-4 w-4" /> },
       { to: '/yield-curve', label: 'Yield Curve', icon: <LineChart className="h-4 w-4" /> },
       { to: '/gap-scanner', label: 'Gap Scanner', icon: <Zap className="h-4 w-4" /> },
+      { to: '/money-flow', label: 'Money Flow', icon: <CircleDollarSign className="h-4 w-4" /> },
+      { to: '/earnings-revisions', label: 'EPS Revisions', icon: <BarChart3 className="h-4 w-4" /> },
     ],
   },
   {

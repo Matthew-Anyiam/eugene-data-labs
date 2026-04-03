@@ -87,6 +87,8 @@ const InsiderTrackerPage = lazy(() => import('./pages/InsiderTrackerPage').then(
 const SectorRotationPage = lazy(() => import('./pages/SectorRotationPage').then(m => ({ default: m.SectorRotationPage })));
 const YieldCurvePage = lazy(() => import('./pages/YieldCurvePage').then(m => ({ default: m.YieldCurvePage })));
 const GapScannerPage = lazy(() => import('./pages/GapScannerPage').then(m => ({ default: m.GapScannerPage })));
+const MoneyFlowPage = lazy(() => import('./pages/MoneyFlowPage').then(m => ({ default: m.MoneyFlowPage })));
+const EarningsRevisionsPage = lazy(() => import('./pages/EarningsRevisionsPage').then(m => ({ default: m.EarningsRevisionsPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -167,6 +169,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/sector-rotation': 'Sector Rotation — Eugene',
   '/yield-curve': 'Yield Curve — Eugene',
   '/gap-scanner': 'Gap Scanner — Eugene',
+  '/money-flow': 'Money Flow — Eugene',
+  '/earnings-revisions': 'Earnings Revisions — Eugene',
 };
 
 function TitleUpdater() {
@@ -377,6 +381,8 @@ function WorkspaceLayout() {
               <Route path="/sector-rotation" element={<SectorRotationPage />} />
               <Route path="/yield-curve" element={<YieldCurvePage />} />
               <Route path="/gap-scanner" element={<GapScannerPage />} />
+              <Route path="/money-flow" element={<MoneyFlowPage />} />
+              <Route path="/earnings-revisions" element={<EarningsRevisionsPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -497,6 +503,8 @@ function PageHeader({
     'sector-rotation': 'Sector Rotation',
     'yield-curve': 'Yield Curve',
     'gap-scanner': 'Gap Scanner',
+    'money-flow': 'Money Flow',
+    'earnings-revisions': 'Earnings Revisions',
   };
 
   return (
