@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import {
-  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers,
+  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
   Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings,
 } from 'lucide-react';
@@ -36,6 +36,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/ipo', label: 'IPOs', icon: <Rocket className="h-4 w-4" /> },
       { to: '/dividends', label: 'Dividends', icon: <CircleDollarSign className="h-4 w-4" /> },
       { to: '/etf', label: 'ETFs', icon: <Layers className="h-4 w-4" /> },
+      { to: '/forex', label: 'Forex', icon: <ArrowLeftRight className="h-4 w-4" /> },
+      { to: '/commodities', label: 'Commodities', icon: <Gem className="h-4 w-4" /> },
     ],
   },
   {
