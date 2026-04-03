@@ -47,6 +47,8 @@ const BondsPage = lazy(() => import('./pages/BondsPage').then(m => ({ default: m
 const SentimentPage = lazy(() => import('./pages/SentimentPage').then(m => ({ default: m.SentimentPage })));
 const FundsPage = lazy(() => import('./pages/FundsPage').then(m => ({ default: m.FundsPage })));
 const EconCalendarPage = lazy(() => import('./pages/EconCalendarPage').then(m => ({ default: m.EconCalendarPage })));
+const DarkPoolPage = lazy(() => import('./pages/DarkPoolPage').then(m => ({ default: m.DarkPoolPage })));
+const CorrelationPage = lazy(() => import('./pages/CorrelationPage').then(m => ({ default: m.CorrelationPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -87,6 +89,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/sentiment': 'Sentiment — Eugene',
   '/funds': 'Fund Screener — Eugene',
   '/econ-calendar': 'Economic Calendar — Eugene',
+  '/dark-pool': 'Dark Pool — Eugene',
+  '/correlation': 'Correlation Matrix — Eugene',
 };
 
 function TitleUpdater() {
@@ -257,6 +261,8 @@ function WorkspaceLayout() {
               <Route path="/sentiment" element={<SentimentPage />} />
               <Route path="/funds" element={<FundsPage />} />
               <Route path="/econ-calendar" element={<EconCalendarPage />} />
+              <Route path="/dark-pool" element={<DarkPoolPage />} />
+              <Route path="/correlation" element={<CorrelationPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -337,6 +343,8 @@ function PageHeader({
     sentiment: 'Market Sentiment',
     funds: 'Fund Screener',
     'econ-calendar': 'Economic Calendar',
+    'dark-pool': 'Dark Pool Activity',
+    correlation: 'Correlation Matrix',
   };
 
   return (

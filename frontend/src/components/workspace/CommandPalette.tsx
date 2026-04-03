@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
-  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock,
+  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3,
 } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -159,6 +159,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'sentiment', label: 'Market Sentiment', description: 'Fear & greed, social, put/call', icon: <Brain className="h-4 w-4" />, action: () => go('/sentiment', 'Sentiment'), category: 'Pages' },
     { id: 'funds', label: 'Fund Screener', description: 'Mutual funds & hedge funds', icon: <FolderSearch className="h-4 w-4" />, action: () => go('/funds', 'Funds'), category: 'Pages' },
     { id: 'econ-calendar', label: 'Economic Calendar', description: 'CPI, GDP, FOMC, jobs data', icon: <CalendarClock className="h-4 w-4" />, action: () => go('/econ-calendar', 'Econ Calendar'), category: 'Pages' },
+    { id: 'dark-pool', label: 'Dark Pool Activity', description: 'Off-exchange trades, block orders', icon: <EyeOff className="h-4 w-4" />, action: () => go('/dark-pool', 'Dark Pool'), category: 'Pages' },
+    { id: 'correlation', label: 'Correlation Matrix', description: 'Cross-asset correlations', icon: <Grid3X3 className="h-4 w-4" />, action: () => go('/correlation', 'Correlation'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
