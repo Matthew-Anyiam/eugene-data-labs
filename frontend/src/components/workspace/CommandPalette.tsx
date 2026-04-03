@@ -181,6 +181,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'supply-chain', label: 'Supply Chain', description: 'Vendor/customer relationships, dependencies', icon: <Network className="h-4 w-4" />, action: () => go('/supply-chain', 'Supply Chain'), category: 'Pages' },
     { id: 'debt-monitor', label: 'Debt Monitor', description: 'Government & corporate debt tracking', icon: <CreditCard className="h-4 w-4" />, action: () => go('/debt-monitor', 'Debt Monitor'), category: 'Pages' },
     { id: 'currency-converter', label: 'Currency Converter', description: 'FX rates, conversion calculator', icon: <ArrowLeftRight className="h-4 w-4" />, action: () => go('/currency-converter', 'Currency Converter'), category: 'Pages' },
+    { id: 'margin-calculator', label: 'Margin Calculator', description: 'Margin requirements & buying power', icon: <Calculator className="h-4 w-4" />, action: () => go('/margin-calculator', 'Margin Calculator'), category: 'Pages' },
+    { id: 'earnings-surprises', label: 'Earnings Surprises', description: 'Biggest EPS beats & misses', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/earnings-surprises', 'Earnings Surprises'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },

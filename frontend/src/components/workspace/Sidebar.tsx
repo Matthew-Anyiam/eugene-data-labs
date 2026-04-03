@@ -58,6 +58,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/supply-chain', label: 'Supply Chain', icon: <Network className="h-4 w-4" /> },
       { to: '/debt-monitor', label: 'Debt Monitor', icon: <Banknote className="h-4 w-4" /> },
       { to: '/currency-converter', label: 'Currency', icon: <ArrowLeftRight className="h-4 w-4" /> },
+      { to: '/margin-calculator', label: 'Margin Calc', icon: <Calculator className="h-4 w-4" /> },
+      { to: '/earnings-surprises', label: 'Surprises', icon: <Zap className="h-4 w-4" /> },
     ],
   },
   {

@@ -69,6 +69,8 @@ const ValuationPage = lazy(() => import('./pages/ValuationPage').then(m => ({ de
 const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage').then(m => ({ default: m.SupplyChainPage })));
 const DebtMonitorPage = lazy(() => import('./pages/DebtMonitorPage').then(m => ({ default: m.DebtMonitorPage })));
 const CurrencyConverterPage = lazy(() => import('./pages/CurrencyConverterPage').then(m => ({ default: m.CurrencyConverterPage })));
+const MarginCalculatorPage = lazy(() => import('./pages/MarginCalculatorPage').then(m => ({ default: m.MarginCalculatorPage })));
+const EarningsSurprisesPage = lazy(() => import('./pages/EarningsSurprisesPage').then(m => ({ default: m.EarningsSurprisesPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -131,6 +133,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/supply-chain': 'Supply Chain — Eugene',
   '/debt-monitor': 'Debt Monitor — Eugene',
   '/currency-converter': 'Currency Converter — Eugene',
+  '/margin-calculator': 'Margin Calculator — Eugene',
+  '/earnings-surprises': 'Earnings Surprises — Eugene',
 };
 
 function TitleUpdater() {
@@ -323,6 +327,8 @@ function WorkspaceLayout() {
               <Route path="/supply-chain" element={<SupplyChainPage />} />
               <Route path="/debt-monitor" element={<DebtMonitorPage />} />
               <Route path="/currency-converter" element={<CurrencyConverterPage />} />
+              <Route path="/margin-calculator" element={<MarginCalculatorPage />} />
+              <Route path="/earnings-surprises" element={<EarningsSurprisesPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -425,6 +431,8 @@ function PageHeader({
     'supply-chain': 'Supply Chain',
     'debt-monitor': 'Debt Monitor',
     'currency-converter': 'Currency Converter',
+    'margin-calculator': 'Margin Calculator',
+    'earnings-surprises': 'Earnings Surprises',
   };
 
   return (
