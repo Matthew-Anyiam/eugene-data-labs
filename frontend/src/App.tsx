@@ -77,6 +77,8 @@ const PeerAnalysisPage = lazy(() => import('./pages/PeerAnalysisPage').then(m =>
 const DividendTrackerPage = lazy(() => import('./pages/DividendTrackerPage').then(m => ({ default: m.DividendTrackerPage })));
 const RevenueSegmentsPage = lazy(() => import('./pages/RevenueSegmentsPage').then(m => ({ default: m.RevenueSegmentsPage })));
 const EarningsCalendarProPage = lazy(() => import('./pages/EarningsCalendarProPage').then(m => ({ default: m.EarningsCalendarProPage })));
+const FundFlowsPage = lazy(() => import('./pages/FundFlowsPage').then(m => ({ default: m.FundFlowsPage })));
+const SocialSentimentPage = lazy(() => import('./pages/SocialSentimentPage').then(m => ({ default: m.SocialSentimentPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -147,6 +149,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/dividend-tracker': 'Dividend Tracker — Eugene',
   '/revenue-segments': 'Revenue Segments — Eugene',
   '/earnings-pro': 'Earnings Calendar Pro — Eugene',
+  '/fund-flows': 'Fund Flows — Eugene',
+  '/social-sentiment': 'Social Sentiment — Eugene',
 };
 
 function TitleUpdater() {
@@ -347,6 +351,8 @@ function WorkspaceLayout() {
               <Route path="/dividend-tracker" element={<DividendTrackerPage />} />
               <Route path="/revenue-segments" element={<RevenueSegmentsPage />} />
               <Route path="/earnings-pro" element={<EarningsCalendarProPage />} />
+              <Route path="/fund-flows" element={<FundFlowsPage />} />
+              <Route path="/social-sentiment" element={<SocialSentimentPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -457,6 +463,8 @@ function PageHeader({
     'dividend-tracker': 'Dividend Tracker',
     'revenue-segments': 'Revenue Segments',
     'earnings-pro': 'Earnings Calendar Pro',
+    'fund-flows': 'Fund Flows',
+    'social-sentiment': 'Social Sentiment',
   };
 
   return (
