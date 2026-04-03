@@ -31,6 +31,8 @@ const HeatmapPage = lazy(() => import('./pages/HeatmapPage').then(m => ({ defaul
 const BacktestPage = lazy(() => import('./pages/BacktestPage').then(m => ({ default: m.BacktestPage })));
 const InsidersPage = lazy(() => import('./pages/InsidersPage').then(m => ({ default: m.InsidersPage })));
 const EarningsPage = lazy(() => import('./pages/EarningsPage').then(m => ({ default: m.EarningsPage })));
+const IPOPage = lazy(() => import('./pages/IPOPage').then(m => ({ default: m.IPOPage })));
+const DividendsPage = lazy(() => import('./pages/DividendsPage').then(m => ({ default: m.DividendsPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -55,6 +57,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/backtest': 'Backtester — Eugene',
   '/insiders': 'Insider Trading — Eugene',
   '/earnings': 'Earnings Calendar — Eugene',
+  '/ipo': 'IPO Calendar — Eugene',
+  '/dividends': 'Dividends — Eugene',
 };
 
 function TitleUpdater() {
@@ -209,6 +213,8 @@ function WorkspaceLayout() {
               <Route path="/backtest" element={<BacktestPage />} />
               <Route path="/insiders" element={<InsidersPage />} />
               <Route path="/earnings" element={<EarningsPage />} />
+              <Route path="/ipo" element={<IPOPage />} />
+              <Route path="/dividends" element={<DividendsPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -273,6 +279,8 @@ function PageHeader({
     backtest: 'Strategy Backtester',
     insiders: 'Insider Trading',
     earnings: 'Earnings Calendar',
+    ipo: 'IPO Calendar',
+    dividends: 'Dividends',
   };
 
   return (
