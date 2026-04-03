@@ -48,6 +48,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/trending', label: 'Trending', icon: <Sparkles className="h-4 w-4" />, badge: 'HOT' },
       { to: '/estimates', label: 'Estimates', icon: <BarChartHorizontal className="h-4 w-4" /> },
       { to: '/institutional', label: 'Institutions', icon: <Building2 className="h-4 w-4" /> },
+      { to: '/ownership', label: 'Ownership', icon: <UserCheck className="h-4 w-4" /> },
+      { to: '/breadth', label: 'Market Breadth', icon: <Activity className="h-4 w-4" /> },
     ],
   },
   {

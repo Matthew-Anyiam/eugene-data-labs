@@ -59,6 +59,8 @@ const PositionSizerPage = lazy(() => import('./pages/PositionSizerPage').then(m 
 const ScreenerBuilderPage = lazy(() => import('./pages/ScreenerBuilderPage').then(m => ({ default: m.ScreenerBuilderPage })));
 const EstimatesPage = lazy(() => import('./pages/EstimatesPage').then(m => ({ default: m.EstimatesPage })));
 const InstitutionalPage = lazy(() => import('./pages/InstitutionalPage').then(m => ({ default: m.InstitutionalPage })));
+const OwnershipPage = lazy(() => import('./pages/OwnershipPage').then(m => ({ default: m.OwnershipPage })));
+const BreadthPage = lazy(() => import('./pages/BreadthPage').then(m => ({ default: m.BreadthPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -111,6 +113,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/screener-builder': 'Screener Builder — Eugene',
   '/estimates': 'Earnings Estimates — Eugene',
   '/institutional': 'Institutional Holdings — Eugene',
+  '/ownership': 'Ownership Structure — Eugene',
+  '/breadth': 'Market Breadth — Eugene',
 };
 
 function TitleUpdater() {
@@ -293,6 +297,8 @@ function WorkspaceLayout() {
               <Route path="/screener-builder" element={<ScreenerBuilderPage />} />
               <Route path="/estimates" element={<EstimatesPage />} />
               <Route path="/institutional" element={<InstitutionalPage />} />
+              <Route path="/ownership" element={<OwnershipPage />} />
+              <Route path="/breadth" element={<BreadthPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -385,6 +391,8 @@ function PageHeader({
     'screener-builder': 'Screener Builder',
     estimates: 'Earnings Estimates',
     institutional: 'Institutional Holdings',
+    ownership: 'Ownership Structure',
+    breadth: 'Market Breadth',
   };
 
   return (
