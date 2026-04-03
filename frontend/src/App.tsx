@@ -89,6 +89,8 @@ const YieldCurvePage = lazy(() => import('./pages/YieldCurvePage').then(m => ({ 
 const GapScannerPage = lazy(() => import('./pages/GapScannerPage').then(m => ({ default: m.GapScannerPage })));
 const MoneyFlowPage = lazy(() => import('./pages/MoneyFlowPage').then(m => ({ default: m.MoneyFlowPage })));
 const EarningsRevisionsPage = lazy(() => import('./pages/EarningsRevisionsPage').then(m => ({ default: m.EarningsRevisionsPage })));
+const MarketRegimePage = lazy(() => import('./pages/MarketRegimePage').then(m => ({ default: m.MarketRegimePage })));
+const TaxLotPage = lazy(() => import('./pages/TaxLotPage').then(m => ({ default: m.TaxLotPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -171,6 +173,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/gap-scanner': 'Gap Scanner — Eugene',
   '/money-flow': 'Money Flow — Eugene',
   '/earnings-revisions': 'Earnings Revisions — Eugene',
+  '/market-regime': 'Market Regime — Eugene',
+  '/tax-lots': 'Tax Lot Optimizer — Eugene',
 };
 
 function TitleUpdater() {
@@ -383,6 +387,8 @@ function WorkspaceLayout() {
               <Route path="/gap-scanner" element={<GapScannerPage />} />
               <Route path="/money-flow" element={<MoneyFlowPage />} />
               <Route path="/earnings-revisions" element={<EarningsRevisionsPage />} />
+              <Route path="/market-regime" element={<MarketRegimePage />} />
+              <Route path="/tax-lots" element={<TaxLotPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -505,6 +511,8 @@ function PageHeader({
     'gap-scanner': 'Gap Scanner',
     'money-flow': 'Money Flow',
     'earnings-revisions': 'Earnings Revisions',
+    'market-regime': 'Market Regime',
+    'tax-lots': 'Tax Lot Optimizer',
   };
 
   return (

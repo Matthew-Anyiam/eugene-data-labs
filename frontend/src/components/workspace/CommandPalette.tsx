@@ -201,6 +201,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'gap-scanner', label: 'Gap Scanner', description: 'Gap ups/downs, fill rates, catalysts', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/gap-scanner', 'Gap Scanner'), category: 'Pages' },
     { id: 'money-flow', label: 'Money Flow', description: 'CMF, OBV, accumulation/distribution', icon: <CircleDollarSign className="h-4 w-4" />, action: () => go('/money-flow', 'Money Flow'), category: 'Pages' },
     { id: 'earnings-revisions', label: 'Earnings Revisions', description: 'EPS revision momentum, consensus drift', icon: <BarChart3 className="h-4 w-4" />, action: () => go('/earnings-revisions', 'Earnings Revisions'), category: 'Pages' },
+    { id: 'market-regime', label: 'Market Regime', description: 'Bull/bear regime, volatility analysis', icon: <Activity className="h-4 w-4" />, action: () => go('/market-regime', 'Market Regime'), category: 'Pages' },
+    { id: 'tax-lots', label: 'Tax Lot Optimizer', description: 'Tax-loss harvesting, wash sale alerts', icon: <Calculator className="h-4 w-4" />, action: () => go('/tax-lots', 'Tax Lots'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
