@@ -75,6 +75,8 @@ const InsiderSentimentPage = lazy(() => import('./pages/InsiderSentimentPage').t
 const MarketProfilePage = lazy(() => import('./pages/MarketProfilePage').then(m => ({ default: m.MarketProfilePage })));
 const PeerAnalysisPage = lazy(() => import('./pages/PeerAnalysisPage').then(m => ({ default: m.PeerAnalysisPage })));
 const DividendTrackerPage = lazy(() => import('./pages/DividendTrackerPage').then(m => ({ default: m.DividendTrackerPage })));
+const RevenueSegmentsPage = lazy(() => import('./pages/RevenueSegmentsPage').then(m => ({ default: m.RevenueSegmentsPage })));
+const EarningsCalendarProPage = lazy(() => import('./pages/EarningsCalendarProPage').then(m => ({ default: m.EarningsCalendarProPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -143,6 +145,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/market-profile': 'Market Profile — Eugene',
   '/peer-analysis': 'Peer Analysis — Eugene',
   '/dividend-tracker': 'Dividend Tracker — Eugene',
+  '/revenue-segments': 'Revenue Segments — Eugene',
+  '/earnings-pro': 'Earnings Calendar Pro — Eugene',
 };
 
 function TitleUpdater() {
@@ -341,6 +345,8 @@ function WorkspaceLayout() {
               <Route path="/market-profile" element={<MarketProfilePage />} />
               <Route path="/peer-analysis" element={<PeerAnalysisPage />} />
               <Route path="/dividend-tracker" element={<DividendTrackerPage />} />
+              <Route path="/revenue-segments" element={<RevenueSegmentsPage />} />
+              <Route path="/earnings-pro" element={<EarningsCalendarProPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -449,6 +455,8 @@ function PageHeader({
     'market-profile': 'Market Profile',
     'peer-analysis': 'Peer Analysis',
     'dividend-tracker': 'Dividend Tracker',
+    'revenue-segments': 'Revenue Segments',
+    'earnings-pro': 'Earnings Calendar Pro',
   };
 
   return (

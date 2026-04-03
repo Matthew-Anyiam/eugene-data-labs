@@ -64,6 +64,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/market-profile', label: 'Market Profile', icon: <BarChart3 className="h-4 w-4" /> },
       { to: '/peer-analysis', label: 'Peer Analysis', icon: <GitCompareArrows className="h-4 w-4" /> },
       { to: '/dividend-tracker', label: 'Dividend Tracker', icon: <CircleDollarSign className="h-4 w-4" /> },
+      { to: '/revenue-segments', label: 'Revenue Segments', icon: <PieChart className="h-4 w-4" /> },
+      { to: '/earnings-pro', label: 'Earnings Pro', icon: <CalendarDays className="h-4 w-4" />, badge: 'PRO' },
     ],
   },
   {
