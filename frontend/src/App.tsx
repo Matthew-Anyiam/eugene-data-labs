@@ -33,6 +33,8 @@ const InsidersPage = lazy(() => import('./pages/InsidersPage').then(m => ({ defa
 const EarningsPage = lazy(() => import('./pages/EarningsPage').then(m => ({ default: m.EarningsPage })));
 const IPOPage = lazy(() => import('./pages/IPOPage').then(m => ({ default: m.IPOPage })));
 const DividendsPage = lazy(() => import('./pages/DividendsPage').then(m => ({ default: m.DividendsPage })));
+const TechnicalPage = lazy(() => import('./pages/TechnicalPage').then(m => ({ default: m.TechnicalPage })));
+const ETFPage = lazy(() => import('./pages/ETFPage').then(m => ({ default: m.ETFPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -59,6 +61,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/earnings': 'Earnings Calendar — Eugene',
   '/ipo': 'IPO Calendar — Eugene',
   '/dividends': 'Dividends — Eugene',
+  '/technical': 'Technical Analysis — Eugene',
+  '/etf': 'ETF Explorer — Eugene',
 };
 
 function TitleUpdater() {
@@ -215,6 +219,8 @@ function WorkspaceLayout() {
               <Route path="/earnings" element={<EarningsPage />} />
               <Route path="/ipo" element={<IPOPage />} />
               <Route path="/dividends" element={<DividendsPage />} />
+              <Route path="/technical" element={<TechnicalPage />} />
+              <Route path="/etf" element={<ETFPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -281,6 +287,8 @@ function PageHeader({
     earnings: 'Earnings Calendar',
     ipo: 'IPO Calendar',
     dividends: 'Dividends',
+    technical: 'Technical Analysis',
+    etf: 'ETF Explorer',
   };
 
   return (

@@ -63,6 +63,8 @@ export function useKeyboardShortcuts() {
           b: '/backtest',
           i: '/insiders',
           x: '/earnings',
+          t: '/technical',
+          l: '/etf',
           '.': '/settings',
         };
 

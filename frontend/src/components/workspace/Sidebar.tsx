@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import {
-  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign,
+  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
   Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings,
 } from 'lucide-react';
@@ -35,6 +35,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/insiders', label: 'Insiders', icon: <UserCheck className="h-4 w-4" /> },
       { to: '/ipo', label: 'IPOs', icon: <Rocket className="h-4 w-4" /> },
       { to: '/dividends', label: 'Dividends', icon: <CircleDollarSign className="h-4 w-4" /> },
+      { to: '/etf', label: 'ETFs', icon: <Layers className="h-4 w-4" /> },
     ],
   },
   {
@@ -46,6 +47,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/predictions', label: 'Predictions', icon: <LineChart className="h-4 w-4" /> },
       { to: '/portfolio', label: 'Portfolio', icon: <Briefcase className="h-4 w-4" /> },
       { to: '/alerts', label: 'Alerts', icon: <Bell className="h-4 w-4" /> },
+      { to: '/technical', label: 'Technicals', icon: <CandlestickChart className="h-4 w-4" /> },
       { to: '/reports', label: 'Reports', icon: <FileBarChart className="h-4 w-4" /> },
     ],
   },

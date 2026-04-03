@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign,
+  Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
   Star, Moon, Sun, Settings, Loader2, Clock, Database,
 } from 'lucide-react';
@@ -145,6 +145,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'earnings', label: 'Earnings Calendar', description: 'Upcoming & recent earnings', icon: <CalendarDays className="h-4 w-4" />, action: () => go('/earnings', 'Earnings'), category: 'Pages' },
     { id: 'ipo', label: 'IPO Calendar', description: 'Upcoming & recent IPOs', icon: <Rocket className="h-4 w-4" />, action: () => go('/ipo', 'IPOs'), category: 'Pages' },
     { id: 'dividends', label: 'Dividends', description: 'Yields, ex-dates, aristocrats', icon: <CircleDollarSign className="h-4 w-4" />, action: () => go('/dividends', 'Dividends'), category: 'Pages' },
+    { id: 'technical', label: 'Technical Analysis', description: 'RSI, MACD, moving averages', icon: <CandlestickChart className="h-4 w-4" />, action: () => go('/technical', 'Technicals'), category: 'Pages' },
+    { id: 'etf', label: 'ETF Explorer', description: 'Browse & compare ETFs', icon: <Layers className="h-4 w-4" />, action: () => go('/etf', 'ETFs'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
