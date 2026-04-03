@@ -72,6 +72,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/earnings-transcript', label: 'Transcripts', icon: <FileText className="h-4 w-4" /> },
       { to: '/ipo-analysis', label: 'IPO Analysis', icon: <Rocket className="h-4 w-4" /> },
       { to: '/relative-strength', label: 'Rel. Strength', icon: <TrendingUp className="h-4 w-4" /> },
+      { to: '/insider-tracker', label: 'Insider Tracker', icon: <UserCheck className="h-4 w-4" /> },
+      { to: '/sector-rotation', label: 'Sector Rotation', icon: <PieChart className="h-4 w-4" /> },
     ],
   },
   {

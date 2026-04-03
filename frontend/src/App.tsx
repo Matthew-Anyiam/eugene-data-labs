@@ -83,6 +83,8 @@ const FactorExposurePage = lazy(() => import('./pages/FactorExposurePage').then(
 const EarningsTranscriptPage = lazy(() => import('./pages/EarningsTranscriptPage').then(m => ({ default: m.EarningsTranscriptPage })));
 const IPOAnalysisPage = lazy(() => import('./pages/IPOAnalysisPage').then(m => ({ default: m.IPOAnalysisPage })));
 const RelativeStrengthPage = lazy(() => import('./pages/RelativeStrengthPage').then(m => ({ default: m.RelativeStrengthPage })));
+const InsiderTrackerPage = lazy(() => import('./pages/InsiderTrackerPage').then(m => ({ default: m.InsiderTrackerPage })));
+const SectorRotationPage = lazy(() => import('./pages/SectorRotationPage').then(m => ({ default: m.SectorRotationPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -159,6 +161,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/earnings-transcript': 'Earnings Transcripts — Eugene',
   '/ipo-analysis': 'IPO Analysis — Eugene',
   '/relative-strength': 'Relative Strength — Eugene',
+  '/insider-tracker': 'Insider Tracker — Eugene',
+  '/sector-rotation': 'Sector Rotation — Eugene',
 };
 
 function TitleUpdater() {
@@ -365,6 +369,8 @@ function WorkspaceLayout() {
               <Route path="/earnings-transcript" element={<EarningsTranscriptPage />} />
               <Route path="/ipo-analysis" element={<IPOAnalysisPage />} />
               <Route path="/relative-strength" element={<RelativeStrengthPage />} />
+              <Route path="/insider-tracker" element={<InsiderTrackerPage />} />
+              <Route path="/sector-rotation" element={<SectorRotationPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -481,6 +487,8 @@ function PageHeader({
     'earnings-transcript': 'Earnings Transcripts',
     'ipo-analysis': 'IPO Analysis',
     'relative-strength': 'Relative Strength',
+    'insider-tracker': 'Insider Tracker',
+    'sector-rotation': 'Sector Rotation',
   };
 
   return (

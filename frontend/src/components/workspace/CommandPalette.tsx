@@ -195,6 +195,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'earnings-transcript', label: 'Earnings Transcripts', description: 'Call analysis, sentiment, key topics', icon: <FileText className="h-4 w-4" />, action: () => go('/earnings-transcript', 'Earnings Transcripts'), category: 'Pages' },
     { id: 'ipo-analysis', label: 'IPO Analysis', description: 'IPO performance, lock-ups, first-day returns', icon: <Rocket className="h-4 w-4" />, action: () => go('/ipo-analysis', 'IPO Analysis'), category: 'Pages' },
     { id: 'relative-strength', label: 'Relative Strength', description: 'Momentum rankings, RS leaders', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/relative-strength', 'Relative Strength'), category: 'Pages' },
+    { id: 'insider-tracker', label: 'Insider Tracker', description: 'Insider transactions, cluster buys', icon: <UserCheck className="h-4 w-4" />, action: () => go('/insider-tracker', 'Insider Tracker'), category: 'Pages' },
+    { id: 'sector-rotation', label: 'Sector Rotation', description: 'Economic cycle, sector momentum', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/sector-rotation', 'Sector Rotation'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
