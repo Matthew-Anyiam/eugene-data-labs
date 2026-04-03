@@ -70,6 +70,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/social-sentiment', label: 'Social Sentiment', icon: <Newspaper className="h-4 w-4" />, badge: 'NEW' },
       { to: '/factor-exposure', label: 'Factor Exposure', icon: <SlidersHorizontal className="h-4 w-4" /> },
       { to: '/earnings-transcript', label: 'Transcripts', icon: <FileText className="h-4 w-4" /> },
+      { to: '/ipo-analysis', label: 'IPO Analysis', icon: <Rocket className="h-4 w-4" /> },
+      { to: '/relative-strength', label: 'Rel. Strength', icon: <TrendingUp className="h-4 w-4" /> },
     ],
   },
   {

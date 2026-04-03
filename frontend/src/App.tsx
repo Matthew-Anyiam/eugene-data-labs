@@ -81,6 +81,8 @@ const FundFlowsPage = lazy(() => import('./pages/FundFlowsPage').then(m => ({ de
 const SocialSentimentPage = lazy(() => import('./pages/SocialSentimentPage').then(m => ({ default: m.SocialSentimentPage })));
 const FactorExposurePage = lazy(() => import('./pages/FactorExposurePage').then(m => ({ default: m.FactorExposurePage })));
 const EarningsTranscriptPage = lazy(() => import('./pages/EarningsTranscriptPage').then(m => ({ default: m.EarningsTranscriptPage })));
+const IPOAnalysisPage = lazy(() => import('./pages/IPOAnalysisPage').then(m => ({ default: m.IPOAnalysisPage })));
+const RelativeStrengthPage = lazy(() => import('./pages/RelativeStrengthPage').then(m => ({ default: m.RelativeStrengthPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -155,6 +157,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/social-sentiment': 'Social Sentiment — Eugene',
   '/factor-exposure': 'Factor Exposure — Eugene',
   '/earnings-transcript': 'Earnings Transcripts — Eugene',
+  '/ipo-analysis': 'IPO Analysis — Eugene',
+  '/relative-strength': 'Relative Strength — Eugene',
 };
 
 function TitleUpdater() {
@@ -359,6 +363,8 @@ function WorkspaceLayout() {
               <Route path="/social-sentiment" element={<SocialSentimentPage />} />
               <Route path="/factor-exposure" element={<FactorExposurePage />} />
               <Route path="/earnings-transcript" element={<EarningsTranscriptPage />} />
+              <Route path="/ipo-analysis" element={<IPOAnalysisPage />} />
+              <Route path="/relative-strength" element={<RelativeStrengthPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -473,6 +479,8 @@ function PageHeader({
     'social-sentiment': 'Social Sentiment',
     'factor-exposure': 'Factor Exposure',
     'earnings-transcript': 'Earnings Transcripts',
+    'ipo-analysis': 'IPO Analysis',
+    'relative-strength': 'Relative Strength',
   };
 
   return (
