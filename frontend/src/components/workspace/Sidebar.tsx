@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
-  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles,
+  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles, BookOpen, Map,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useWatchlist } from '../../hooks/useWatchlist';
@@ -66,6 +66,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/econ-calendar', label: 'Econ Calendar', icon: <CalendarClock className="h-4 w-4" /> },
       { to: '/correlation', label: 'Correlation', icon: <Grid3X3 className="h-4 w-4" /> },
       { to: '/analyst-ratings', label: 'Analysts', icon: <ThumbsUp className="h-4 w-4" /> },
+      { to: '/trade-journal', label: 'Trade Journal', icon: <BookOpen className="h-4 w-4" /> },
+      { to: '/macro', label: 'Macro', icon: <Map className="h-4 w-4" /> },
     ],
   },
   {

@@ -53,6 +53,8 @@ const ShortInterestPage = lazy(() => import('./pages/ShortInterestPage').then(m 
 const AnalystRatingsPage = lazy(() => import('./pages/AnalystRatingsPage').then(m => ({ default: m.AnalystRatingsPage })));
 const FilingsPage = lazy(() => import('./pages/FilingsPage').then(m => ({ default: m.FilingsPage })));
 const TrendingPage = lazy(() => import('./pages/TrendingPage').then(m => ({ default: m.TrendingPage })));
+const TradeJournalPage = lazy(() => import('./pages/TradeJournalPage').then(m => ({ default: m.TradeJournalPage })));
+const MacroPage = lazy(() => import('./pages/MacroPage').then(m => ({ default: m.MacroPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -99,6 +101,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/analyst-ratings': 'Analyst Ratings — Eugene',
   '/filings': 'SEC Filings — Eugene',
   '/trending': 'Trending Stocks — Eugene',
+  '/trade-journal': 'Trade Journal — Eugene',
+  '/macro': 'Macro Dashboard — Eugene',
 };
 
 function TitleUpdater() {
@@ -275,6 +279,8 @@ function WorkspaceLayout() {
               <Route path="/analyst-ratings" element={<AnalystRatingsPage />} />
               <Route path="/filings" element={<FilingsPage />} />
               <Route path="/trending" element={<TrendingPage />} />
+              <Route path="/trade-journal" element={<TradeJournalPage />} />
+              <Route path="/macro" element={<MacroPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -361,6 +367,8 @@ function PageHeader({
     'analyst-ratings': 'Analyst Ratings',
     filings: 'SEC Filings',
     trending: 'Trending Stocks',
+    'trade-journal': 'Trade Journal',
+    macro: 'Macro Dashboard',
   };
 
   return (
