@@ -51,6 +51,8 @@ const DarkPoolPage = lazy(() => import('./pages/DarkPoolPage').then(m => ({ defa
 const CorrelationPage = lazy(() => import('./pages/CorrelationPage').then(m => ({ default: m.CorrelationPage })));
 const ShortInterestPage = lazy(() => import('./pages/ShortInterestPage').then(m => ({ default: m.ShortInterestPage })));
 const AnalystRatingsPage = lazy(() => import('./pages/AnalystRatingsPage').then(m => ({ default: m.AnalystRatingsPage })));
+const FilingsPage = lazy(() => import('./pages/FilingsPage').then(m => ({ default: m.FilingsPage })));
+const TrendingPage = lazy(() => import('./pages/TrendingPage').then(m => ({ default: m.TrendingPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -95,6 +97,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/correlation': 'Correlation Matrix — Eugene',
   '/short-interest': 'Short Interest — Eugene',
   '/analyst-ratings': 'Analyst Ratings — Eugene',
+  '/filings': 'SEC Filings — Eugene',
+  '/trending': 'Trending Stocks — Eugene',
 };
 
 function TitleUpdater() {
@@ -269,6 +273,8 @@ function WorkspaceLayout() {
               <Route path="/correlation" element={<CorrelationPage />} />
               <Route path="/short-interest" element={<ShortInterestPage />} />
               <Route path="/analyst-ratings" element={<AnalystRatingsPage />} />
+              <Route path="/filings" element={<FilingsPage />} />
+              <Route path="/trending" element={<TrendingPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -353,6 +359,8 @@ function PageHeader({
     correlation: 'Correlation Matrix',
     'short-interest': 'Short Interest',
     'analyst-ratings': 'Analyst Ratings',
+    filings: 'SEC Filings',
+    trending: 'Trending Stocks',
   };
 
   return (

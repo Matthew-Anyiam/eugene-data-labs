@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
-  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp,
+  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles,
 } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -163,6 +163,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'correlation', label: 'Correlation Matrix', description: 'Cross-asset correlations', icon: <Grid3X3 className="h-4 w-4" />, action: () => go('/correlation', 'Correlation'), category: 'Pages' },
     { id: 'short-interest', label: 'Short Interest', description: 'Short selling data, squeeze signals', icon: <ArrowDownUp className="h-4 w-4" />, action: () => go('/short-interest', 'Short Interest'), category: 'Pages' },
     { id: 'analyst-ratings', label: 'Analyst Ratings', description: 'Buy/sell ratings, price targets', icon: <ThumbsUp className="h-4 w-4" />, action: () => go('/analyst-ratings', 'Analyst Ratings'), category: 'Pages' },
+    { id: 'filings', label: 'SEC Filings', description: '10-K, 10-Q, 8-K, proxy statements', icon: <FileSearch className="h-4 w-4" />, action: () => go('/filings', 'SEC Filings'), category: 'Pages' },
+    { id: 'trending', label: 'Trending Stocks', description: 'Social media buzz, viral tickers', icon: <Sparkles className="h-4 w-4" />, action: () => go('/trending', 'Trending'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },

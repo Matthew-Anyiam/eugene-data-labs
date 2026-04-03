@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
-  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp,
+  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain, FolderSearch, CalendarClock, EyeOff, Grid3X3, ArrowDownUp, ThumbsUp, FileSearch, Sparkles,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useWatchlist } from '../../hooks/useWatchlist';
@@ -45,6 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/funds', label: 'Funds', icon: <FolderSearch className="h-4 w-4" /> },
       { to: '/dark-pool', label: 'Dark Pool', icon: <EyeOff className="h-4 w-4" /> },
       { to: '/short-interest', label: 'Short Interest', icon: <ArrowDownUp className="h-4 w-4" /> },
+      { to: '/trending', label: 'Trending', icon: <Sparkles className="h-4 w-4" />, badge: 'HOT' },
     ],
   },
   {
@@ -71,6 +72,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Data',
     items: [
       { to: '/ontology', label: 'Ontology', icon: <Network className="h-4 w-4" /> },
+      { to: '/filings', label: 'SEC Filings', icon: <FileSearch className="h-4 w-4" /> },
       { to: '/docs', label: 'API Docs', icon: <FileText className="h-4 w-4" /> },
     ],
   },
