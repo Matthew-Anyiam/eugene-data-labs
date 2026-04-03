@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import {
-  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical,
+  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
   Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings,
 } from 'lucide-react';
@@ -22,28 +22,35 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Intelligence',
+    label: 'Markets',
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
       { to: '/world', label: 'World', icon: <Globe className="h-4 w-4" />, badge: 'LIVE' },
       { to: '/screener', label: 'Screener', icon: <BarChart3 className="h-4 w-4" /> },
+      { to: '/heatmap', label: 'Heatmap', icon: <LayoutGrid className="h-4 w-4" /> },
       { to: '/economics', label: 'Economics', icon: <TrendingUp className="h-4 w-4" /> },
-      { to: '/predictions', label: 'Predictions', icon: <LineChart className="h-4 w-4" /> },
       { to: '/crypto', label: 'Crypto', icon: <Bitcoin className="h-4 w-4" /> },
+      { to: '/news', label: 'News', icon: <Newspaper className="h-4 w-4" /> },
+      { to: '/earnings', label: 'Earnings', icon: <CalendarDays className="h-4 w-4" /> },
+      { to: '/insiders', label: 'Insiders', icon: <UserCheck className="h-4 w-4" /> },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
       { to: '/compare', label: 'Compare', icon: <GitCompareArrows className="h-4 w-4" /> },
       { to: '/agents', label: 'AI Agents', icon: <Bot className="h-4 w-4" />, badge: 'NEW' },
+      { to: '/backtest', label: 'Backtester', icon: <FlaskConical className="h-4 w-4" /> },
+      { to: '/predictions', label: 'Predictions', icon: <LineChart className="h-4 w-4" /> },
       { to: '/portfolio', label: 'Portfolio', icon: <Briefcase className="h-4 w-4" /> },
       { to: '/alerts', label: 'Alerts', icon: <Bell className="h-4 w-4" /> },
-      { to: '/news', label: 'News', icon: <Newspaper className="h-4 w-4" /> },
-      { to: '/heatmap', label: 'Heatmap', icon: <LayoutGrid className="h-4 w-4" /> },
-      { to: '/backtest', label: 'Backtester', icon: <FlaskConical className="h-4 w-4" /> },
+      { to: '/reports', label: 'Reports', icon: <FileBarChart className="h-4 w-4" /> },
     ],
   },
   {
     label: 'Data',
     items: [
       { to: '/ontology', label: 'Ontology', icon: <Network className="h-4 w-4" /> },
-      { to: '/reports', label: 'Reports', icon: <FileBarChart className="h-4 w-4" /> },
       { to: '/docs', label: 'API Docs', icon: <FileText className="h-4 w-4" /> },
     ],
   },
@@ -54,7 +61,8 @@ export function Sidebar({ collapsed, onToggle, onCommandPalette }: SidebarProps)
   const { dark, toggle: toggleDark } = useDarkMode();
   const { tickers: watchlist, addTicker, removeTicker } = useWatchlist();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    Intelligence: true,
+    Markets: true,
+    Tools: true,
     Data: true,
     Watchlist: true,
   });

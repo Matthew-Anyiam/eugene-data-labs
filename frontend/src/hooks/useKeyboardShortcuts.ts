@@ -61,6 +61,8 @@ export function useKeyboardShortcuts() {
           r: '/reports',
           h: '/heatmap',
           b: '/backtest',
+          i: '/insiders',
+          x: '/earnings',
           '.': '/settings',
         };
 
