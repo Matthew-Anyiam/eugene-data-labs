@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
-  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar,
+  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame, PieChart, Calendar, Target, Shield,
 } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -153,6 +153,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'movers', label: 'Market Movers', description: 'Top gainers, losers, volume', icon: <Flame className="h-4 w-4" />, action: () => go('/movers', 'Movers'), category: 'Pages' },
     { id: 'sectors', label: 'Sector Analysis', description: 'Sector rotation & performance', icon: <PieChart className="h-4 w-4" />, action: () => go('/sectors', 'Sectors'), category: 'Pages' },
     { id: 'calendar', label: 'Market Calendar', description: 'Events, earnings, economic releases', icon: <Calendar className="h-4 w-4" />, action: () => go('/calendar', 'Calendar'), category: 'Pages' },
+    { id: 'options', label: 'Options Chain', description: 'Calls, puts, greeks, implied vol', icon: <Target className="h-4 w-4" />, action: () => go('/options', 'Options'), category: 'Pages' },
+    { id: 'risk', label: 'Risk Analytics', description: 'VaR, Sharpe, drawdown, correlation', icon: <Shield className="h-4 w-4" />, action: () => go('/risk', 'Risk'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },

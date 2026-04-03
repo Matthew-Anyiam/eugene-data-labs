@@ -68,6 +68,8 @@ export function useKeyboardShortcuts() {
           m: '/movers',
           j: '/sectors',
           k: '/calendar',
+          y: '/options',
+          z: '/risk',
           '.': '/settings',
         };
 
