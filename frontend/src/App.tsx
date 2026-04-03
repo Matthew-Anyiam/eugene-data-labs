@@ -55,6 +55,8 @@ const FilingsPage = lazy(() => import('./pages/FilingsPage').then(m => ({ defaul
 const TrendingPage = lazy(() => import('./pages/TrendingPage').then(m => ({ default: m.TrendingPage })));
 const TradeJournalPage = lazy(() => import('./pages/TradeJournalPage').then(m => ({ default: m.TradeJournalPage })));
 const MacroPage = lazy(() => import('./pages/MacroPage').then(m => ({ default: m.MacroPage })));
+const PositionSizerPage = lazy(() => import('./pages/PositionSizerPage').then(m => ({ default: m.PositionSizerPage })));
+const ScreenerBuilderPage = lazy(() => import('./pages/ScreenerBuilderPage').then(m => ({ default: m.ScreenerBuilderPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -103,6 +105,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/trending': 'Trending Stocks — Eugene',
   '/trade-journal': 'Trade Journal — Eugene',
   '/macro': 'Macro Dashboard — Eugene',
+  '/position-sizer': 'Position Sizer — Eugene',
+  '/screener-builder': 'Screener Builder — Eugene',
 };
 
 function TitleUpdater() {
@@ -281,6 +285,8 @@ function WorkspaceLayout() {
               <Route path="/trending" element={<TrendingPage />} />
               <Route path="/trade-journal" element={<TradeJournalPage />} />
               <Route path="/macro" element={<MacroPage />} />
+              <Route path="/position-sizer" element={<PositionSizerPage />} />
+              <Route path="/screener-builder" element={<ScreenerBuilderPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -369,6 +375,8 @@ function PageHeader({
     trending: 'Trending Stocks',
     'trade-journal': 'Trade Journal',
     macro: 'Macro Dashboard',
+    'position-sizer': 'Position Sizer',
+    'screener-builder': 'Screener Builder',
   };
 
   return (
