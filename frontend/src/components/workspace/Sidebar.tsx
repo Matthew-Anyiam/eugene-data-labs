@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import {
-  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart,
+  Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
   Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings,
 } from 'lucide-react';
@@ -35,6 +35,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/portfolio', label: 'Portfolio', icon: <Briefcase className="h-4 w-4" /> },
       { to: '/alerts', label: 'Alerts', icon: <Bell className="h-4 w-4" /> },
       { to: '/news', label: 'News', icon: <Newspaper className="h-4 w-4" /> },
+      { to: '/heatmap', label: 'Heatmap', icon: <LayoutGrid className="h-4 w-4" /> },
+      { to: '/backtest', label: 'Backtester', icon: <FlaskConical className="h-4 w-4" /> },
     ],
   },
   {

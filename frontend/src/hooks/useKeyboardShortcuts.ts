@@ -59,6 +59,8 @@ export function useKeyboardShortcuts() {
           f: '/portfolio',
           n: '/alerts',
           r: '/reports',
+          h: '/heatmap',
+          b: '/backtest',
           '.': '/settings',
         };
 

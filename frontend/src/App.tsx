@@ -27,6 +27,8 @@ const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(m => ({ de
 const AlertsPage = lazy(() => import('./pages/AlertsPage').then(m => ({ default: m.AlertsPage })));
 const NewsPage = lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
 const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const HeatmapPage = lazy(() => import('./pages/HeatmapPage').then(m => ({ default: m.HeatmapPage })));
+const BacktestPage = lazy(() => import('./pages/BacktestPage').then(m => ({ default: m.BacktestPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -47,6 +49,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/alerts': 'Alerts — Eugene',
   '/news': 'News — Eugene',
   '/reports': 'Reports — Eugene',
+  '/heatmap': 'Market Heatmap — Eugene',
+  '/backtest': 'Backtester — Eugene',
 };
 
 function TitleUpdater() {
@@ -197,6 +201,8 @@ function WorkspaceLayout() {
               <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/news" element={<NewsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/heatmap" element={<HeatmapPage />} />
+              <Route path="/backtest" element={<BacktestPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -257,6 +263,8 @@ function PageHeader({
     alerts: 'Alerts',
     news: 'News Feed',
     reports: 'Reports',
+    heatmap: 'Market Heatmap',
+    backtest: 'Strategy Backtester',
   };
 
   return (
