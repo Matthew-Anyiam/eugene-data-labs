@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search, Building2, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, CreditCard, ArrowRight,
-  Star, Moon, Sun, Settings, Loader2, Clock, Database,
+  Star, Moon, Sun, Settings, Loader2, Clock, Database, Eye, Flame,
 } from 'lucide-react';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -149,6 +149,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'etf', label: 'ETF Explorer', description: 'Browse & compare ETFs', icon: <Layers className="h-4 w-4" />, action: () => go('/etf', 'ETFs'), category: 'Pages' },
     { id: 'forex', label: 'Forex Markets', description: 'Currency pairs & rates', icon: <ArrowLeftRight className="h-4 w-4" />, action: () => go('/forex', 'Forex'), category: 'Pages' },
     { id: 'commodities', label: 'Commodities', description: 'Metals, energy, agriculture', icon: <Gem className="h-4 w-4" />, action: () => go('/commodities', 'Commodities'), category: 'Pages' },
+    { id: 'watchlist', label: 'Watchlist Manager', description: 'Manage & monitor watchlists', icon: <Eye className="h-4 w-4" />, action: () => go('/watchlist', 'Watchlist'), category: 'Pages' },
+    { id: 'movers', label: 'Market Movers', description: 'Top gainers, losers, volume', icon: <Flame className="h-4 w-4" />, action: () => go('/movers', 'Movers'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
