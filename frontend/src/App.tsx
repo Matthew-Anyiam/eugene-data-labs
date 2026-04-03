@@ -65,6 +65,8 @@ const VolatilityPage = lazy(() => import('./pages/VolatilityPage').then(m => ({ 
 const PremarketPage = lazy(() => import('./pages/PremarketPage').then(m => ({ default: m.PremarketPage })));
 const OptionsFlowPage = lazy(() => import('./pages/OptionsFlowPage').then(m => ({ default: m.OptionsFlowPage })));
 const SeasonalityPage = lazy(() => import('./pages/SeasonalityPage').then(m => ({ default: m.SeasonalityPage })));
+const ValuationPage = lazy(() => import('./pages/ValuationPage').then(m => ({ default: m.ValuationPage })));
+const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage').then(m => ({ default: m.SupplyChainPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -123,6 +125,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/premarket': 'Pre/Post Market — Eugene',
   '/options-flow': 'Options Flow — Eugene',
   '/seasonality': 'Seasonality — Eugene',
+  '/valuation': 'Valuation — Eugene',
+  '/supply-chain': 'Supply Chain — Eugene',
 };
 
 function TitleUpdater() {
@@ -311,6 +315,8 @@ function WorkspaceLayout() {
               <Route path="/premarket" element={<PremarketPage />} />
               <Route path="/options-flow" element={<OptionsFlowPage />} />
               <Route path="/seasonality" element={<SeasonalityPage />} />
+              <Route path="/valuation" element={<ValuationPage />} />
+              <Route path="/supply-chain" element={<SupplyChainPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -409,6 +415,8 @@ function PageHeader({
     premarket: 'Pre/Post Market',
     'options-flow': 'Options Flow',
     seasonality: 'Seasonality',
+    valuation: 'Valuation',
+    'supply-chain': 'Supply Chain',
   };
 
   return (

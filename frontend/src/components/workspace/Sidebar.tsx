@@ -54,6 +54,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/premarket', label: 'Pre/Post Market', icon: <Moon className="h-4 w-4" /> },
       { to: '/options-flow', label: 'Options Flow', icon: <Zap className="h-4 w-4" />, badge: 'NEW' },
       { to: '/seasonality', label: 'Seasonality', icon: <CalendarDays className="h-4 w-4" /> },
+      { to: '/valuation', label: 'Valuation', icon: <CreditCard className="h-4 w-4" /> },
+      { to: '/supply-chain', label: 'Supply Chain', icon: <Network className="h-4 w-4" /> },
     ],
   },
   {
