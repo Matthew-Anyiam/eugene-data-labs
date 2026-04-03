@@ -67,6 +67,8 @@ const OptionsFlowPage = lazy(() => import('./pages/OptionsFlowPage').then(m => (
 const SeasonalityPage = lazy(() => import('./pages/SeasonalityPage').then(m => ({ default: m.SeasonalityPage })));
 const ValuationPage = lazy(() => import('./pages/ValuationPage').then(m => ({ default: m.ValuationPage })));
 const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage').then(m => ({ default: m.SupplyChainPage })));
+const DebtMonitorPage = lazy(() => import('./pages/DebtMonitorPage').then(m => ({ default: m.DebtMonitorPage })));
+const CurrencyConverterPage = lazy(() => import('./pages/CurrencyConverterPage').then(m => ({ default: m.CurrencyConverterPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -127,6 +129,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/seasonality': 'Seasonality — Eugene',
   '/valuation': 'Valuation — Eugene',
   '/supply-chain': 'Supply Chain — Eugene',
+  '/debt-monitor': 'Debt Monitor — Eugene',
+  '/currency-converter': 'Currency Converter — Eugene',
 };
 
 function TitleUpdater() {
@@ -317,6 +321,8 @@ function WorkspaceLayout() {
               <Route path="/seasonality" element={<SeasonalityPage />} />
               <Route path="/valuation" element={<ValuationPage />} />
               <Route path="/supply-chain" element={<SupplyChainPage />} />
+              <Route path="/debt-monitor" element={<DebtMonitorPage />} />
+              <Route path="/currency-converter" element={<CurrencyConverterPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -417,6 +423,8 @@ function PageHeader({
     seasonality: 'Seasonality',
     valuation: 'Valuation',
     'supply-chain': 'Supply Chain',
+    'debt-monitor': 'Debt Monitor',
+    'currency-converter': 'Currency Converter',
   };
 
   return (

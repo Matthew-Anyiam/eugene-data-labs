@@ -56,6 +56,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/seasonality', label: 'Seasonality', icon: <CalendarDays className="h-4 w-4" /> },
       { to: '/valuation', label: 'Valuation', icon: <CreditCard className="h-4 w-4" /> },
       { to: '/supply-chain', label: 'Supply Chain', icon: <Network className="h-4 w-4" /> },
+      { to: '/debt-monitor', label: 'Debt Monitor', icon: <Banknote className="h-4 w-4" /> },
+      { to: '/currency-converter', label: 'Currency', icon: <ArrowLeftRight className="h-4 w-4" /> },
     ],
   },
   {
