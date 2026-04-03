@@ -61,6 +61,8 @@ const EstimatesPage = lazy(() => import('./pages/EstimatesPage').then(m => ({ de
 const InstitutionalPage = lazy(() => import('./pages/InstitutionalPage').then(m => ({ default: m.InstitutionalPage })));
 const OwnershipPage = lazy(() => import('./pages/OwnershipPage').then(m => ({ default: m.OwnershipPage })));
 const BreadthPage = lazy(() => import('./pages/BreadthPage').then(m => ({ default: m.BreadthPage })));
+const VolatilityPage = lazy(() => import('./pages/VolatilityPage').then(m => ({ default: m.VolatilityPage })));
+const PremarketPage = lazy(() => import('./pages/PremarketPage').then(m => ({ default: m.PremarketPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -115,6 +117,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/institutional': 'Institutional Holdings — Eugene',
   '/ownership': 'Ownership Structure — Eugene',
   '/breadth': 'Market Breadth — Eugene',
+  '/volatility': 'Volatility — Eugene',
+  '/premarket': 'Pre/Post Market — Eugene',
 };
 
 function TitleUpdater() {
@@ -299,6 +303,8 @@ function WorkspaceLayout() {
               <Route path="/institutional" element={<InstitutionalPage />} />
               <Route path="/ownership" element={<OwnershipPage />} />
               <Route path="/breadth" element={<BreadthPage />} />
+              <Route path="/volatility" element={<VolatilityPage />} />
+              <Route path="/premarket" element={<PremarketPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -393,6 +399,8 @@ function PageHeader({
     institutional: 'Institutional Holdings',
     ownership: 'Ownership Structure',
     breadth: 'Market Breadth',
+    volatility: 'Volatility',
+    premarket: 'Pre/Post Market',
   };
 
   return (

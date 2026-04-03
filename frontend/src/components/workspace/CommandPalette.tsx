@@ -173,6 +173,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'institutional', label: 'Institutional Holdings', description: '13F filings, fund positions', icon: <Building2 className="h-4 w-4" />, action: () => go('/institutional', 'Institutional'), category: 'Pages' },
     { id: 'ownership', label: 'Ownership Structure', description: 'Insider, institutional & retail breakdown', icon: <UserCheck className="h-4 w-4" />, action: () => go('/ownership', 'Ownership'), category: 'Pages' },
     { id: 'breadth', label: 'Market Breadth', description: 'Advance/decline, new highs/lows, McClellan', icon: <Activity className="h-4 w-4" />, action: () => go('/breadth', 'Market Breadth'), category: 'Pages' },
+    { id: 'volatility', label: 'Volatility', description: 'VIX term structure, vol surface, skew', icon: <TrendingUp className="h-4 w-4" />, action: () => go('/volatility', 'Volatility'), category: 'Pages' },
+    { id: 'premarket', label: 'Pre/Post Market', description: 'Extended hours movers, gap analysis', icon: <Moon className="h-4 w-4" />, action: () => go('/premarket', 'Pre/Post Market'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },

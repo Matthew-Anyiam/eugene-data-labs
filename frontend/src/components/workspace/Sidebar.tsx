@@ -50,6 +50,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/institutional', label: 'Institutions', icon: <Building2 className="h-4 w-4" /> },
       { to: '/ownership', label: 'Ownership', icon: <UserCheck className="h-4 w-4" /> },
       { to: '/breadth', label: 'Market Breadth', icon: <Activity className="h-4 w-4" /> },
+      { to: '/volatility', label: 'Volatility', icon: <Zap className="h-4 w-4" /> },
+      { to: '/premarket', label: 'Pre/Post Market', icon: <Moon className="h-4 w-4" /> },
     ],
   },
   {
