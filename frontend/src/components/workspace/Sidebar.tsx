@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
-  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield,
+  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar, Target, Shield, Banknote, Brain,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useWatchlist } from '../../hooks/useWatchlist';
@@ -41,6 +41,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/movers', label: 'Movers', icon: <Flame className="h-4 w-4" />, badge: 'HOT' },
       { to: '/sectors', label: 'Sectors', icon: <PieChart className="h-4 w-4" /> },
       { to: '/options', label: 'Options', icon: <Target className="h-4 w-4" /> },
+      { to: '/bonds', label: 'Bonds', icon: <Banknote className="h-4 w-4" /> },
     ],
   },
   {
@@ -57,6 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/watchlist', label: 'Watchlist', icon: <Eye className="h-4 w-4" /> },
       { to: '/calendar', label: 'Calendar', icon: <Calendar className="h-4 w-4" /> },
       { to: '/risk', label: 'Risk', icon: <Shield className="h-4 w-4" /> },
+      { to: '/sentiment', label: 'Sentiment', icon: <Brain className="h-4 w-4" /> },
     ],
   },
   {

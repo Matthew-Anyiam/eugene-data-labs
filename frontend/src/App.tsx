@@ -43,6 +43,8 @@ const SectorsPage = lazy(() => import('./pages/SectorsPage').then(m => ({ defaul
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
 const OptionsPage = lazy(() => import('./pages/OptionsPage').then(m => ({ default: m.OptionsPage })));
 const RiskPage = lazy(() => import('./pages/RiskPage').then(m => ({ default: m.RiskPage })));
+const BondsPage = lazy(() => import('./pages/BondsPage').then(m => ({ default: m.BondsPage })));
+const SentimentPage = lazy(() => import('./pages/SentimentPage').then(m => ({ default: m.SentimentPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -79,6 +81,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/calendar': 'Market Calendar — Eugene',
   '/options': 'Options Chain — Eugene',
   '/risk': 'Risk Analytics — Eugene',
+  '/bonds': 'Bonds — Eugene',
+  '/sentiment': 'Sentiment — Eugene',
 };
 
 function TitleUpdater() {
@@ -245,6 +249,8 @@ function WorkspaceLayout() {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/options" element={<OptionsPage />} />
               <Route path="/risk" element={<RiskPage />} />
+              <Route path="/bonds" element={<BondsPage />} />
+              <Route path="/sentiment" element={<SentimentPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -321,6 +327,8 @@ function PageHeader({
     calendar: 'Market Calendar',
     options: 'Options Chain',
     risk: 'Risk Analytics',
+    bonds: 'Bonds & Fixed Income',
+    sentiment: 'Market Sentiment',
   };
 
   return (
