@@ -68,6 +68,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/earnings-pro', label: 'Earnings Pro', icon: <CalendarDays className="h-4 w-4" />, badge: 'PRO' },
       { to: '/fund-flows', label: 'Fund Flows', icon: <ArrowDownUp className="h-4 w-4" /> },
       { to: '/social-sentiment', label: 'Social Sentiment', icon: <Newspaper className="h-4 w-4" />, badge: 'NEW' },
+      { to: '/factor-exposure', label: 'Factor Exposure', icon: <SlidersHorizontal className="h-4 w-4" /> },
+      { to: '/earnings-transcript', label: 'Transcripts', icon: <FileText className="h-4 w-4" /> },
     ],
   },
   {

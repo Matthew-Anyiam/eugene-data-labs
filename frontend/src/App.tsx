@@ -79,6 +79,8 @@ const RevenueSegmentsPage = lazy(() => import('./pages/RevenueSegmentsPage').the
 const EarningsCalendarProPage = lazy(() => import('./pages/EarningsCalendarProPage').then(m => ({ default: m.EarningsCalendarProPage })));
 const FundFlowsPage = lazy(() => import('./pages/FundFlowsPage').then(m => ({ default: m.FundFlowsPage })));
 const SocialSentimentPage = lazy(() => import('./pages/SocialSentimentPage').then(m => ({ default: m.SocialSentimentPage })));
+const FactorExposurePage = lazy(() => import('./pages/FactorExposurePage').then(m => ({ default: m.FactorExposurePage })));
+const EarningsTranscriptPage = lazy(() => import('./pages/EarningsTranscriptPage').then(m => ({ default: m.EarningsTranscriptPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -151,6 +153,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/earnings-pro': 'Earnings Calendar Pro — Eugene',
   '/fund-flows': 'Fund Flows — Eugene',
   '/social-sentiment': 'Social Sentiment — Eugene',
+  '/factor-exposure': 'Factor Exposure — Eugene',
+  '/earnings-transcript': 'Earnings Transcripts — Eugene',
 };
 
 function TitleUpdater() {
@@ -353,6 +357,8 @@ function WorkspaceLayout() {
               <Route path="/earnings-pro" element={<EarningsCalendarProPage />} />
               <Route path="/fund-flows" element={<FundFlowsPage />} />
               <Route path="/social-sentiment" element={<SocialSentimentPage />} />
+              <Route path="/factor-exposure" element={<FactorExposurePage />} />
+              <Route path="/earnings-transcript" element={<EarningsTranscriptPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -465,6 +471,8 @@ function PageHeader({
     'earnings-pro': 'Earnings Calendar Pro',
     'fund-flows': 'Fund Flows',
     'social-sentiment': 'Social Sentiment',
+    'factor-exposure': 'Factor Exposure',
+    'earnings-transcript': 'Earnings Transcripts',
   };
 
   return (

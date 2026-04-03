@@ -191,6 +191,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     { id: 'earnings-pro', label: 'Earnings Calendar Pro', description: 'Whisper numbers, historical accuracy', icon: <CalendarDays className="h-4 w-4" />, action: () => go('/earnings-pro', 'Earnings Calendar Pro'), category: 'Pages' },
     { id: 'fund-flows', label: 'Fund Flows', description: 'ETF inflows, outflows, sector trends', icon: <ArrowDownUp className="h-4 w-4" />, action: () => go('/fund-flows', 'Fund Flows'), category: 'Pages' },
     { id: 'social-sentiment', label: 'Social Sentiment', description: 'Reddit, Twitter mentions & sentiment', icon: <Newspaper className="h-4 w-4" />, action: () => go('/social-sentiment', 'Social Sentiment'), category: 'Pages' },
+    { id: 'factor-exposure', label: 'Factor Exposure', description: 'Multi-factor risk decomposition', icon: <SlidersHorizontal className="h-4 w-4" />, action: () => go('/factor-exposure', 'Factor Exposure'), category: 'Pages' },
+    { id: 'earnings-transcript', label: 'Earnings Transcripts', description: 'Call analysis, sentiment, key topics', icon: <FileText className="h-4 w-4" />, action: () => go('/earnings-transcript', 'Earnings Transcripts'), category: 'Pages' },
     { id: 'docs', label: 'API Documentation', description: 'REST, MCP, CLI', icon: <FileText className="h-4 w-4" />, action: () => go('/docs', 'Docs'), category: 'Pages' },
     { id: 'pricing', label: 'Pricing', description: 'Plans and limits', icon: <CreditCard className="h-4 w-4" />, action: () => go('/pricing', 'Pricing'), category: 'Pages' },
     { id: 'settings', label: 'Settings', description: 'Workspace config', icon: <Settings className="h-4 w-4" />, action: () => go('/settings', 'Settings'), category: 'Pages' },
