@@ -39,6 +39,8 @@ const ForexPage = lazy(() => import('./pages/ForexPage').then(m => ({ default: m
 const CommoditiesPage = lazy(() => import('./pages/CommoditiesPage').then(m => ({ default: m.CommoditiesPage })));
 const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then(m => ({ default: m.WatchlistPage })));
 const MoversPage = lazy(() => import('./pages/MoversPage').then(m => ({ default: m.MoversPage })));
+const SectorsPage = lazy(() => import('./pages/SectorsPage').then(m => ({ default: m.SectorsPage })));
+const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -71,6 +73,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/commodities': 'Commodities — Eugene',
   '/watchlist': 'Watchlist — Eugene',
   '/movers': 'Market Movers — Eugene',
+  '/sectors': 'Sector Analysis — Eugene',
+  '/calendar': 'Market Calendar — Eugene',
 };
 
 function TitleUpdater() {
@@ -233,6 +237,8 @@ function WorkspaceLayout() {
               <Route path="/commodities" element={<CommoditiesPage />} />
               <Route path="/watchlist" element={<WatchlistPage />} />
               <Route path="/movers" element={<MoversPage />} />
+              <Route path="/sectors" element={<SectorsPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -305,6 +311,8 @@ function PageHeader({
     commodities: 'Commodities',
     watchlist: 'Watchlist Manager',
     movers: 'Market Movers',
+    sectors: 'Sector Analysis',
+    calendar: 'Market Calendar',
   };
 
   return (

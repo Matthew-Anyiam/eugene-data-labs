@@ -66,6 +66,8 @@ export function useKeyboardShortcuts() {
           t: '/technical',
           l: '/etf',
           m: '/movers',
+          j: '/sectors',
+          k: '/calendar',
           '.': '/settings',
         };
 

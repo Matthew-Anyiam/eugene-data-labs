@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Search, Globe, BarChart3, TrendingUp, LineChart, Bitcoin, GitCompareArrows, Bot, Briefcase, Bell, Newspaper, FileBarChart, LayoutGrid, FlaskConical, UserCheck, CalendarDays, Rocket, CircleDollarSign, CandlestickChart, Layers, ArrowLeftRight, Gem,
   Network, LayoutDashboard, FileText, ChevronDown, ChevronRight,
-  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame,
+  Moon, Sun, Star, Plus, CreditCard, Zap, X, Activity, Settings, Eye, Flame, PieChart, Calendar,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useWatchlist } from '../../hooks/useWatchlist';
@@ -39,6 +39,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/forex', label: 'Forex', icon: <ArrowLeftRight className="h-4 w-4" /> },
       { to: '/commodities', label: 'Commodities', icon: <Gem className="h-4 w-4" /> },
       { to: '/movers', label: 'Movers', icon: <Flame className="h-4 w-4" />, badge: 'HOT' },
+      { to: '/sectors', label: 'Sectors', icon: <PieChart className="h-4 w-4" /> },
     ],
   },
   {
@@ -53,6 +54,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/technical', label: 'Technicals', icon: <CandlestickChart className="h-4 w-4" /> },
       { to: '/reports', label: 'Reports', icon: <FileBarChart className="h-4 w-4" /> },
       { to: '/watchlist', label: 'Watchlist', icon: <Eye className="h-4 w-4" /> },
+      { to: '/calendar', label: 'Calendar', icon: <Calendar className="h-4 w-4" /> },
     ],
   },
   {
