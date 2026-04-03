@@ -63,6 +63,8 @@ const OwnershipPage = lazy(() => import('./pages/OwnershipPage').then(m => ({ de
 const BreadthPage = lazy(() => import('./pages/BreadthPage').then(m => ({ default: m.BreadthPage })));
 const VolatilityPage = lazy(() => import('./pages/VolatilityPage').then(m => ({ default: m.VolatilityPage })));
 const PremarketPage = lazy(() => import('./pages/PremarketPage').then(m => ({ default: m.PremarketPage })));
+const OptionsFlowPage = lazy(() => import('./pages/OptionsFlowPage').then(m => ({ default: m.OptionsFlowPage })));
+const SeasonalityPage = lazy(() => import('./pages/SeasonalityPage').then(m => ({ default: m.SeasonalityPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -119,6 +121,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/breadth': 'Market Breadth — Eugene',
   '/volatility': 'Volatility — Eugene',
   '/premarket': 'Pre/Post Market — Eugene',
+  '/options-flow': 'Options Flow — Eugene',
+  '/seasonality': 'Seasonality — Eugene',
 };
 
 function TitleUpdater() {
@@ -305,6 +309,8 @@ function WorkspaceLayout() {
               <Route path="/breadth" element={<BreadthPage />} />
               <Route path="/volatility" element={<VolatilityPage />} />
               <Route path="/premarket" element={<PremarketPage />} />
+              <Route path="/options-flow" element={<OptionsFlowPage />} />
+              <Route path="/seasonality" element={<SeasonalityPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -401,6 +407,8 @@ function PageHeader({
     breadth: 'Market Breadth',
     volatility: 'Volatility',
     premarket: 'Pre/Post Market',
+    'options-flow': 'Options Flow',
+    seasonality: 'Seasonality',
   };
 
   return (

@@ -52,6 +52,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/breadth', label: 'Market Breadth', icon: <Activity className="h-4 w-4" /> },
       { to: '/volatility', label: 'Volatility', icon: <Zap className="h-4 w-4" /> },
       { to: '/premarket', label: 'Pre/Post Market', icon: <Moon className="h-4 w-4" /> },
+      { to: '/options-flow', label: 'Options Flow', icon: <Zap className="h-4 w-4" />, badge: 'NEW' },
+      { to: '/seasonality', label: 'Seasonality', icon: <CalendarDays className="h-4 w-4" /> },
     ],
   },
   {
