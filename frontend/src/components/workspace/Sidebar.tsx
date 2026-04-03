@@ -74,6 +74,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/relative-strength', label: 'Rel. Strength', icon: <TrendingUp className="h-4 w-4" /> },
       { to: '/insider-tracker', label: 'Insider Tracker', icon: <UserCheck className="h-4 w-4" /> },
       { to: '/sector-rotation', label: 'Sector Rotation', icon: <PieChart className="h-4 w-4" /> },
+      { to: '/yield-curve', label: 'Yield Curve', icon: <LineChart className="h-4 w-4" /> },
+      { to: '/gap-scanner', label: 'Gap Scanner', icon: <Zap className="h-4 w-4" /> },
     ],
   },
   {

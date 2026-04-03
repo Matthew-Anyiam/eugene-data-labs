@@ -85,6 +85,8 @@ const IPOAnalysisPage = lazy(() => import('./pages/IPOAnalysisPage').then(m => (
 const RelativeStrengthPage = lazy(() => import('./pages/RelativeStrengthPage').then(m => ({ default: m.RelativeStrengthPage })));
 const InsiderTrackerPage = lazy(() => import('./pages/InsiderTrackerPage').then(m => ({ default: m.InsiderTrackerPage })));
 const SectorRotationPage = lazy(() => import('./pages/SectorRotationPage').then(m => ({ default: m.SectorRotationPage })));
+const YieldCurvePage = lazy(() => import('./pages/YieldCurvePage').then(m => ({ default: m.YieldCurvePage })));
+const GapScannerPage = lazy(() => import('./pages/GapScannerPage').then(m => ({ default: m.GapScannerPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -163,6 +165,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/relative-strength': 'Relative Strength — Eugene',
   '/insider-tracker': 'Insider Tracker — Eugene',
   '/sector-rotation': 'Sector Rotation — Eugene',
+  '/yield-curve': 'Yield Curve — Eugene',
+  '/gap-scanner': 'Gap Scanner — Eugene',
 };
 
 function TitleUpdater() {
@@ -371,6 +375,8 @@ function WorkspaceLayout() {
               <Route path="/relative-strength" element={<RelativeStrengthPage />} />
               <Route path="/insider-tracker" element={<InsiderTrackerPage />} />
               <Route path="/sector-rotation" element={<SectorRotationPage />} />
+              <Route path="/yield-curve" element={<YieldCurvePage />} />
+              <Route path="/gap-scanner" element={<GapScannerPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
@@ -489,6 +495,8 @@ function PageHeader({
     'relative-strength': 'Relative Strength',
     'insider-tracker': 'Insider Tracker',
     'sector-rotation': 'Sector Rotation',
+    'yield-curve': 'Yield Curve',
+    'gap-scanner': 'Gap Scanner',
   };
 
   return (
