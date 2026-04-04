@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 ws://localhost:8000; img-src 'self' data: https:; font-src 'self' data:"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 ws://localhost:8000 https://*.eugene.io; img-src 'self' data: https:; font-src 'self' data:"
     }
   },
   "bundle": {
@@ -39,6 +39,18 @@
     ],
     "macOS": {
       "minimumSystemVersion": "10.15"
+    },
+    "createUpdaterArtifacts": "v1Compatible"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://releases.eugene.io/{{target}}/{{arch}}/{{current_version}}"],
+      "pubkey": ""
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["eugene"]
+      }
     }
   }
 }

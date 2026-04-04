@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Zap, Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  const from = (location.state as { from?: string })?.from || '/dashboard';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +27,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      navigate('/dashboard', { replace: true });
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Invalid credentials. Please try again.');
     } finally {

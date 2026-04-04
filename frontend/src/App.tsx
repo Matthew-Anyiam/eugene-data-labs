@@ -11,6 +11,7 @@ import { LiveTicker } from './components/workspace/LiveTicker';
 import { LoadingBar } from './components/ui/LoadingBar';
 import { ToastContainer } from './components/workspace/ToastContainer';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { PageErrorBoundary } from './components/ui/PageErrorBoundary';
 import { SkeletonPage } from './components/ui/Skeleton';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAlerts } from './hooks/useAlerts';
@@ -371,11 +372,11 @@ function WorkspaceLayout() {
         />
 
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
-          <ErrorBoundary>
+          <PageErrorBoundary>
             <Suspense fallback={<SkeletonPage />}>
               <Outlet />
             </Suspense>
-          </ErrorBoundary>
+          </PageErrorBoundary>
         </div>
       </main>
 
@@ -580,6 +581,7 @@ function NotificationBell() {
 export default function App() {
   return (
     <AuthProvider>
+      <ErrorBoundary>
       <BrowserRouter>
         <TitleUpdater />
         <Suspense fallback={<LoadingSpinner />}>
@@ -678,6 +680,7 @@ export default function App() {
         </Routes>
       </Suspense>
       </BrowserRouter>
+      </ErrorBoundary>
     </AuthProvider>
   );
 }

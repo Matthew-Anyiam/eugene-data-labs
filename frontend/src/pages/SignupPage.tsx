@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Zap, Mail, Lock, Eye, EyeOff, User, Loader2, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signup } = useAuth();
+  const from = (location.state as { from?: string })?.from || '/dashboard';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -37,7 +39,7 @@ export function SignupPage() {
     setLoading(true);
     try {
       await signup(email.trim(), password, name.trim());
-      navigate('/dashboard', { replace: true });
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Could not create account. Please try again.');
     } finally {

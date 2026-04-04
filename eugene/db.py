@@ -282,6 +282,43 @@ def init_db():
             );
 
             CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
+            CREATE TABLE IF NOT EXISTS watchlists (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL,
+                name        TEXT NOT NULL DEFAULT 'Default',
+                tickers     TEXT NOT NULL DEFAULT '[]',
+                created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_watchlists_user ON watchlists (user_id);
+
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                user_id     INTEGER PRIMARY KEY,
+                theme       TEXT DEFAULT 'dark',
+                default_watchlist_id INTEGER,
+                sidebar_collapsed INTEGER DEFAULT 0,
+                ticker_bar_enabled INTEGER DEFAULT 1,
+                preferences TEXT NOT NULL DEFAULT '{}',
+                updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS alerts (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL,
+                ticker      TEXT NOT NULL,
+                condition   TEXT NOT NULL,
+                value       REAL NOT NULL,
+                triggered   INTEGER DEFAULT 0,
+                created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                triggered_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_alerts_user ON alerts (user_id, triggered);
         """)
 
     db_type = "PostgreSQL" if _is_postgres() else "SQLite"
@@ -468,6 +505,168 @@ def update_last_login(user_id: int):
             "UPDATE users SET last_login = datetime('now') WHERE id = ?",
             (user_id,),
         )
+
+
+# ---------------------------------------------------------------------------
+# Watchlists
+# ---------------------------------------------------------------------------
+def get_watchlists(user_id: int) -> list[dict]:
+    """Get all watchlists for a user."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, name, tickers, created_at, updated_at FROM watchlists WHERE user_id = ? ORDER BY id",
+            (user_id,),
+        ).fetchall()
+        import json
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["tickers"] = json.loads(d["tickers"])
+            result.append(d)
+        return result
+
+
+def create_watchlist(user_id: int, name: str, tickers: list[str] | None = None) -> dict:
+    """Create a new watchlist."""
+    import json
+    tickers_json = json.dumps(tickers or [])
+    with _get_conn() as conn:
+        cursor = conn.execute(
+            "INSERT INTO watchlists (user_id, name, tickers) VALUES (?, ?, ?)",
+            (user_id, name, tickers_json),
+        )
+        return {"id": cursor.lastrowid, "name": name, "tickers": tickers or []}
+
+
+def update_watchlist(watchlist_id: int, user_id: int, name: str | None = None, tickers: list[str] | None = None) -> bool:
+    """Update a watchlist. Returns True if updated."""
+    import json
+    parts, params = [], []
+    if name is not None:
+        parts.append("name = ?")
+        params.append(name)
+    if tickers is not None:
+        parts.append("tickers = ?")
+        params.append(json.dumps(tickers))
+    if not parts:
+        return False
+    parts.append("updated_at = datetime('now')")
+    params.extend([watchlist_id, user_id])
+    with _get_conn() as conn:
+        result = conn.execute(
+            f"UPDATE watchlists SET {', '.join(parts)} WHERE id = ? AND user_id = ?",
+            params,
+        )
+        return result.rowcount > 0
+
+
+def delete_watchlist(watchlist_id: int, user_id: int) -> bool:
+    """Delete a watchlist. Returns True if deleted."""
+    with _get_conn() as conn:
+        result = conn.execute(
+            "DELETE FROM watchlists WHERE id = ? AND user_id = ?",
+            (watchlist_id, user_id),
+        )
+        return result.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# User Preferences
+# ---------------------------------------------------------------------------
+def get_preferences(user_id: int) -> dict:
+    """Get user preferences. Returns defaults if none set."""
+    import json
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM user_preferences WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        if row:
+            d = dict(row)
+            d["preferences"] = json.loads(d["preferences"])
+            return d
+        return {
+            "user_id": user_id,
+            "theme": "dark",
+            "sidebar_collapsed": False,
+            "ticker_bar_enabled": True,
+            "preferences": {},
+        }
+
+
+def save_preferences(user_id: int, **kwargs) -> dict:
+    """Upsert user preferences."""
+    import json
+    current = get_preferences(user_id)
+
+    theme = kwargs.get("theme", current.get("theme", "dark"))
+    sidebar = int(kwargs.get("sidebar_collapsed", current.get("sidebar_collapsed", 0)))
+    ticker_bar = int(kwargs.get("ticker_bar_enabled", current.get("ticker_bar_enabled", 1)))
+    prefs = kwargs.get("preferences", current.get("preferences", {}))
+    prefs_json = json.dumps(prefs) if isinstance(prefs, dict) else prefs
+
+    with _get_conn() as conn:
+        conn.execute("""
+            INSERT INTO user_preferences (user_id, theme, sidebar_collapsed, ticker_bar_enabled, preferences, updated_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT (user_id) DO UPDATE SET
+                theme = excluded.theme,
+                sidebar_collapsed = excluded.sidebar_collapsed,
+                ticker_bar_enabled = excluded.ticker_bar_enabled,
+                preferences = excluded.preferences,
+                updated_at = datetime('now')
+        """, (user_id, theme, sidebar, ticker_bar, prefs_json))
+
+    return get_preferences(user_id)
+
+
+# ---------------------------------------------------------------------------
+# Alerts
+# ---------------------------------------------------------------------------
+def get_alerts(user_id: int, active_only: bool = True) -> list[dict]:
+    """Get alerts for a user."""
+    with _get_conn() as conn:
+        query = "SELECT * FROM alerts WHERE user_id = ?"
+        if active_only:
+            query += " AND triggered = 0"
+        query += " ORDER BY created_at DESC"
+        return [dict(r) for r in conn.execute(query, (user_id,)).fetchall()]
+
+
+def create_alert(user_id: int, ticker: str, condition: str, value: float) -> dict:
+    """Create a price alert."""
+    with _get_conn() as conn:
+        cursor = conn.execute(
+            "INSERT INTO alerts (user_id, ticker, condition, value) VALUES (?, ?, ?, ?)",
+            (user_id, ticker.upper(), condition, value),
+        )
+        return {
+            "id": cursor.lastrowid,
+            "ticker": ticker.upper(),
+            "condition": condition,
+            "value": value,
+            "triggered": False,
+        }
+
+
+def trigger_alert(alert_id: int) -> bool:
+    """Mark an alert as triggered."""
+    with _get_conn() as conn:
+        result = conn.execute(
+            "UPDATE alerts SET triggered = 1, triggered_at = datetime('now') WHERE id = ? AND triggered = 0",
+            (alert_id,),
+        )
+        return result.rowcount > 0
+
+
+def delete_alert(alert_id: int, user_id: int) -> bool:
+    """Delete an alert."""
+    with _get_conn() as conn:
+        result = conn.execute(
+            "DELETE FROM alerts WHERE id = ? AND user_id = ?",
+            (alert_id, user_id),
+        )
+        return result.rowcount > 0
 
 
 # ---------------------------------------------------------------------------
