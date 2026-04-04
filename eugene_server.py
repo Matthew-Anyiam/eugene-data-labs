@@ -1988,6 +1988,7 @@ def _build_mcp(include_rest: bool = False):
 
 def _create_ws_app(mcp):
     """Wrap the MCP Starlette app to add WebSocket routes."""
+    import asyncio
     from starlette.websockets import WebSocket, WebSocketDisconnect
     from starlette.routing import WebSocketRoute
     import json as _json

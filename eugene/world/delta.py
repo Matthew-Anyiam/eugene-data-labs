@@ -9,9 +9,7 @@ The delta engine answers: "What changed since we last looked?"
 """
 
 import hashlib
-import json
 import logging
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 
@@ -227,7 +225,7 @@ def compute_delta(
         curr_avg = current.avg_magnitudes.get(st, 0)
         prev_avg = previous.avg_magnitudes.get(st, 0)
         curr_max = current.max_magnitudes.get(st, 0)
-        prev_max = previous.max_magnitudes.get(st, 0)
+        _prev_max = previous.max_magnitudes.get(st, 0)  # noqa: F841
 
         # New signal type (wasn't in previous sweep)
         if prev_count == 0 and curr_count > 0:
