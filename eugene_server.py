@@ -2180,29 +2180,56 @@ def run_api():
     )
 
     # Mount frontend static files if the dist directory exists.
-    # SPAStaticFiles serves static assets and falls back to index.html
-    # for client-side routing (React Router).
+    # Uses middleware for SPA fallback so API routes are never intercepted.
     frontend_dist = Path(__file__).parent / "frontend" / "dist"
     if frontend_dist.is_dir():
         logging.info(f"Serving frontend from {frontend_dist}")
+        import mimetypes as _mimetypes
 
-        class SPAStaticFiles(StaticFiles):
-            async def get_response(self, path, scope):
-                try:
-                    response = await super().get_response(path, scope)
-                    if response.status_code == 404:
-                        return FileResponse(
-                            str(Path(self.directory) / "index.html"),
-                            media_type="text/html",
-                        )
-                    return response
-                except Exception:
-                    return FileResponse(
-                        str(Path(self.directory) / "index.html"),
-                        media_type="text/html",
-                    )
+        # Collect root-level static files (favicon.svg, manifest.json, sw.js, etc.)
+        _root_static = {f.name for f in frontend_dist.iterdir() if f.is_file()}
 
-        mcp_app.mount("/", SPAStaticFiles(directory=str(frontend_dist), html=True), name="spa")
+        # Prefixes that belong to the API — never serve index.html for these
+        _API_PREFIXES = ("/v1/", "/v1", "/mcp", "/sse", "/health", "/ws")
+
+        from starlette.routing import Route, Mount
+
+        async def _serve_spa(request):
+            """Serve static assets or index.html for SPA client-side routes."""
+            req_path = request.url.path.lstrip("/")
+
+            # Serve /assets/* (Vite-built JS/CSS bundles)
+            if req_path.startswith("assets/"):
+                file_path = frontend_dist / req_path
+                if file_path.is_file():
+                    mt = _mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+                    return FileResponse(str(file_path), media_type=mt)
+
+            # Serve /icons/*
+            if req_path.startswith("icons/"):
+                file_path = frontend_dist / req_path
+                if file_path.is_file():
+                    mt = _mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+                    return FileResponse(str(file_path), media_type=mt)
+
+            # Serve known root-level static files
+            if req_path in _root_static:
+                file_path = frontend_dist / req_path
+                mt = _mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+                return FileResponse(str(file_path), media_type=mt)
+
+            # SPA fallback: serve index.html for client-side routing
+            return FileResponse(str(frontend_dist / "index.html"), media_type="text/html")
+
+        # Add SPA catch-all as the LAST route — API routes registered by
+        # FastMCP custom_route() are checked first.
+        mcp_app.routes.append(
+            Route("/{path:path}", endpoint=_serve_spa, methods=["GET", "HEAD"])
+        )
+        # Also handle root "/"
+        mcp_app.routes.append(
+            Route("/", endpoint=_serve_spa, methods=["GET", "HEAD"])
+        )
     else:
         logging.info("No frontend/dist found -- serving API only")
 
