@@ -1,38 +1,13 @@
 import { useState, useMemo } from 'react';
-import { FileSearch, ExternalLink, ChevronDown, ChevronRight, Clock, FileText } from 'lucide-react';
+import { FileSearch, ExternalLink, ChevronDown, ChevronRight, Clock, FileText, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useFilings } from '../hooks/useFilings';
+import type { Filing } from '../lib/types';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
-
-type FilingType = '10-K' | '10-Q' | '8-K' | 'DEF 14A' | 'S-1' | '13F' | 'SC 13D';
-type FilterTab = 'All' | FilingType;
+type FilterTab = 'All' | '10-K' | '10-Q' | '8-K' | 'DEF 14A' | 'S-1' | '13F' | 'SC 13D';
 type DateRange = '30d' | '90d' | '1y' | 'all';
 
-interface Filing {
-  id: string;
-  ticker: string;
-  company: string;
-  type: FilingType;
-  date: string;
-  periodOfReport: string;
-  description: string;
-  fileSize: string;
-  sections: string[];
-  summary: string;
-  related: string[];
-}
-
 const QUICK_TICKERS = ['AAPL', 'MSFT', 'TSLA', 'NVDA', 'GOOGL', 'AMZN', 'BRK.B', 'JPM'];
-
-const FILING_TYPES: FilingType[] = ['10-K', '10-Q', '8-K', 'DEF 14A', 'S-1', '13F', 'SC 13D'];
 
 const FILTER_TABS: { label: string; value: FilterTab }[] = [
   { label: 'All', value: 'All' },
@@ -52,7 +27,7 @@ const DATE_RANGES: { label: string; value: DateRange }[] = [
   { label: 'All time', value: 'all' },
 ];
 
-const BADGE_COLORS: Record<FilingType, string> = {
+const BADGE_COLORS: Record<string, string> = {
   '10-K': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   '10-Q': 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   '8-K': 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -62,91 +37,18 @@ const BADGE_COLORS: Record<FilingType, string> = {
   'SC 13D': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
 };
 
-const COMPANIES: Record<string, string> = {
-  AAPL: 'Apple Inc.', MSFT: 'Microsoft Corp.', TSLA: 'Tesla Inc.', NVDA: 'NVIDIA Corp.',
-  GOOGL: 'Alphabet Inc.', AMZN: 'Amazon.com Inc.', 'BRK.B': 'Berkshire Hathaway Inc.', JPM: 'JPMorgan Chase & Co.',
-  META: 'Meta Platforms Inc.', V: 'Visa Inc.', UNH: 'UnitedHealth Group', CRM: 'Salesforce Inc.',
-};
+const DEFAULT_BADGE = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
 
-const DESCRIPTIONS: Record<FilingType, string[]> = {
-  '10-K': ['Annual Report', 'Annual Report (Amendment)', 'Annual Report (Transition)'],
-  '10-Q': ['Quarterly Report (Q1)', 'Quarterly Report (Q2)', 'Quarterly Report (Q3)'],
-  '8-K': ['Current Report - Leadership Change', 'Current Report - Financial Results', 'Current Report - Material Agreement', 'Current Report - Acquisition'],
-  'DEF 14A': ['Definitive Proxy Statement', 'Proxy Statement (Annual Meeting)'],
-  'S-1': ['Registration Statement', 'Registration Statement (Amendment)'],
-  '13F': ['Institutional Holdings Report', 'Quarterly Holdings Report'],
-  'SC 13D': ['Beneficial Ownership Report', 'Schedule 13D Amendment'],
-};
-
-const SECTION_MAP: Record<FilingType, string[]> = {
-  '10-K': ['Business Overview', 'Risk Factors', 'MD&A', 'Financial Statements', 'Notes to Financials', 'Exhibits'],
-  '10-Q': ['Financial Statements', 'MD&A', 'Quantitative Disclosures', 'Controls and Procedures'],
-  '8-K': ['Item 1.01 - Material Agreement', 'Item 2.02 - Results of Operations', 'Item 5.02 - Director Changes', 'Exhibits'],
-  'DEF 14A': ['Board of Directors', 'Executive Compensation', 'Shareholder Proposals', 'Voting Information'],
-  'S-1': ['Prospectus Summary', 'Risk Factors', 'Use of Proceeds', 'Business Description', 'Financial Data'],
-  '13F': ['Holdings Table', 'Summary of Changes', 'New Positions', 'Closed Positions'],
-  'SC 13D': ['Identity of Filer', 'Source of Funds', 'Purpose of Transaction', 'Contracts and Arrangements'],
-};
-
-const SUMMARIES: Record<FilingType, string> = {
-  '10-K': 'Comprehensive annual disclosure covering financial performance, business operations, risk factors, and forward-looking statements for the fiscal year.',
-  '10-Q': 'Quarterly financial update with unaudited financial statements, management discussion of results, and disclosure of material changes.',
-  '8-K': 'Disclosure of significant corporate events or material changes that shareholders should be aware of between regular filing periods.',
-  'DEF 14A': 'Proxy materials for the upcoming annual shareholder meeting including director nominees, executive compensation details, and proposals.',
-  'S-1': 'Initial or amended registration statement for securities offering including prospectus, risk factors, and use of proceeds.',
-  '13F': 'Quarterly report of institutional investment holdings above $100M threshold as required by Section 13(f) of the Securities Exchange Act.',
-  'SC 13D': 'Beneficial ownership disclosure filed when an entity acquires more than 5% of a class of equity securities.',
-};
-
-function generateFilings(ticker: string, count: number): Filing[] {
-  const s = seed(ticker);
-  const company = COMPANIES[ticker] || `${ticker} Corp.`;
-  const filings: Filing[] = [];
-  for (let i = 0; i < count; i++) {
-    const p = pseudo(s, i);
-    const typeIdx = Math.floor(pseudo(s, i * 3 + 1) * FILING_TYPES.length);
-    const type = FILING_TYPES[typeIdx];
-    const descs = DESCRIPTIONS[type];
-    const desc = descs[Math.floor(pseudo(s, i * 7 + 2) * descs.length)];
-    const daysBack = Math.floor(p * 365) + 1;
-    const date = new Date(2026, 3, 3 - daysBack);
-    const periodDate = new Date(date.getFullYear(), date.getMonth() - 1, 0);
-    const sizeKB = Math.floor(pseudo(s, i * 11 + 5) * 9000) + 100;
-    filings.push({
-      id: `${ticker}-${i}`,
-      ticker,
-      company,
-      type,
-      date: date.toISOString().slice(0, 10),
-      periodOfReport: periodDate.toISOString().slice(0, 10),
-      description: desc,
-      fileSize: sizeKB > 1000 ? `${(sizeKB / 1000).toFixed(1)} MB` : `${sizeKB} KB`,
-      sections: SECTION_MAP[type],
-      summary: SUMMARIES[type],
-      related: [`${ticker}-${(i + 1) % count}`, `${ticker}-${(i + 3) % count}`],
-    });
-  }
-  filings.sort((a, b) => b.date.localeCompare(a.date));
-  return filings;
-}
-
-function generateRecentFilings(): Filing[] {
-  const tickers = Object.keys(COMPANIES);
-  const all: Filing[] = [];
-  for (const ticker of tickers) {
-    const batch = generateFilings(ticker, 5);
-    all.push(...batch);
-  }
-  all.sort((a, b) => b.date.localeCompare(a.date));
-  return all.slice(0, 20);
+function getBadgeColor(form: string): string {
+  return BADGE_COLORS[form] ?? DEFAULT_BADGE;
 }
 
 function filterByDate(filings: Filing[], range: DateRange): Filing[] {
   if (range === 'all') return filings;
-  const now = new Date(2026, 3, 3);
+  const now = new Date();
   const days = range === '30d' ? 30 : range === '90d' ? 90 : 365;
   const cutoff = new Date(now.getTime() - days * 86400000);
-  return filings.filter(f => new Date(f.date) >= cutoff);
+  return filings.filter(f => new Date(f.filed_date) >= cutoff);
 }
 
 export function FilingsPage() {
@@ -154,44 +56,59 @@ export function FilingsPage() {
   const [selectedTicker, setSelectedTicker] = useState('');
   const [filterTab, setFilterTab] = useState<FilterTab>('All');
   const [dateRange, setDateRange] = useState<DateRange>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedAccession, setExpandedAccession] = useState<string | null>(null);
 
-  const allFilings = useMemo(() => {
-    if (!selectedTicker) return generateRecentFilings();
-    return generateFilings(selectedTicker, 30);
-  }, [selectedTicker]);
+  const { data: response, isLoading, isError, error } = useFilings(selectedTicker);
+
+  const allFilings: Filing[] = response?.data?.filings ?? [];
 
   const filtered = useMemo(() => {
     let result = allFilings;
-    if (filterTab !== 'All') result = result.filter(f => f.type === filterTab);
+    if (filterTab !== 'All') result = result.filter(f => f.form === filterTab);
     result = filterByDate(result, dateRange);
     return result;
   }, [allFilings, filterTab, dateRange]);
 
   const stats = useMemo(() => {
     if (!selectedTicker || allFilings.length === 0) return null;
-    const dates = allFilings.map(f => f.date).sort();
+    const dates = [...allFilings].map(f => f.filed_date).sort();
     const intervals: number[] = [];
     for (let i = 1; i < dates.length; i++) {
       intervals.push((new Date(dates[i]).getTime() - new Date(dates[i - 1]).getTime()) / 86400000);
     }
     const avgInterval = intervals.length > 0 ? Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length) : 0;
-    const mostRecent = allFilings[0].date;
-    const nextExpected = new Date(new Date(mostRecent).getTime() + avgInterval * 86400000).toISOString().slice(0, 10);
-    return { total: allFilings.length, avgDays: Math.abs(avgInterval), mostRecent, nextExpected };
-  }, [allFilings, selectedTicker]);
+    const mostRecent = [...allFilings].sort((a, b) => b.filed_date.localeCompare(a.filed_date))[0].filed_date;
+    const nextExpected = new Date(new Date(mostRecent).getTime() + Math.abs(avgInterval) * 86400000)
+      .toISOString()
+      .slice(0, 10);
+    return {
+      total: response?.data?.total_available ?? allFilings.length,
+      avgDays: Math.abs(avgInterval),
+      mostRecent,
+      nextExpected,
+    };
+  }, [allFilings, selectedTicker, response]);
 
   const timelineDots = useMemo(() => {
-    const now = new Date(2026, 3, 3).getTime();
+    const now = new Date().getTime();
     const yearAgo = now - 365 * 86400000;
     return filtered
-      .filter(f => new Date(f.date).getTime() >= yearAgo)
-      .map(f => ({ id: f.id, pct: ((new Date(f.date).getTime() - yearAgo) / (now - yearAgo)) * 100, type: f.type }));
+      .filter(f => new Date(f.filed_date).getTime() >= yearAgo)
+      .map(f => ({
+        accession: f.accession,
+        pct: ((new Date(f.filed_date).getTime() - yearAgo) / (now - yearAgo)) * 100,
+        form: f.form,
+        filed_date: f.filed_date,
+      }));
   }, [filtered]);
 
   function handleTickerSubmit() {
     const t = search.trim().toUpperCase();
-    if (t) { setSelectedTicker(t); setFilterTab('All'); setExpandedId(null); }
+    if (t) {
+      setSelectedTicker(t);
+      setFilterTab('All');
+      setExpandedAccession(null);
+    }
   }
 
   return (
@@ -227,7 +144,12 @@ export function FilingsPage() {
           {QUICK_TICKERS.map(t => (
             <button
               key={t}
-              onClick={() => { setSelectedTicker(t); setSearch(t); setFilterTab('All'); setExpandedId(null); }}
+              onClick={() => {
+                setSelectedTicker(t);
+                setSearch(t);
+                setFilterTab('All');
+                setExpandedAccession(null);
+              }}
               className={cn(
                 'rounded-md border px-3 py-1 text-xs font-medium transition-colors',
                 selectedTicker === t
@@ -241,8 +163,24 @@ export function FilingsPage() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {isLoading && selectedTicker && (
+        <div className="flex items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-800 py-12">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
+          <span className="text-sm text-slate-400">Loading filings for {selectedTicker}...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {isError && selectedTicker && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          Failed to load filings for {selectedTicker}.{' '}
+          {error instanceof Error ? error.message : 'Please try again.'}
+        </div>
+      )}
+
       {/* Summary Stats */}
-      {stats && (
+      {!isLoading && stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: 'Total Filings', value: stats.total.toString() },
@@ -259,7 +197,7 @@ export function FilingsPage() {
       )}
 
       {/* Filing Timeline */}
-      {timelineDots.length > 0 && (
+      {!isLoading && timelineDots.length > 0 && (
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-4">
           <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300">
             <Clock className="h-4 w-4" />
@@ -269,13 +207,14 @@ export function FilingsPage() {
             <div className="absolute inset-x-0 top-1/2 h-px bg-slate-600" />
             {timelineDots.map(d => (
               <div
-                key={d.id}
-                className={cn('absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border',
-                  BADGE_COLORS[d.type].split(' ')[0],
+                key={d.accession}
+                className={cn(
+                  'absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border',
+                  getBadgeColor(d.form).split(' ')[0],
                   'border-slate-500'
                 )}
                 style={{ left: `${d.pct}%` }}
-                title={`${d.type} - ${d.id}`}
+                title={`${d.form} - ${d.filed_date}`}
               />
             ))}
           </div>
@@ -324,130 +263,153 @@ export function FilingsPage() {
       </div>
 
       {/* Section Header */}
-      <div className="flex items-center gap-2 text-sm text-slate-400">
-        <FileText className="h-4 w-4" />
-        {selectedTicker
-          ? <span>{filtered.length} filings for <span className="font-semibold text-white">{selectedTicker}</span></span>
-          : <span>Recent filings across all companies ({filtered.length})</span>}
-      </div>
+      {!isLoading && (
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <FileText className="h-4 w-4" />
+          {selectedTicker ? (
+            <span>
+              {filtered.length} filings for{' '}
+              <span className="font-semibold text-white">{selectedTicker}</span>
+            </span>
+          ) : (
+            <span>Enter a ticker above to browse SEC filings</span>
+          )}
+        </div>
+      )}
 
       {/* Filings Table */}
-      <div className="overflow-hidden rounded-lg border border-slate-700">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-700 bg-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-xs font-medium text-slate-400">Date</th>
-              {!selectedTicker && <th className="px-4 py-3 text-xs font-medium text-slate-400">Ticker</th>}
-              <th className="px-4 py-3 text-xs font-medium text-slate-400">Type</th>
-              <th className="px-4 py-3 text-xs font-medium text-slate-400">Description</th>
-              <th className="px-4 py-3 text-xs font-medium text-slate-400">Period</th>
-              <th className="px-4 py-3 text-xs font-medium text-slate-400">Size</th>
-              <th className="px-4 py-3 text-xs font-medium text-slate-400" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700 bg-slate-800/50">
-            {filtered.map(f => (
-              <FilingRow
-                key={f.id}
-                filing={f}
-                showTicker={!selectedTicker}
-                expanded={expandedId === f.id}
-                onToggle={() => setExpandedId(expandedId === f.id ? null : f.id)}
-                allFilings={allFilings}
-              />
-            ))}
-            {filtered.length === 0 && (
+      {!isLoading && selectedTicker && !isError && (
+        <div className="overflow-hidden rounded-lg border border-slate-700">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-700 bg-slate-800">
               <tr>
-                <td colSpan={selectedTicker ? 6 : 7} className="px-4 py-12 text-center text-slate-500">
-                  No filings found for the selected filters.
-                </td>
+                <th className="px-4 py-3 text-xs font-medium text-slate-400">Date Filed</th>
+                <th className="px-4 py-3 text-xs font-medium text-slate-400">Type</th>
+                <th className="px-4 py-3 text-xs font-medium text-slate-400">Description</th>
+                <th className="px-4 py-3 text-xs font-medium text-slate-400">Accession</th>
+                <th className="px-4 py-3 text-xs font-medium text-slate-400" />
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-slate-700 bg-slate-800/50">
+              {filtered.map(f => (
+                <FilingRow
+                  key={f.accession}
+                  filing={f}
+                  expanded={expandedAccession === f.accession}
+                  onToggle={() =>
+                    setExpandedAccession(expandedAccession === f.accession ? null : f.accession)
+                  }
+                />
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
+                    No filings found for the selected filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Empty prompt when no ticker selected */}
+      {!selectedTicker && (
+        <div className="rounded-lg border border-slate-700 bg-slate-800/50 py-16 text-center text-slate-500">
+          <FileSearch className="mx-auto mb-3 h-10 w-10 opacity-30" />
+          <p className="text-sm">Select a ticker or enter one above to view SEC filings.</p>
+        </div>
+      )}
     </div>
   );
 }
 
 function FilingRow({
   filing,
-  showTicker,
   expanded,
   onToggle,
-  allFilings,
 }: {
   filing: Filing;
-  showTicker: boolean;
   expanded: boolean;
   onToggle: () => void;
-  allFilings: Filing[];
 }) {
-  const relatedFilings = filing.related
-    .map(rid => allFilings.find(f => f.id === rid))
-    .filter((f): f is Filing => f !== undefined);
-
   return (
     <>
-      <tr
-        onClick={onToggle}
-        className="cursor-pointer transition-colors hover:bg-slate-700/50"
-      >
-        <td className="whitespace-nowrap px-4 py-3 text-slate-300">{filing.date}</td>
-        {showTicker && (
-          <td className="whitespace-nowrap px-4 py-3 font-medium text-white">{filing.ticker}</td>
-        )}
+      <tr onClick={onToggle} className="cursor-pointer transition-colors hover:bg-slate-700/50">
+        <td className="whitespace-nowrap px-4 py-3 text-slate-300">{filing.filed_date}</td>
         <td className="whitespace-nowrap px-4 py-3">
-          <span className={cn('inline-block rounded border px-2 py-0.5 text-xs font-medium', BADGE_COLORS[filing.type])}>
-            {filing.type}
+          <span
+            className={cn(
+              'inline-block rounded border px-2 py-0.5 text-xs font-medium',
+              getBadgeColor(filing.form)
+            )}
+          >
+            {filing.form}
           </span>
         </td>
-        <td className="px-4 py-3 text-slate-200">{filing.description}</td>
-        <td className="whitespace-nowrap px-4 py-3 text-slate-400">{filing.periodOfReport}</td>
-        <td className="whitespace-nowrap px-4 py-3 text-slate-400">{filing.fileSize}</td>
+        <td className="px-4 py-3 text-slate-200">{filing.description || '—'}</td>
+        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-400">
+          {filing.accession}
+        </td>
         <td className="px-4 py-3 text-right">
           <span className="inline-flex items-center gap-2 text-slate-400">
-            <ExternalLink className="h-3.5 w-3.5 hover:text-blue-400" />
-            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            {filing.url && (
+              <a
+                href={filing.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="hover:text-blue-400"
+                title="View on SEC EDGAR"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </span>
         </td>
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={showTicker ? 7 : 6} className="border-t border-slate-600 bg-slate-800 px-6 py-4">
+          <td colSpan={5} className="border-t border-slate-600 bg-slate-800 px-6 py-4">
             <div className="space-y-3">
-              <div>
-                <h4 className="text-sm font-medium text-white">Summary</h4>
-                <p className="mt-1 text-sm text-slate-400">{filing.summary}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-white">Key Sections / Exhibits</h4>
-                <ul className="mt-1 grid grid-cols-2 gap-1 text-sm text-slate-400">
-                  {filing.sections.map(sec => (
-                    <li key={sec} className="flex items-center gap-1">
-                      <span className="text-slate-600">--</span> {sec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {relatedFilings.length > 0 && (
+              <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-medium text-white">Related Filings</h4>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    {relatedFilings.map(rf => (
-                      <span
-                        key={rf.id}
-                        className="inline-flex items-center gap-1 rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-slate-300"
-                      >
-                        <span className={cn('inline-block rounded px-1 text-[10px] font-medium', BADGE_COLORS[rf.type])}>
-                          {rf.type}
-                        </span>
-                        {rf.date} - {rf.description}
-                      </span>
-                    ))}
-                  </div>
+                  <h4 className="text-sm font-medium text-white">Filing Details</h4>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {filing.description || 'No description available.'}
+                  </p>
                 </div>
-              )}
+                {filing.url && (
+                  <a
+                    href={filing.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-4 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-500/20"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View on SEC EDGAR
+                  </a>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
+                <div className="rounded border border-slate-700 bg-slate-900 px-3 py-2">
+                  <div className="text-slate-500">Form Type</div>
+                  <div className="mt-0.5 font-medium text-white">{filing.form}</div>
+                </div>
+                <div className="rounded border border-slate-700 bg-slate-900 px-3 py-2">
+                  <div className="text-slate-500">Filed Date</div>
+                  <div className="mt-0.5 font-medium text-white">{filing.filed_date}</div>
+                </div>
+                <div className="rounded border border-slate-700 bg-slate-900 px-3 py-2">
+                  <div className="text-slate-500">Accession Number</div>
+                  <div className="mt-0.5 font-mono font-medium text-white">{filing.accession}</div>
+                </div>
+              </div>
             </div>
           </td>
         </tr>

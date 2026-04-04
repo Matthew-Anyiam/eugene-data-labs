@@ -1,281 +1,339 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Search, ArrowUp, ArrowDown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { eugeneApi } from '../lib/api';
 import { cn } from '../lib/utils';
+import type { OHLCVData, OHLCVBar } from '../lib/types';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
+// ─── Math helpers ─────────────────────────────────────────────────────
+
+/**
+ * Return the close price N trading days back (from the end of bars).
+ * Returns null if not enough bars.
+ */
+function closeDaysAgo(bars: OHLCVBar[], days: number): number | null {
+  if (bars.length <= days) return null;
+  return bars[bars.length - 1 - days].close;
 }
 
-const TICKERS = [
-  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'V', 'JNJ',
-  'WMT', 'XOM', 'UNH', 'MA', 'PG', 'HD', 'KO', 'PFE', 'LLY', 'NFLX',
-  'AMD', 'CRM', 'DIS', 'GS', 'MS', 'COST', 'AVGO', 'ORCL', 'ADBE', 'INTC',
+function pctReturn(from: number | null, to: number | null): number | null {
+  if (from == null || to == null || from === 0) return null;
+  return (to - from) / from;
+}
+
+// Approximate trading-day counts
+const PERIODS = [
+  { label: '1W', days: 5 },
+  { label: '1M', days: 21 },
+  { label: '3M', days: 63 },
+  { label: '6M', days: 126 },
+] as const;
+
+type PeriodLabel = (typeof PERIODS)[number]['label'];
+
+// ─── Constants ────────────────────────────────────────────────────────
+
+const DEFAULT_TICKERS = [
+  'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'JPM',
 ];
 
-const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Consumer Disc.', 'Industrials', 'Energy', 'Consumer Staples', 'Utilities', 'Materials', 'Real Estate', 'Communication'];
 const SECTOR_MAP: Record<string, string> = {
-  AAPL: 'Technology', MSFT: 'Technology', GOOGL: 'Communication', AMZN: 'Consumer Disc.',
-  NVDA: 'Technology', META: 'Communication', TSLA: 'Consumer Disc.', JPM: 'Financials',
+  AAPL: 'Technology', MSFT: 'Technology', NVDA: 'Technology', GOOGL: 'Communication',
+  AMZN: 'Consumer Disc.', META: 'Communication', TSLA: 'Consumer Disc.', JPM: 'Financials',
   V: 'Financials', JNJ: 'Healthcare', WMT: 'Consumer Staples', XOM: 'Energy',
   UNH: 'Healthcare', MA: 'Financials', PG: 'Consumer Staples', HD: 'Consumer Disc.',
   KO: 'Consumer Staples', PFE: 'Healthcare', LLY: 'Healthcare', NFLX: 'Communication',
   AMD: 'Technology', CRM: 'Technology', DIS: 'Communication', GS: 'Financials',
   MS: 'Financials', COST: 'Consumer Staples', AVGO: 'Technology', ORCL: 'Technology',
-  ADBE: 'Technology', INTC: 'Technology',
+  ADBE: 'Technology', INTC: 'Technology', SPY: 'ETF', QQQ: 'ETF', IWM: 'ETF', TLT: 'Bond',
 };
 
-type Timeframe = '1W' | '1M' | '3M' | '6M' | '1Y';
+// ─── Per-ticker hook ──────────────────────────────────────────────────
 
-interface RSData {
-  ticker: string;
-  sector: string;
-  rsRating: number; // 1-99
-  rsRank: number;
-  priceChange: Record<Timeframe, number>;
-  rs50d: number;
-  rs200d: number;
-  newHigh52w: boolean;
-  distFromHigh: number;
-  trend: 'up' | 'down' | 'flat';
+function useTickerOHLCV(ticker: string) {
+  return useQuery({
+    queryKey: ['ohlcv', ticker],
+    queryFn: () => eugeneApi<OHLCVData>(`/v1/sec/${ticker}/ohlcv`),
+    enabled: !!ticker,
+    staleTime: 60 * 1000,
+  });
 }
 
-function genRSData(): RSData[] {
-  return TICKERS.map(ticker => {
-    const s = seed(ticker + '_rs');
-    const rsRating = Math.floor(1 + pseudo(s, 0) * 98);
-    return {
-      ticker,
-      sector: SECTOR_MAP[ticker] || 'Technology',
-      rsRating,
-      rsRank: 0,
-      priceChange: {
-        '1W': +((pseudo(s, 1) - 0.45) * 8).toFixed(2),
-        '1M': +((pseudo(s, 2) - 0.4) * 15).toFixed(2),
-        '3M': +((pseudo(s, 3) - 0.35) * 25).toFixed(2),
-        '6M': +((pseudo(s, 4) - 0.3) * 40).toFixed(2),
-        '1Y': +((pseudo(s, 5) - 0.25) * 60).toFixed(2),
-      },
-      rs50d: +(50 + pseudo(s, 6) * 49).toFixed(0),
-      rs200d: +(40 + pseudo(s, 7) * 59).toFixed(0),
-      newHigh52w: pseudo(s, 8) > 0.7,
-      distFromHigh: +(-pseudo(s, 9) * 30).toFixed(1),
-      trend: pseudo(s, 10) > 0.6 ? 'up' : pseudo(s, 10) < 0.3 ? 'down' : 'flat',
-    };
-  }).sort((a, b) => b.rsRating - a.rsRating).map((d, i) => ({ ...d, rsRank: i + 1 }));
+// ─── Return cell ──────────────────────────────────────────────────────
+
+function ReturnCell({ value }: { value: number | null }) {
+  if (value == null) {
+    return <td className="px-3 py-2 text-right text-xs text-slate-600">—</td>;
+  }
+  const pct = value * 100;
+  return (
+    <td
+      className={cn(
+        'px-3 py-2 text-right text-xs font-medium font-mono',
+        pct >= 10 ? 'text-emerald-300' :
+        pct >= 3  ? 'text-emerald-400' :
+        pct >= 0  ? 'text-emerald-500' :
+        pct >= -3 ? 'text-red-400' :
+        pct >= -10 ? 'text-red-500' :
+        'text-red-300',
+      )}
+    >
+      {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+    </td>
+  );
 }
 
-function genSectorRS() {
-  return SECTORS.map(sector => {
-    const s = seed(sector + '_srs');
-    return {
-      sector,
-      rs: Math.floor(1 + pseudo(s, 0) * 98),
-      change1m: +((pseudo(s, 1) - 0.4) * 15).toFixed(2),
-      change3m: +((pseudo(s, 2) - 0.35) * 25).toFixed(2),
-    };
-  }).sort((a, b) => b.rs - a.rs);
-}
+// ─── Main page ────────────────────────────────────────────────────────
 
 export function RelativeStrengthPage() {
-  const [timeframe, setTimeframe] = useState<Timeframe>('3M');
-  const [search, setSearch] = useState('');
-  const [view, setView] = useState<'rankings' | 'sectors' | 'leaders'>('rankings');
+  const [sortPeriod, setSortPeriod] = useState<PeriodLabel>('3M');
+  const [tickerInput, setTickerInput] = useState('');
+  const [tickers, setTickers] = useState<string[]>(DEFAULT_TICKERS);
 
-  const data = useMemo(() => genRSData(), []);
-  const sectorRS = useMemo(() => genSectorRS(), []);
+  // Fixed-count hook calls (max 12 tickers shown to keep rules-of-hooks safe)
+  const q0  = useTickerOHLCV(tickers[0]  ?? '');
+  const q1  = useTickerOHLCV(tickers[1]  ?? '');
+  const q2  = useTickerOHLCV(tickers[2]  ?? '');
+  const q3  = useTickerOHLCV(tickers[3]  ?? '');
+  const q4  = useTickerOHLCV(tickers[4]  ?? '');
+  const q5  = useTickerOHLCV(tickers[5]  ?? '');
+  const q6  = useTickerOHLCV(tickers[6]  ?? '');
+  const q7  = useTickerOHLCV(tickers[7]  ?? '');
+  const q8  = useTickerOHLCV(tickers[8]  ?? '');
+  const q9  = useTickerOHLCV(tickers[9]  ?? '');
+  const q10 = useTickerOHLCV(tickers[10] ?? '');
+  const q11 = useTickerOHLCV(tickers[11] ?? '');
 
-  const filtered = data.filter(d => !search || d.ticker.includes(search.toUpperCase()));
-  const leaders = data.filter(d => d.rsRating >= 80);
-  const laggards = data.filter(d => d.rsRating <= 20);
+  const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11].slice(0, tickers.length);
+
+  const rows = useMemo(() => {
+    return tickers
+      .map((ticker, i) => {
+        const bars = queries[i]?.data?.bars ?? [];
+        const lastClose = bars.length > 0 ? bars[bars.length - 1].close : null;
+        const returns: Record<PeriodLabel, number | null> = {} as Record<PeriodLabel, number | null>;
+        for (const p of PERIODS) {
+          const from = closeDaysAgo(bars, p.days);
+          returns[p.label] = pctReturn(from, lastClose);
+        }
+        return {
+          ticker,
+          sector: SECTOR_MAP[ticker] ?? 'Other',
+          returns,
+          lastClose,
+          isLoading: queries[i]?.isLoading ?? false,
+          isError: queries[i]?.isError ?? false,
+          hasData: bars.length > 0,
+        };
+      })
+      .filter((r) => !r.isLoading || r.hasData); // show rows once data arrives
+  }, [tickers, q0.data, q1.data, q2.data, q3.data, q4.data, q5.data, q6.data, q7.data, q8.data, q9.data, q10.data, q11.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rank by chosen sort period
+  const sorted = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const av = a.returns[sortPeriod] ?? -Infinity;
+      const bv = b.returns[sortPeriod] ?? -Infinity;
+      return bv - av;
+    });
+  }, [rows, sortPeriod]);
+
+  const loadingCount = queries.filter((q) => q.isLoading).length;
+
+  const addTicker = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = tickerInput.trim().toUpperCase();
+    if (t && !tickers.includes(t) && tickers.length < 12) {
+      setTickers((prev) => [...prev, t]);
+    }
+    setTickerInput('');
+  };
+
+  const removeTicker = (t: string) => {
+    setTickers((prev) => prev.filter((x) => x !== t));
+  };
+
+  // Summary stats
+  const readyRows = sorted.filter((r) => r.hasData);
+  const topTicker = readyRows[0];
+  const botTicker = readyRows[readyRows.length - 1];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <TrendingUp className="h-6 w-6 text-indigo-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Relative Strength</h1>
-          <p className="text-sm text-slate-400">Momentum rankings, sector rotation, and RS leaders</p>
+          <p className="text-sm text-slate-400">
+            Returns computed from OHLCV close prices — 1W, 1M, 3M, 6M. Ranked by selected period.
+          </p>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">RS Leaders (80+)</div>
-          <div className="mt-1 text-2xl font-bold text-emerald-400">{leaders.length}</div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">RS Laggards (20-)</div>
-          <div className="mt-1 text-2xl font-bold text-red-400">{laggards.length}</div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">Top Sector</div>
-          <div className="mt-1 text-lg font-bold text-white">{sectorRS[0]?.sector}</div>
-          <div className="text-xs text-slate-500">RS: {sectorRS[0]?.rs}</div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">52W Highs</div>
-          <div className="mt-1 text-2xl font-bold text-amber-400">{data.filter(d => d.newHigh52w).length}</div>
-        </div>
-      </div>
-
-      {/* View toggle */}
+      {/* Ticker management + period sort */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
-          {(['rankings', 'sectors', 'leaders'] as const).map(v => (
-            <button key={v} onClick={() => setView(v)}
-              className={cn('rounded-md px-4 py-1.5 text-xs font-medium capitalize', view === v ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white')}>
-              {v === 'leaders' ? 'Leaders & Laggards' : v}
+        <form onSubmit={addTicker} className="flex items-center gap-2">
+          <input
+            value={tickerInput}
+            onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
+            placeholder="Add ticker…"
+            className="w-28 rounded-lg border border-slate-600 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+          >
+            Add
+          </button>
+        </form>
+        <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
+          <span className="pl-2 text-xs text-slate-500">Sort:</span>
+          {PERIODS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => setSortPeriod(p.label)}
+              className={cn(
+                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                sortPeriod === p.label ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white',
+              )}
+            >
+              {p.label}
             </button>
           ))}
         </div>
-        {view === 'rankings' && (
-          <>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-              <input value={search} onChange={e => setSearch(e.target.value.toUpperCase())}
-                placeholder="Filter..." className="w-32 rounded-lg border border-slate-600 bg-slate-900 py-1.5 pl-8 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none" />
-            </div>
-            <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
-              {(['1W', '1M', '3M', '6M', '1Y'] as Timeframe[]).map(t => (
-                <button key={t} onClick={() => setTimeframe(t)}
-                  className={cn('rounded-md px-2.5 py-1 text-xs font-medium', timeframe === t ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white')}>
-                  {t}
-                </button>
-              ))}
-            </div>
-          </>
+        {loadingCount > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Loading {loadingCount}…
+          </div>
         )}
       </div>
 
-      {view === 'rankings' && (
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-700 bg-slate-800/50">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Rank</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Sector</th>
-                <th className="px-3 py-2 text-center text-xs font-medium text-slate-400">RS Rating</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">{timeframe} Chg</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">50d RS</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">200d RS</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">From 52W High</th>
-                <th className="px-3 py-2 text-center text-xs font-medium text-slate-400">Trend</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50">
-              {filtered.map(d => (
-                <tr key={d.ticker} className="bg-slate-800 hover:bg-slate-750">
-                  <td className="px-3 py-2 text-xs text-slate-500">{d.rsRank}</td>
-                  <td className="px-3 py-2 text-xs font-bold text-indigo-400">{d.ticker}</td>
-                  <td className="px-3 py-2 text-xs text-slate-400">{d.sector}</td>
+      {/* Summary cards */}
+      {readyRows.length >= 2 && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <div className="text-xs text-slate-500 uppercase tracking-wider">Top ({sortPeriod})</div>
+            <div className="mt-1 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-emerald-400" />
+              <span className="text-lg font-bold text-white">{topTicker?.ticker}</span>
+              <span className="text-sm font-medium text-emerald-400">
+                {topTicker?.returns[sortPeriod] != null
+                  ? `+${(topTicker.returns[sortPeriod]! * 100).toFixed(1)}%`
+                  : '—'}
+              </span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <div className="text-xs text-slate-500 uppercase tracking-wider">Laggard ({sortPeriod})</div>
+            <div className="mt-1 flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-red-400" />
+              <span className="text-lg font-bold text-white">{botTicker?.ticker}</span>
+              <span className="text-sm font-medium text-red-400">
+                {botTicker?.returns[sortPeriod] != null
+                  ? `${(botTicker.returns[sortPeriod]! * 100).toFixed(1)}%`
+                  : '—'}
+              </span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <div className="text-xs text-slate-500 uppercase tracking-wider">Positive ({sortPeriod})</div>
+            <div className="mt-1 text-lg font-bold text-white">
+              {readyRows.filter((r) => (r.returns[sortPeriod] ?? 0) > 0).length}
+              <span className="text-sm text-slate-400"> / {readyRows.length}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rankings table */}
+      <div className="overflow-x-auto rounded-xl border border-slate-700">
+        <table className="w-full text-sm">
+          <thead className="border-b border-slate-700 bg-slate-800/60">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Rank</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Sector</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Last Close</th>
+              {PERIODS.map((p) => (
+                <th
+                  key={p.label}
+                  className={cn(
+                    'px-3 py-2 text-right text-xs font-medium cursor-pointer select-none transition-colors',
+                    sortPeriod === p.label
+                      ? 'text-indigo-400'
+                      : 'text-slate-400 hover:text-slate-200',
+                  )}
+                  onClick={() => setSortPeriod(p.label)}
+                >
+                  {p.label} {sortPeriod === p.label && '▾'}
+                </th>
+              ))}
+              <th className="px-3 py-2 text-center text-xs font-medium text-slate-400">Trend</th>
+              <th className="px-3 py-2 text-xs font-medium text-slate-400" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/40">
+            {sorted.map((row, idx) => {
+              const trend1m = row.returns['1M'];
+              const trend3m = row.returns['3M'];
+              const trending =
+                trend1m != null && trend3m != null
+                  ? trend1m > 0 && trend3m > 0
+                    ? 'up'
+                    : trend1m < 0 && trend3m < 0
+                    ? 'down'
+                    : 'flat'
+                  : 'flat';
+              return (
+                <tr key={row.ticker} className="bg-slate-800 hover:bg-slate-750">
+                  <td className="px-3 py-2 text-xs text-slate-500">{row.hasData ? idx + 1 : '—'}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-indigo-400">{row.ticker}</td>
+                  <td className="px-3 py-2 text-xs text-slate-400">{row.sector}</td>
+                  <td className="px-3 py-2 text-right text-xs text-slate-300 font-mono">
+                    {row.isLoading ? (
+                      <Loader2 className="ml-auto h-3 w-3 animate-spin text-slate-500" />
+                    ) : row.lastClose != null ? (
+                      `$${row.lastClose.toFixed(2)}`
+                    ) : '—'}
+                  </td>
+                  {PERIODS.map((p) => (
+                    <ReturnCell key={p.label} value={row.returns[p.label]} />
+                  ))}
                   <td className="px-3 py-2 text-center">
-                    <span className={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-bold',
-                      d.rsRating >= 80 ? 'bg-emerald-900/40 text-emerald-400' : d.rsRating <= 20 ? 'bg-red-900/40 text-red-400' : 'bg-slate-700 text-slate-300'
-                    )}>
-                      {d.rsRating}
-                    </span>
-                  </td>
-                  <td className={cn('px-3 py-2 text-right text-xs font-medium', d.priceChange[timeframe] >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {d.priceChange[timeframe] >= 0 ? '+' : ''}{d.priceChange[timeframe]}%
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{d.rs50d}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{d.rs200d}</td>
-                  <td className={cn('px-3 py-2 text-right text-xs font-medium', d.distFromHigh > -5 ? 'text-emerald-400' : 'text-red-400')}>
-                    {d.distFromHigh}%
+                    {trending === 'up' && <ArrowUp className="mx-auto h-3.5 w-3.5 text-emerald-400" />}
+                    {trending === 'down' && <ArrowDown className="mx-auto h-3.5 w-3.5 text-red-400" />}
+                    {trending === 'flat' && <span className="text-xs text-slate-500">—</span>}
                   </td>
                   <td className="px-3 py-2 text-center">
-                    {d.trend === 'up' && <ArrowUp className="mx-auto h-3.5 w-3.5 text-emerald-400" />}
-                    {d.trend === 'down' && <ArrowDown className="mx-auto h-3.5 w-3.5 text-red-400" />}
-                    {d.trend === 'flat' && <span className="text-xs text-slate-500">—</span>}
+                    <button
+                      onClick={() => removeTicker(row.ticker)}
+                      className="text-slate-600 hover:text-red-400 text-xs"
+                      title="Remove"
+                    >
+                      ×
+                    </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              );
+            })}
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-3 py-8 text-center text-xs text-slate-500">
+                  {loadingCount > 0 ? 'Loading data…' : 'Add tickers above to compare returns.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {view === 'sectors' && (
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <h3 className="mb-4 text-sm font-semibold text-white">Sector Relative Strength</h3>
-          <div className="space-y-3">
-            {sectorRS.map((s, i) => (
-              <div key={s.sector} className="flex items-center gap-3">
-                <span className="w-8 text-xs text-slate-500">#{i + 1}</span>
-                <span className="w-36 text-xs text-white font-medium truncate">{s.sector}</span>
-                <div className="flex-1">
-                  <div className="h-6 rounded-full bg-slate-700">
-                    <div className={cn('h-6 rounded-full flex items-center justify-end pr-2', s.rs >= 50 ? 'bg-emerald-500/30' : 'bg-red-500/30')}
-                      style={{ width: `${s.rs}%` }}>
-                      <span className="text-[10px] font-bold text-white">{s.rs}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-3 text-xs">
-                  <span className={cn('w-14 text-right font-medium', s.change1m >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {s.change1m >= 0 ? '+' : ''}{s.change1m}%
-                  </span>
-                  <span className={cn('w-14 text-right font-medium', s.change3m >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {s.change3m >= 0 ? '+' : ''}{s.change3m}%
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {view === 'leaders' && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-emerald-700/50 bg-slate-800 p-4">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-400">
-              <TrendingUp className="h-4 w-4" /> RS Leaders (80+)
-            </h3>
-            <div className="space-y-2">
-              {leaders.map(d => (
-                <div key={d.ticker} className="flex items-center justify-between rounded-lg bg-emerald-900/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">{d.ticker}</span>
-                    <span className="text-[10px] text-slate-500">{d.sector}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-emerald-900/40 px-2 py-0.5 text-[10px] font-bold text-emerald-400">{d.rsRating}</span>
-                    {d.newHigh52w && <span className="text-[9px] text-amber-400">52W HIGH</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-xl border border-red-700/50 bg-slate-800 p-4">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-red-400">
-              <TrendingDown className="h-4 w-4" /> RS Laggards (20-)
-            </h3>
-            <div className="space-y-2">
-              {laggards.map(d => (
-                <div key={d.ticker} className="flex items-center justify-between rounded-lg bg-red-900/10 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">{d.ticker}</span>
-                    <span className="text-[10px] text-slate-500">{d.sector}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-red-900/40 px-2 py-0.5 text-[10px] font-bold text-red-400">{d.rsRating}</span>
-                    <span className="text-[10px] text-red-400">{d.distFromHigh}%</span>
-                  </div>
-                </div>
-              ))}
-              {laggards.length === 0 && <p className="text-xs text-slate-500">No stocks below RS 20</p>}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Note */}
+      <p className="text-[11px] text-slate-500">
+        Returns approximate trading-day periods: 1W ≈ 5 bars, 1M ≈ 21 bars, 3M ≈ 63 bars, 6M ≈ 126 bars from the latest close.
+        Null (—) means insufficient history.
+      </p>
     </div>
   );
 }

@@ -1,112 +1,133 @@
-import { useState, useMemo } from 'react';
-import { Activity, TrendingUp, TrendingDown, ArrowUp, ArrowDown, BarChart3 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { useMemo } from 'react';
+import { Activity, Loader2 } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import { useScreener } from '../../hooks/useScreener';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
-
-const EXCHANGES = ['NYSE', 'NASDAQ', 'All'] as const;
-const PERIODS = ['1D', '1W', '1M', '3M'] as const;
-
-interface BreadthData {
-  advancing: number;
-  declining: number;
-  unchanged: number;
-  newHighs: number;
-  newLows: number;
-  advVolume: number;
-  decVolume: number;
-  mcClellan: number;
-  mcClellanSum: number;
-  adLine: number;
-  adLineChange: number;
-  aboveMA200: number;
-  aboveMA50: number;
-  bullishPct: number;
-  arms: number; // TRIN
-  upDownVolRatio: number;
-  daily: { date: string; adv: number; dec: number; nh: number; nl: number; mcOsc: number }[];
+interface ScreenerResult {
+  ticker: string;
+  name: string;
+  market_cap: number;
+  price: number;
+  sector: string;
+  beta: number;
+  volume: number;
 }
 
-function genBreadth(exchange: string, period: string): BreadthData {
-  const s = seed(exchange + period + '_breadth');
-  const total = exchange === 'NYSE' ? 3200 : exchange === 'NASDAQ' ? 3500 : 6700;
-  const advPct = 0.35 + pseudo(s, 0) * 0.3;
-  const advancing = Math.floor(total * advPct);
-  const decPct = 0.3 + pseudo(s, 1) * 0.3;
-  const declining = Math.floor(total * decPct);
-  const unchanged = total - advancing - declining;
+// Market-cap tiers by USD
+const CAP_TIERS = [
+  { label: 'Mega Cap', min: 200e9 },
+  { label: 'Large Cap', min: 10e9 },
+  { label: 'Mid Cap', min: 2e9 },
+  { label: 'Small Cap', min: 300e6 },
+  { label: 'Micro Cap', min: 0 },
+] as const;
 
-  const newHighs = Math.floor(20 + pseudo(s, 2) * 200);
-  const newLows = Math.floor(10 + pseudo(s, 3) * 80);
-  const advVolume = 1.5 + pseudo(s, 4) * 4;
-  const decVolume = 1 + pseudo(s, 5) * 3.5;
+// Beta buckets
+const BETA_BUCKETS = [
+  { label: '< 0', min: -Infinity, max: 0 },
+  { label: '0–0.5', min: 0, max: 0.5 },
+  { label: '0.5–1', min: 0.5, max: 1 },
+  { label: '1–1.5', min: 1, max: 1.5 },
+  { label: '1.5–2', min: 1.5, max: 2 },
+  { label: '> 2', min: 2, max: Infinity },
+] as const;
 
-  const mcClellan = -50 + pseudo(s, 6) * 100;
-  const mcClellanSum = -200 + pseudo(s, 7) * 600;
-  const adLine = 5000 + pseudo(s, 8) * 10000;
-  const adLineChange = (pseudo(s, 9) - 0.4) * 500;
-
-  const aboveMA200 = 30 + pseudo(s, 10) * 50;
-  const aboveMA50 = 25 + pseudo(s, 11) * 55;
-  const bullishPct = 30 + pseudo(s, 12) * 50;
-  const arms = 0.5 + pseudo(s, 13) * 1.5;
-  const upDownVolRatio = advVolume / decVolume;
-
-  const daily = Array.from({ length: 20 }, (_, i) => {
-    const ds = seed(exchange + period + '_d' + i);
-    const d = new Date(2025, 2, 20 - i);
-    return {
-      date: d.toISOString().slice(0, 10),
-      adv: Math.floor(total * (0.3 + pseudo(ds, 0) * 0.4)),
-      dec: Math.floor(total * (0.25 + pseudo(ds, 1) * 0.4)),
-      nh: Math.floor(10 + pseudo(ds, 2) * 250),
-      nl: Math.floor(5 + pseudo(ds, 3) * 100),
-      mcOsc: -60 + pseudo(ds, 4) * 120,
-    };
-  });
-
-  return {
-    advancing, declining, unchanged, newHighs, newLows,
-    advVolume: +advVolume.toFixed(2), decVolume: +decVolume.toFixed(2),
-    mcClellan: +mcClellan.toFixed(1), mcClellanSum: +mcClellanSum.toFixed(0),
-    adLine: +adLine.toFixed(0), adLineChange: +adLineChange.toFixed(0),
-    aboveMA200: +aboveMA200.toFixed(1), aboveMA50: +aboveMA50.toFixed(1),
-    bullishPct: +bullishPct.toFixed(1), arms: +arms.toFixed(2),
-    upDownVolRatio: +upDownVolRatio.toFixed(2), daily,
-  };
+function fmtVol(v: number): string {
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  return v.toFixed(0);
 }
 
-const SECTOR_BREADTH = [
-  'Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer Disc.',
-  'Industrials', 'Comm. Services', 'Consumer Staples', 'Materials', 'Utilities', 'Real Estate',
-];
+function fmtCap(v: number): string {
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  return `$${v.toFixed(0)}`;
+}
+
+interface SectorBreadth {
+  sector: string;
+  count: number;
+  avgVolume: number;
+  totalMarketCap: number;
+  avgBeta: number;
+}
 
 export function BreadthPage() {
-  const [exchange, setExchange] = useState<typeof EXCHANGES[number]>('All');
-  const [period, setPeriod] = useState<typeof PERIODS[number]>('1D');
+  const { data, isLoading, isError } = useScreener({ limit: 100 });
 
-  const data = useMemo(() => genBreadth(exchange, period), [exchange, period]);
+  const results: ScreenerResult[] = useMemo(() => data?.results ?? [], [data]);
 
-  const sectorData = useMemo(() => SECTOR_BREADTH.map((sector, i) => {
-    const s = seed(sector + exchange + '_sb');
-    return {
-      sector,
-      advPct: +(30 + pseudo(s, i) * 50).toFixed(1),
-      aboveMA50: +(20 + pseudo(s, i + 11) * 60).toFixed(1),
-      nh: Math.floor(pseudo(s, i + 22) * 40),
-      nl: Math.floor(pseudo(s, i + 33) * 20),
-    };
-  }), [exchange]);
+  // Count by sector
+  const sectorBreadth = useMemo<SectorBreadth[]>(() => {
+    const map = new Map<string, ScreenerResult[]>();
+    for (const r of results) {
+      const key = r.sector || 'Unknown';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return Array.from(map.entries())
+      .map(([sector, stocks]) => ({
+        sector,
+        count: stocks.length,
+        avgVolume: stocks.reduce((s, x) => s + (x.volume ?? 0), 0) / stocks.length,
+        totalMarketCap: stocks.reduce((s, x) => s + (x.market_cap ?? 0), 0),
+        avgBeta: stocks.reduce((s, x) => s + (x.beta ?? 0), 0) / stocks.length,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [results]);
 
-  const adRatio = data.advancing / (data.advancing + data.declining);
-  const isPositive = data.advancing > data.declining;
+  // Beta distribution
+  const betaDist = useMemo(() => {
+    return BETA_BUCKETS.map((b) => ({
+      label: b.label,
+      count: results.filter((r) => r.beta >= b.min && r.beta < b.max).length,
+    }));
+  }, [results]);
+
+  const maxBetaCount = Math.max(...betaDist.map((b) => b.count), 1);
+
+  // Market-cap tiers
+  const capTiers = useMemo(() => {
+    return CAP_TIERS.map((t, i) => {
+      const nextMin = i + 1 < CAP_TIERS.length ? CAP_TIERS[i + 1].min : 0;
+      const count = results.filter(
+        (r) => r.market_cap >= t.min && (i === 0 ? true : r.market_cap < CAP_TIERS[i - 1].min),
+      ).length;
+      return { label: t.label, count };
+    });
+  }, [results]);
+
+  const maxCapCount = Math.max(...capTiers.map((t) => t.count), 1);
+  const maxSectorCount = Math.max(...sectorBreadth.map((s) => s.count), 1);
+
+  // Aggregate stats
+  const totalStocks = results.length;
+  const avgVolume = totalStocks
+    ? results.reduce((s, r) => s + (r.volume ?? 0), 0) / totalStocks
+    : 0;
+  const totalMarketCap = results.reduce((s, r) => s + (r.market_cap ?? 0), 0);
+  const avgBeta = totalStocks
+    ? results.reduce((s, r) => s + (r.beta ?? 0), 0) / totalStocks
+    : 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+        <span className="ml-3 text-slate-400">Loading breadth data…</span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <span className="text-red-400">Failed to load breadth data. Please try again.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -114,40 +135,24 @@ export function BreadthPage() {
         <Activity className="h-6 w-6 text-cyan-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Market Breadth</h1>
-          <p className="text-sm text-slate-400">Advance/decline, new highs/lows, McClellan oscillator</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-          {EXCHANGES.map(e => (
-            <button key={e} onClick={() => setExchange(e)}
-              className={cn('rounded-md px-3 py-1 text-xs font-medium', exchange === e ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white')}>
-              {e}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-          {PERIODS.map(p => (
-            <button key={p} onClick={() => setPeriod(p)}
-              className={cn('rounded-md px-3 py-1 text-xs font-medium', period === p ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white')}>
-              {p}
-            </button>
-          ))}
+          <p className="text-sm text-slate-400">
+            Sector distribution, volume analysis, beta profile, and market-cap tiers
+          </p>
         </div>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Advancing', value: data.advancing.toLocaleString(), color: 'text-emerald-400' },
-          { label: 'Declining', value: data.declining.toLocaleString(), color: 'text-red-400' },
-          { label: 'Unchanged', value: data.unchanged.toLocaleString(), color: 'text-slate-300' },
-          { label: 'New Highs', value: data.newHighs.toString(), color: 'text-emerald-400' },
-          { label: 'New Lows', value: data.newLows.toString(), color: 'text-red-400' },
-          { label: 'TRIN (Arms)', value: data.arms.toString(), color: data.arms < 1 ? 'text-emerald-400' : 'text-red-400' },
-        ].map(c => (
+          { label: 'Stocks Analysed', value: totalStocks.toLocaleString(), color: 'text-white' },
+          { label: 'Sectors', value: sectorBreadth.length.toString(), color: 'text-cyan-400' },
+          { label: 'Avg Volume', value: fmtVol(avgVolume), color: 'text-slate-300' },
+          {
+            label: 'Avg Beta',
+            value: avgBeta.toFixed(2),
+            color: avgBeta > 1 ? 'text-amber-400' : 'text-emerald-400',
+          },
+        ].map((c) => (
           <div key={c.label} className="rounded-xl border border-slate-700 bg-slate-800 p-3">
             <div className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</div>
             <div className={cn('mt-1 text-lg font-bold', c.color)}>{c.value}</div>
@@ -155,174 +160,152 @@ export function BreadthPage() {
         ))}
       </div>
 
-      {/* Advance/Decline visual */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-white">Advance / Decline Ratio</h3>
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 flex-1 overflow-hidden rounded-full">
-              <div className="bg-emerald-500/70 transition-all" style={{ width: `${adRatio * 100}%` }} />
-              <div className="bg-red-500/70 transition-all" style={{ width: `${(1 - adRatio) * 100}%` }} />
-            </div>
-            <span className={cn('text-sm font-bold', isPositive ? 'text-emerald-400' : 'text-red-400')}>
-              {(adRatio * 100).toFixed(0)}%
-            </span>
-          </div>
-          <div className="mt-2 flex justify-between text-xs">
-            <span className="text-emerald-400">{data.advancing} advancing</span>
-            <span className="text-red-400">{data.declining} declining</span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-white">Up/Down Volume</h3>
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 flex-1 overflow-hidden rounded-full">
-              <div className="bg-emerald-500/70 transition-all" style={{ width: `${(data.advVolume / (data.advVolume + data.decVolume)) * 100}%` }} />
-              <div className="bg-red-500/70 transition-all" style={{ width: `${(data.decVolume / (data.advVolume + data.decVolume)) * 100}%` }} />
-            </div>
-            <span className={cn('text-sm font-bold', data.upDownVolRatio > 1 ? 'text-emerald-400' : 'text-red-400')}>
-              {data.upDownVolRatio.toFixed(2)}x
-            </span>
-          </div>
-          <div className="mt-2 flex justify-between text-xs">
-            <span className="text-emerald-400">{data.advVolume}B up vol</span>
-            <span className="text-red-400">{data.decVolume}B down vol</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Key indicators */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">McClellan Oscillator</div>
-          <div className={cn('mt-2 text-2xl font-bold', data.mcClellan >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-            {data.mcClellan >= 0 ? '+' : ''}{data.mcClellan}
-          </div>
-          <div className="mt-2 h-2 rounded-full bg-slate-700">
-            <div className={cn('h-2 rounded-full', data.mcClellan >= 0 ? 'bg-emerald-500' : 'bg-red-500')}
-              style={{ width: `${Math.min(100, Math.abs(data.mcClellan))}%`, marginLeft: data.mcClellan < 0 ? `${100 - Math.min(100, Math.abs(data.mcClellan))}%` : '0' }} />
-          </div>
-          <div className="mt-1 text-[10px] text-slate-500">Summation: {data.mcClellanSum}</div>
-        </div>
-
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">A/D Line</div>
-          <div className="mt-2 text-2xl font-bold text-white">{data.adLine.toLocaleString()}</div>
-          <div className={cn('mt-1 flex items-center gap-1 text-xs font-medium', data.adLineChange >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-            {data.adLineChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-            {data.adLineChange >= 0 ? '+' : ''}{data.adLineChange}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">% Above 200 DMA</div>
-          <div className={cn('mt-2 text-2xl font-bold', data.aboveMA200 > 50 ? 'text-emerald-400' : 'text-red-400')}>
-            {data.aboveMA200}%
-          </div>
-          <div className="mt-2 h-2 rounded-full bg-slate-700">
-            <div className={cn('h-2 rounded-full', data.aboveMA200 > 50 ? 'bg-emerald-500' : 'bg-red-500')} style={{ width: `${data.aboveMA200}%` }} />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">% Above 50 DMA</div>
-          <div className={cn('mt-2 text-2xl font-bold', data.aboveMA50 > 50 ? 'text-emerald-400' : 'text-red-400')}>
-            {data.aboveMA50}%
-          </div>
-          <div className="mt-2 h-2 rounded-full bg-slate-700">
-            <div className={cn('h-2 rounded-full', data.aboveMA50 > 50 ? 'bg-emerald-500' : 'bg-red-500')} style={{ width: `${data.aboveMA50}%` }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Bullish % */}
+      {/* Count by sector */}
       <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-white">Bullish Percent Index</h3>
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex h-6 overflow-hidden rounded-full bg-slate-700">
-              <div className={cn('transition-all', data.bullishPct > 60 ? 'bg-emerald-500/70' : data.bullishPct > 40 ? 'bg-amber-500/70' : 'bg-red-500/70')}
-                style={{ width: `${data.bullishPct}%` }} />
-            </div>
-          </div>
-          <span className={cn('text-lg font-bold', data.bullishPct > 60 ? 'text-emerald-400' : data.bullishPct > 40 ? 'text-amber-400' : 'text-red-400')}>
-            {data.bullishPct}%
-          </span>
-        </div>
-        <div className="mt-2 flex justify-between text-[10px] text-slate-500">
-          <span>0% — Oversold</span>
-          <span>50% — Neutral</span>
-          <span>100% — Overbought</span>
-        </div>
-      </div>
-
-      {/* Daily history */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-white">Daily Breadth History</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-700 bg-slate-800/50">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Date</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Advancing</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Declining</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">A/D Ratio</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">New Highs</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">New Lows</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">McClellan</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50">
-              {data.daily.map(d => {
-                const ratio = d.adv / (d.adv + d.dec);
-                return (
-                  <tr key={d.date} className="bg-slate-800 hover:bg-slate-750">
-                    <td className="px-3 py-2 text-xs text-slate-400">{d.date}</td>
-                    <td className="px-3 py-2 text-right text-xs text-emerald-400">{d.adv.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right text-xs text-red-400">{d.dec.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">
-                      <span className={cn('text-xs font-medium', ratio > 0.5 ? 'text-emerald-400' : 'text-red-400')}>
-                        {(ratio * 100).toFixed(0)}%
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs text-emerald-400">{d.nh}</td>
-                    <td className="px-3 py-2 text-right text-xs text-red-400">{d.nl}</td>
-                    <td className={cn('px-3 py-2 text-right text-xs font-medium', d.mcOsc >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                      {d.mcOsc >= 0 ? '+' : ''}{d.mcOsc.toFixed(1)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Sector breadth */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-white">Sector Breadth</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sectorData.map(sec => (
-            <div key={sec.sector} className="rounded-xl border border-slate-700 bg-slate-800 p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-white">{sec.sector}</span>
-                <span className={cn('text-xs font-bold', sec.advPct > 50 ? 'text-emerald-400' : 'text-red-400')}>
-                  {sec.advPct}% adv
+        <h3 className="mb-4 text-sm font-semibold text-white">Stocks per Sector</h3>
+        <div className="space-y-3">
+          {sectorBreadth.map((s) => {
+            const barPct = (s.count / maxSectorCount) * 100;
+            return (
+              <div key={s.sector} className="flex items-center gap-2">
+                <span className="w-36 truncate text-xs font-medium text-slate-300">{s.sector}</span>
+                <div className="flex flex-1 items-center">
+                  <div
+                    className="h-5 rounded-r bg-cyan-500/40 transition-all"
+                    style={{ width: `${barPct}%` }}
+                  />
+                </div>
+                <span className="w-8 text-right text-xs font-medium text-white">{s.count}</span>
+                <span className="w-20 text-right text-[10px] text-slate-500">
+                  β {s.avgBeta.toFixed(2)}
+                </span>
+                <span className="w-20 text-right text-[10px] text-slate-500">
+                  {fmtCap(s.totalMarketCap)}
                 </span>
               </div>
-              <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-slate-700">
-                <div className="bg-emerald-500/60 transition-all" style={{ width: `${sec.advPct}%` }} />
-                <div className="bg-red-500/60 transition-all" style={{ width: `${100 - sec.advPct}%` }} />
-              </div>
-              <div className="mt-2 flex justify-between text-[10px] text-slate-500">
-                <span>{sec.aboveMA50}% &gt;50 DMA</span>
-                <span className="text-emerald-400/70">{sec.nh} NH</span>
-                <span className="text-red-400/70">{sec.nl} NL</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Beta distribution */}
+        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+          <h3 className="mb-4 text-sm font-semibold text-white">Beta Distribution</h3>
+          <div className="space-y-3">
+            {betaDist.map((b) => {
+              const pct = totalStocks ? ((b.count / totalStocks) * 100).toFixed(1) : '0.0';
+              const barPct = (b.count / maxBetaCount) * 100;
+              return (
+                <div key={b.label} className="flex items-center gap-2">
+                  <span className="w-14 text-xs text-slate-400">{b.label}</span>
+                  <div className="flex flex-1 items-center">
+                    <div
+                      className="h-4 rounded-r bg-indigo-500/50 transition-all"
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                  <span className="w-12 text-right text-xs text-slate-300">
+                    {b.count} <span className="text-slate-500">({pct}%)</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Market-cap tiers */}
+        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+          <h3 className="mb-4 text-sm font-semibold text-white">Market-Cap Tiers</h3>
+          <div className="space-y-3">
+            {capTiers.map((t) => {
+              const pct = totalStocks ? ((t.count / totalStocks) * 100).toFixed(1) : '0.0';
+              const barPct = (t.count / maxCapCount) * 100;
+              return (
+                <div key={t.label} className="flex items-center gap-2">
+                  <span className="w-20 text-xs text-slate-400">{t.label}</span>
+                  <div className="flex flex-1 items-center">
+                    <div
+                      className="h-4 rounded-r bg-emerald-500/50 transition-all"
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                  <span className="w-14 text-right text-xs text-slate-300">
+                    {t.count} <span className="text-slate-500">({pct}%)</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Avg volume by sector */}
+      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+        <h3 className="mb-4 text-sm font-semibold text-white">Average Volume by Sector</h3>
+        <div className="space-y-3">
+          {[...sectorBreadth]
+            .sort((a, b) => b.avgVolume - a.avgVolume)
+            .map((s) => {
+              const maxVol = Math.max(...sectorBreadth.map((x) => x.avgVolume), 1);
+              const barPct = (s.avgVolume / maxVol) * 100;
+              return (
+                <div key={s.sector} className="flex items-center gap-2">
+                  <span className="w-36 truncate text-xs font-medium text-slate-300">{s.sector}</span>
+                  <div className="flex flex-1 items-center">
+                    <div
+                      className="h-5 rounded-r bg-amber-500/40 transition-all"
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                  <span className="w-16 text-right text-xs text-slate-300">
+                    {fmtVol(s.avgVolume)}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Sector breadth table */}
+      <div className="overflow-x-auto rounded-xl border border-slate-700">
+        <table className="w-full text-sm">
+          <thead className="border-b border-slate-700 bg-slate-800/50">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Sector</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Count</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Market Cap</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Avg Volume</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Avg Beta</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/50">
+            {sectorBreadth.map((s) => (
+              <tr key={s.sector} className="bg-slate-800 hover:bg-slate-750">
+                <td className="px-3 py-2 text-xs font-medium text-white">{s.sector}</td>
+                <td className="px-3 py-2 text-right text-xs text-slate-300">{s.count}</td>
+                <td className="px-3 py-2 text-right text-xs text-slate-300">
+                  {fmtCap(s.totalMarketCap)}
+                </td>
+                <td className="px-3 py-2 text-right text-xs text-slate-300">
+                  {fmtVol(s.avgVolume)}
+                </td>
+                <td
+                  className={cn(
+                    'px-3 py-2 text-right text-xs font-medium',
+                    s.avgBeta > 1.2
+                      ? 'text-amber-400'
+                      : s.avgBeta < 0.8
+                        ? 'text-emerald-400'
+                        : 'text-slate-300',
+                  )}
+                >
+                  {s.avgBeta.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

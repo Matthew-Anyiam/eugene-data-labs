@@ -1,307 +1,525 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { SlidersHorizontal, Plus, X, Play, Save, Trash2, Download } from 'lucide-react';
+import { SlidersHorizontal, Plus, X, Save, Trash2, Download, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useScreener } from '../hooks/useScreener';
+import type { ScreenerFilters } from '../hooks/useScreener';
+import type { ScreenerResult } from '../lib/types';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const METRICS = [
-  { id: 'market_cap', label: 'Market Cap ($B)', type: 'range', min: 0, max: 3000 },
-  { id: 'pe_ratio', label: 'P/E Ratio', type: 'range', min: 0, max: 200 },
-  { id: 'dividend_yield', label: 'Dividend Yield (%)', type: 'range', min: 0, max: 15 },
-  { id: 'revenue_growth', label: 'Revenue Growth (%)', type: 'range', min: -50, max: 200 },
-  { id: 'profit_margin', label: 'Profit Margin (%)', type: 'range', min: -50, max: 80 },
-  { id: 'debt_equity', label: 'Debt/Equity', type: 'range', min: 0, max: 10 },
-  { id: 'rsi', label: 'RSI (14)', type: 'range', min: 0, max: 100 },
-  { id: 'beta', label: 'Beta', type: 'range', min: -1, max: 4 },
-  { id: 'volume_avg', label: 'Avg Volume (M)', type: 'range', min: 0, max: 100 },
-  { id: 'price', label: 'Price ($)', type: 'range', min: 0, max: 5000 },
-  { id: '52w_high_pct', label: '% from 52W High', type: 'range', min: -80, max: 0 },
-  { id: 'eps_growth', label: 'EPS Growth (%)', type: 'range', min: -100, max: 500 },
+const SECTORS = [
+  'Technology',
+  'Healthcare',
+  'Financial Services',
+  'Consumer Cyclical',
+  'Communication Services',
+  'Industrials',
+  'Consumer Defensive',
+  'Energy',
+  'Utilities',
+  'Real Estate',
+  'Basic Materials',
 ];
 
-const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Consumer Disc.', 'Communication', 'Industrials', 'Consumer Staples', 'Energy', 'Utilities', 'Real Estate', 'Materials'];
+const COUNTRIES = ['US', 'GB', 'DE', 'JP', 'CN', 'CA', 'AU', 'FR', 'IN', 'BR'];
 
-const STOCK_UNIVERSE = [
-  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B', 'JPM', 'V',
-  'JNJ', 'WMT', 'UNH', 'MA', 'PG', 'HD', 'XOM', 'BAC', 'KO', 'PFE',
-  'LLY', 'NFLX', 'AMD', 'CRM', 'DIS', 'GS', 'MS', 'INTC', 'IBM', 'CSCO',
-  'ORCL', 'ADBE', 'PYPL', 'SQ', 'SHOP', 'ROKU', 'ZM', 'SNAP', 'UBER', 'ABNB',
-  'COIN', 'PLTR', 'RIVN', 'LCID', 'SOFI', 'NIO', 'F', 'GM', 'T', 'VZ',
-];
+const STORAGE_KEY = 'eugene_screener_presets_v2';
 
-const NAMES: Record<string, string> = {
-  AAPL: 'Apple Inc', MSFT: 'Microsoft Corp', GOOGL: 'Alphabet Inc', AMZN: 'Amazon.com', NVDA: 'NVIDIA Corp',
-  META: 'Meta Platforms', TSLA: 'Tesla Inc', 'BRK.B': 'Berkshire Hathaway', JPM: 'JPMorgan Chase', V: 'Visa Inc',
-  JNJ: 'Johnson & Johnson', WMT: 'Walmart Inc', UNH: 'UnitedHealth', MA: 'Mastercard', PG: 'Procter & Gamble',
-  HD: 'Home Depot', XOM: 'Exxon Mobil', BAC: 'Bank of America', KO: 'Coca-Cola', PFE: 'Pfizer Inc',
-  LLY: 'Eli Lilly', NFLX: 'Netflix Inc', AMD: 'AMD Inc', CRM: 'Salesforce', DIS: 'Walt Disney',
-  GS: 'Goldman Sachs', MS: 'Morgan Stanley', INTC: 'Intel Corp', IBM: 'IBM Corp', CSCO: 'Cisco Systems',
-  ORCL: 'Oracle Corp', ADBE: 'Adobe Inc', PYPL: 'PayPal', SQ: 'Block Inc', SHOP: 'Shopify',
-  ROKU: 'Roku Inc', ZM: 'Zoom Video', SNAP: 'Snap Inc', UBER: 'Uber Tech', ABNB: 'Airbnb Inc',
-  COIN: 'Coinbase', PLTR: 'Palantir', RIVN: 'Rivian Auto', LCID: 'Lucid Group', SOFI: 'SoFi Tech',
-  NIO: 'NIO Inc', F: 'Ford Motor', GM: 'General Motors', T: 'AT&T Inc', VZ: 'Verizon',
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface FormState {
+  sector: string;
+  country: string;
+  marketCapMin: string;
+  marketCapMax: string;
+  priceMin: string;
+  priceMax: string;
+  volumeMin: string;
+  betaMin: string;
+  betaMax: string;
+}
+
+interface SavedPreset {
+  name: string;
+  form: FormState;
+}
+
+const DEFAULT_FORM: FormState = {
+  sector: '',
+  country: '',
+  marketCapMin: '',
+  marketCapMax: '',
+  priceMin: '',
+  priceMax: '',
+  volumeMin: '',
+  betaMin: '',
+  betaMax: '',
 };
 
-interface FilterRule {
-  id: string;
-  metric: string;
-  min: string;
-  max: string;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function loadPresets(): SavedPreset[] {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
 }
 
-interface SavedScreener {
-  name: string;
-  filters: FilterRule[];
-  sector: string;
+function formToFilters(f: FormState): ScreenerFilters {
+  return {
+    sector: f.sector || undefined,
+    country: f.country || undefined,
+    marketCapMin: f.marketCapMin ? Number(f.marketCapMin) : undefined,
+    marketCapMax: f.marketCapMax ? Number(f.marketCapMax) : undefined,
+    priceMin: f.priceMin ? Number(f.priceMin) : undefined,
+    priceMax: f.priceMax ? Number(f.priceMax) : undefined,
+    volumeMin: f.volumeMin ? Number(f.volumeMin) : undefined,
+    betaMin: f.betaMin ? Number(f.betaMin) : undefined,
+    betaMax: f.betaMax ? Number(f.betaMax) : undefined,
+    limit: 100,
+  };
 }
 
-const STORAGE_KEY = 'eugene_screener_builder';
-
-function loadScreeners(): SavedScreener[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+function isFormEmpty(f: FormState): boolean {
+  return Object.values(f).every((v) => v === '');
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function ScreenerBuilderPage() {
-  const [filters, setFilters] = useState<FilterRule[]>([]);
-  const [sectorFilter, setSectorFilter] = useState('All');
-  const [savedScreeners, setSavedScreeners] = useState<SavedScreener[]>(loadScreeners);
-  const [screenerName, setScreenerName] = useState('');
-  const [showSave, setShowSave] = useState(false);
-  const [sortBy, setSortBy] = useState<string>('market_cap');
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const [activeFilters, setActiveFilters] = useState<ScreenerFilters>({});
+  const [hasRun, setHasRun] = useState(false);
+
+  const [presets, setPresets] = useState<SavedPreset[]>(loadPresets);
+  const [presetName, setPresetName] = useState('');
+  const [showSaveInput, setShowSaveInput] = useState(false);
+
+  const [sortKey, setSortKey] = useState<keyof ScreenerResult>('market_cap');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const addFilter = () => {
-    const id = Date.now().toString(36);
-    setFilters([...filters, { id, metric: 'market_cap', min: '', max: '' }]);
-  };
+  const { data, isFetching, error } = useScreener(activeFilters, hasRun);
 
-  const removeFilter = (id: string) => setFilters(filters.filter(f => f.id !== id));
+  const results: ScreenerResult[] = data?.results ?? [];
 
-  const updateFilter = (id: string, field: keyof FilterRule, value: string) => {
-    setFilters(filters.map(f => f.id === id ? { ...f, [field]: value } : f));
-  };
-
-  const saveScreener = () => {
-    if (!screenerName.trim()) return;
-    const updated = [...savedScreeners, { name: screenerName, filters, sector: sectorFilter }];
-    setSavedScreeners(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    setScreenerName('');
-    setShowSave(false);
-  };
-
-  const loadScreener = (s: SavedScreener) => {
-    setFilters(s.filters.map(f => ({ ...f, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5) })));
-    setSectorFilter(s.sector);
-  };
-
-  const deleteScreener = (idx: number) => {
-    const updated = savedScreeners.filter((_, i) => i !== idx);
-    setSavedScreeners(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
-
-  // Generate mock data for each stock
-  const stockData = useMemo(() => STOCK_UNIVERSE.map(ticker => {
-    const s = seed(ticker);
-    const sectorIdx = Math.floor(pseudo(s, 0) * SECTORS.length);
-    return {
-      ticker,
-      name: NAMES[ticker] || ticker,
-      sector: SECTORS[sectorIdx],
-      market_cap: 5 + pseudo(s, 1) * 2995,
-      pe_ratio: 5 + pseudo(s, 2) * 95,
-      dividend_yield: pseudo(s, 3) * 6,
-      revenue_growth: -20 + pseudo(s, 4) * 120,
-      profit_margin: -10 + pseudo(s, 5) * 60,
-      debt_equity: pseudo(s, 6) * 5,
-      rsi: 20 + pseudo(s, 7) * 60,
-      beta: 0.3 + pseudo(s, 8) * 2.2,
-      volume_avg: 0.5 + pseudo(s, 9) * 50,
-      price: 5 + pseudo(s, 10) * 500,
-      '52w_high_pct': -(pseudo(s, 11) * 40),
-      eps_growth: -30 + pseudo(s, 12) * 200,
-    };
-  }), []);
-
-  const results = useMemo(() => {
-    let list = [...stockData];
-    if (sectorFilter !== 'All') list = list.filter(s => s.sector === sectorFilter);
-    for (const f of filters) {
-      const min = f.min !== '' ? parseFloat(f.min) : -Infinity;
-      const max = f.max !== '' ? parseFloat(f.max) : Infinity;
-      list = list.filter(s => {
-        const val = (s as Record<string, number | string>)[f.metric];
-        if (typeof val !== 'number') return true;
-        return val >= min && val <= max;
-      });
-    }
-    list.sort((a, b) => {
-      const av = (a as Record<string, number | string>)[sortBy];
-      const bv = (b as Record<string, number | string>)[sortBy];
-      if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'desc' ? bv - av : av - bv;
-      return 0;
+  const sorted = useMemo(() => {
+    return [...results].sort((a, b) => {
+      const av = a[sortKey] as number | string;
+      const bv = b[sortKey] as number | string;
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return sortDir === 'desc' ? bv - av : av - bv;
+      }
+      return sortDir === 'desc'
+        ? String(bv).localeCompare(String(av))
+        : String(av).localeCompare(String(bv));
     });
-    return list;
-  }, [stockData, filters, sectorFilter, sortBy, sortDir]);
+  }, [results, sortKey, sortDir]);
 
-  const exportCSV = () => {
-    const cols = ['ticker', 'name', 'sector', ...METRICS.map(m => m.id)];
-    const header = cols.join(',') + '\n';
-    const rows = results.map(r => cols.map(c => (r as Record<string, number | string>)[c]).join(',')).join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv' });
+  function handleField(key: keyof FormState, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleRun() {
+    setActiveFilters(formToFilters(form));
+    setHasRun(true);
+  }
+
+  function handleReset() {
+    setForm(DEFAULT_FORM);
+    setActiveFilters({});
+    setHasRun(false);
+  }
+
+  function handleSort(key: keyof ScreenerResult) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  }
+
+  function savePreset() {
+    const name = presetName.trim();
+    if (!name) return;
+    const updated = [...presets, { name, form }];
+    setPresets(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setPresetName('');
+    setShowSaveInput(false);
+  }
+
+  function loadPreset(p: SavedPreset) {
+    setForm(p.form);
+    setHasRun(false);
+  }
+
+  function deletePreset(idx: number) {
+    const updated = presets.filter((_, i) => i !== idx);
+    setPresets(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  }
+
+  function exportCSV() {
+    if (!sorted.length) return;
+    const cols: (keyof ScreenerResult)[] = [
+      'ticker', 'name', 'sector', 'industry', 'country', 'price', 'market_cap', 'beta', 'volume', 'exchange',
+    ];
+    const header = cols.join(',');
+    const rows = sorted.map((r) => cols.map((c) => r[c] ?? '').join(','));
+    const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'screener_results.csv'; a.click();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'screener_results.csv';
+    a.click();
     URL.revokeObjectURL(url);
-  };
+  }
+
+  const inputCls =
+    'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500';
+
+  const thBtn = (key: keyof ScreenerResult) => (
+    <button
+      onClick={() => handleSort(key)}
+      className={cn(
+        'text-xs font-medium',
+        sortKey === key
+          ? 'text-blue-500'
+          : 'text-slate-400 hover:text-slate-300',
+      )}
+    >
+      {key === 'market_cap' ? 'Mkt Cap' : key === 'ticker' ? 'Ticker' : key.charAt(0).toUpperCase() + key.slice(1)}
+      {sortKey === key && (sortDir === 'desc' ? ' ↓' : ' ↑')}
+    </button>
+  );
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <SlidersHorizontal className="h-6 w-6 text-violet-400" />
           <div>
-            <h1 className="text-xl font-bold text-white">Custom Screener</h1>
-            <p className="text-sm text-slate-400">Build multi-criteria stock screeners with custom filters</p>
+            <h1 className="text-xl font-bold text-white">Screener Builder</h1>
+            <p className="text-sm text-slate-400">
+              Filter stocks by sector, market cap, price, volume, beta, country
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={exportCSV} className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700">
-            <Download className="h-3.5 w-3.5" /> Export
+          <button
+            onClick={exportCSV}
+            disabled={!sorted.length}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 disabled:opacity-40"
+          >
+            <Download className="h-3.5 w-3.5" /> Export CSV
           </button>
-          <button onClick={() => setShowSave(!showSave)} className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700">
-            <Save className="h-3.5 w-3.5" /> Save
+          <button
+            onClick={() => setShowSaveInput((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700"
+          >
+            <Save className="h-3.5 w-3.5" /> Save Preset
           </button>
         </div>
       </div>
 
-      {/* Saved screeners */}
-      {savedScreeners.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <span className="text-xs text-slate-500">Saved:</span>
-          {savedScreeners.map((s, i) => (
-            <div key={i} className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1">
-              <button onClick={() => loadScreener(s)} className="text-xs text-slate-300 hover:text-white">{s.name}</button>
-              <button onClick={() => deleteScreener(i)} className="text-slate-500 hover:text-red-400"><X className="h-3 w-3" /></button>
+      {/* Save preset input */}
+      {showSaveInput && (
+        <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 p-3">
+          <input
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && savePreset()}
+            placeholder="Preset name..."
+            className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
+          />
+          <button
+            onClick={savePreset}
+            disabled={!presetName.trim()}
+            className="rounded-lg bg-violet-600 px-3 py-1 text-xs text-white hover:bg-violet-500 disabled:opacity-40"
+          >
+            Save
+          </button>
+          <button onClick={() => setShowSaveInput(false)} className="text-slate-500 hover:text-slate-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Saved presets */}
+      {presets.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500">Presets:</span>
+          {presets.map((p, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1"
+            >
+              <button
+                onClick={() => loadPreset(p)}
+                className="text-xs text-slate-300 hover:text-white"
+              >
+                {p.name}
+              </button>
+              <button onClick={() => deletePreset(i)} className="text-slate-500 hover:text-red-400">
+                <X className="h-3 w-3" />
+              </button>
             </div>
           ))}
         </div>
       )}
 
-      {showSave && (
-        <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 p-3">
-          <input value={screenerName} onChange={e => setScreenerName(e.target.value)} placeholder="Screener name..." className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none" />
-          <button onClick={saveScreener} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs text-white hover:bg-emerald-500">Save</button>
+      {/* Filter form */}
+      <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
+        <h3 className="mb-4 text-sm font-semibold text-white">Filters</h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Sector */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-400">Sector</label>
+            <select
+              value={form.sector}
+              onChange={(e) => handleField('sector', e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Any sector</option>
+              {SECTORS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Country */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-400">Country</label>
+            <select
+              value={form.country}
+              onChange={(e) => handleField('country', e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Any country</option>
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Market cap range */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-400">
+              Market Cap (USD)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={form.marketCapMin}
+                onChange={(e) => handleField('marketCapMin', e.target.value)}
+                placeholder="Min"
+                className={cn(inputCls, 'flex-1')}
+              />
+              <input
+                type="number"
+                value={form.marketCapMax}
+                onChange={(e) => handleField('marketCapMax', e.target.value)}
+                placeholder="Max"
+                className={cn(inputCls, 'flex-1')}
+              />
+            </div>
+          </div>
+
+          {/* Price range */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-400">Price ($)</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={form.priceMin}
+                onChange={(e) => handleField('priceMin', e.target.value)}
+                placeholder="Min"
+                className={cn(inputCls, 'flex-1')}
+              />
+              <input
+                type="number"
+                value={form.priceMax}
+                onChange={(e) => handleField('priceMax', e.target.value)}
+                placeholder="Max"
+                className={cn(inputCls, 'flex-1')}
+              />
+            </div>
+          </div>
+
+          {/* Volume min */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-400">
+              Min Volume (shares)
+            </label>
+            <input
+              type="number"
+              value={form.volumeMin}
+              onChange={(e) => handleField('volumeMin', e.target.value)}
+              placeholder="e.g. 500000"
+              className={inputCls}
+            />
+          </div>
+
+          {/* Beta range */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-400">Beta</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                step="0.1"
+                value={form.betaMin}
+                onChange={(e) => handleField('betaMin', e.target.value)}
+                placeholder="Min"
+                className={cn(inputCls, 'flex-1')}
+              />
+              <input
+                type="number"
+                step="0.1"
+                value={form.betaMax}
+                onChange={(e) => handleField('betaMax', e.target.value)}
+                placeholder="Max"
+                className={cn(inputCls, 'flex-1')}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center gap-3">
+          <button
+            onClick={handleRun}
+            disabled={isFetching}
+            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+          >
+            {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {isFetching ? 'Searching...' : 'Run Screener'}
+          </button>
+          <button
+            onClick={handleReset}
+            className="text-xs text-slate-400 hover:text-slate-200"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-lg border border-red-800 bg-red-900/20 px-4 py-3 text-sm text-red-400">
+          {error instanceof Error ? error.message : 'Screener request failed.'}
         </div>
       )}
 
-      {/* Filter builder */}
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Filters ({filters.length})</h3>
-          <button onClick={addFilter} className="flex items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1 text-xs text-white hover:bg-violet-500">
-            <Plus className="h-3 w-3" /> Add Filter
-          </button>
+      {/* Note from API */}
+      {data?.note && (
+        <div className="rounded-lg border border-amber-700/50 bg-amber-900/10 px-4 py-3 text-xs text-amber-400">
+          {data.note}
         </div>
-
-        {/* Sector filter */}
-        <div className="mb-3 flex flex-wrap gap-1">
-          <span className="mr-1 text-xs text-slate-500">Sector:</span>
-          {['All', ...SECTORS].map(s => (
-            <button key={s} onClick={() => setSectorFilter(s)}
-              className={cn('rounded-md px-2 py-0.5 text-[10px]', sectorFilter === s ? 'bg-violet-600 text-white' : 'bg-slate-700 text-slate-400 hover:text-white')}>
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {/* Filter rules */}
-        <div className="space-y-2">
-          {filters.map(f => {
-            const metric = METRICS.find(m => m.id === f.metric);
-            return (
-              <div key={f.id} className="flex items-center gap-2 rounded-lg bg-slate-900/50 px-3 py-2">
-                <select value={f.metric} onChange={e => updateFilter(f.id, 'metric', e.target.value)}
-                  className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white">
-                  {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                </select>
-                <span className="text-xs text-slate-500">between</span>
-                <input value={f.min} onChange={e => updateFilter(f.id, 'min', e.target.value)} placeholder={metric ? metric.min.toString() : 'min'} type="number"
-                  className="w-20 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white placeholder:text-slate-600" />
-                <span className="text-xs text-slate-500">and</span>
-                <input value={f.max} onChange={e => updateFilter(f.id, 'max', e.target.value)} placeholder={metric ? metric.max.toString() : 'max'} type="number"
-                  className="w-20 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white placeholder:text-slate-600" />
-                <button onClick={() => removeFilter(f.id)} className="ml-auto text-slate-500 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            );
-          })}
-          {filters.length === 0 && (
-            <div className="py-4 text-center text-xs text-slate-500">No filters added. Click &quot;Add Filter&quot; to start building your screener.</div>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Results */}
-      <div className="rounded-xl border border-slate-700">
-        <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800/50 px-4 py-2">
-          <div className="flex items-center gap-2">
-            <Play className="h-4 w-4 text-emerald-400" />
-            <span className="text-sm font-medium text-white">{results.length} results</span>
-            <span className="text-xs text-slate-500">of {STOCK_UNIVERSE.length} stocks</span>
+      {hasRun && (
+        <div className="rounded-xl border border-slate-700">
+          <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800/50 px-4 py-2">
+            <span className="text-sm font-medium text-white">
+              {isFetching ? 'Loading...' : `${sorted.length} results`}
+            </span>
+            {data?.source && (
+              <span className="text-xs text-slate-500">source: {data.source}</span>
+            )}
           </div>
+
+          {isFetching && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+            </div>
+          )}
+
+          {!isFetching && sorted.length === 0 && (
+            <div className="py-10 text-center text-sm text-slate-500">
+              No results matched your filters.
+            </div>
+          )}
+
+          {!isFetching && sorted.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-700 bg-slate-800/30">
+                  <tr>
+                    <th className="px-3 py-2 text-left">{thBtn('ticker')}</th>
+                    <th className="px-3 py-2 text-left">
+                      <span className="text-xs font-medium text-slate-400">Name</span>
+                    </th>
+                    <th className="px-3 py-2 text-left">
+                      <span className="text-xs font-medium text-slate-400">Sector</span>
+                    </th>
+                    <th className="px-3 py-2 text-left">
+                      <span className="text-xs font-medium text-slate-400">Country</span>
+                    </th>
+                    <th className="px-3 py-2 text-right">{thBtn('price')}</th>
+                    <th className="px-3 py-2 text-right">{thBtn('market_cap')}</th>
+                    <th className="px-3 py-2 text-right">{thBtn('beta')}</th>
+                    <th className="px-3 py-2 text-right">{thBtn('volume')}</th>
+                    <th className="px-3 py-2 text-left">
+                      <span className="text-xs font-medium text-slate-400">Exchange</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {sorted.map((s) => (
+                    <tr key={s.ticker} className="bg-slate-800 hover:bg-slate-700/50">
+                      <td className="px-3 py-2">
+                        <Link
+                          to={`/company/${s.ticker}`}
+                          className="font-mono text-xs font-bold text-violet-400 hover:underline"
+                        >
+                          {s.ticker}
+                        </Link>
+                      </td>
+                      <td
+                        className="max-w-[140px] truncate px-3 py-2 text-xs text-slate-300"
+                        title={s.name}
+                      >
+                        {s.name}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">
+                          {s.sector}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-400">{s.country}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-white">
+                        ${s.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
+                        {s.market_cap >= 1e9
+                          ? `$${(s.market_cap / 1e9).toFixed(1)}B`
+                          : s.market_cap >= 1e6
+                            ? `$${(s.market_cap / 1e6).toFixed(0)}M`
+                            : `$${s.market_cap?.toLocaleString() ?? '—'}`}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
+                        {s.beta != null ? s.beta.toFixed(2) : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
+                        {s.volume >= 1e6
+                          ? `${(s.volume / 1e6).toFixed(1)}M`
+                          : s.volume >= 1e3
+                            ? `${(s.volume / 1e3).toFixed(0)}K`
+                            : s.volume?.toLocaleString() ?? '—'}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-400">{s.exchange}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-700 bg-slate-800/30">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Name</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Sector</th>
-                {METRICS.slice(0, 8).map(m => (
-                  <th key={m.id} className="px-3 py-2 text-right">
-                    <button onClick={() => { if (sortBy === m.id) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortBy(m.id); setSortDir('desc'); } }}
-                      className={cn('text-xs font-medium', sortBy === m.id ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-300')}>
-                      {m.label.split(' ')[0]} {sortBy === m.id && (sortDir === 'desc' ? '↓' : '↑')}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50">
-              {results.slice(0, 30).map(s => (
-                <tr key={s.ticker} className="bg-slate-800 hover:bg-slate-750">
-                  <td className="px-3 py-2">
-                    <Link to={`/company/${s.ticker}`} className="font-mono text-xs font-bold text-emerald-400 hover:underline">{s.ticker}</Link>
-                  </td>
-                  <td className="max-w-[120px] truncate px-3 py-2 text-xs text-slate-300" title={s.name}>{s.name}</td>
-                  <td className="px-3 py-2"><span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">{s.sector}</span></td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">${s.market_cap.toFixed(0)}B</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{s.pe_ratio.toFixed(1)}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{s.dividend_yield.toFixed(2)}%</td>
-                  <td className={cn('px-3 py-2 text-right text-xs', s.revenue_growth >= 0 ? 'text-emerald-400' : 'text-red-400')}>{s.revenue_growth.toFixed(1)}%</td>
-                  <td className={cn('px-3 py-2 text-right text-xs', s.profit_margin >= 0 ? 'text-emerald-400' : 'text-red-400')}>{s.profit_margin.toFixed(1)}%</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{s.debt_equity.toFixed(2)}</td>
-                  <td className={cn('px-3 py-2 text-right text-xs', s.rsi > 70 ? 'text-red-400' : s.rsi < 30 ? 'text-emerald-400' : 'text-slate-300')}>{s.rsi.toFixed(0)}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{s.beta.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {results.length > 30 && (
-          <div className="border-t border-slate-700 bg-slate-800/50 px-4 py-2 text-xs text-slate-500">
-            Showing 30 of {results.length} results
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

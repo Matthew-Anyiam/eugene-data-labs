@@ -1,191 +1,143 @@
 import { useState, useMemo } from 'react';
-import { Banknote, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Banknote, TrendingUp, TrendingDown, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useEconomics } from '../hooks/useEconomics';
+import type { FredSeries } from '../lib/types';
 
-type BondCategory = 'treasuries' | 'corporate' | 'municipal' | 'international';
+type BondTab = 'overview' | 'treasuries' | 'rates' | 'spreads';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
-
-const MATURITIES = ['1M', '3M', '6M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y'] as const;
-
-const BASE_YIELDS: Record<string, number> = {
-  '1M': 5.32, '3M': 5.28, '6M': 5.18, '1Y': 4.92, '2Y': 4.71,
-  '3Y': 4.48, '5Y': 4.32, '7Y': 4.38, '10Y': 4.42, '20Y': 4.68, '30Y': 4.56,
-};
-
-interface TreasuryRate {
-  maturity: string;
-  yield_: number;
-  dailyChg: number;
-  weekChg: number;
-  monthChg: number;
-}
-
-interface CorporateBond {
-  issuer: string;
-  coupon: number;
-  maturity: string;
-  rating: string;
-  yield_: number;
-  spread: number;
-  price: number;
-}
-
-interface MuniBond {
-  issuer: string;
-  coupon: number;
-  maturity: string;
-  rating: string;
-  yield_: number;
-  taxEquivYield: number;
-  price: number;
-}
-
-interface CreditSpread {
-  label: string;
-  category: string;
-  spread: number;
-  change: number;
-}
-
-const TABS: { label: string; value: BondCategory }[] = [
+const TABS: { label: string; value: BondTab }[] = [
+  { label: 'Overview', value: 'overview' },
   { label: 'Treasuries', value: 'treasuries' },
-  { label: 'Corporate', value: 'corporate' },
-  { label: 'Municipal', value: 'municipal' },
-  { label: 'International', value: 'international' },
+  { label: 'Rates', value: 'rates' },
+  { label: 'Spreads', value: 'spreads' },
 ];
 
-function generateTreasuryRates(): TreasuryRate[] {
-  return MATURITIES.map((m) => {
-    const s = seed(m);
-    return {
-      maturity: m,
-      yield_: BASE_YIELDS[m],
-      dailyChg: +(pseudo(s, 1) * 0.12 - 0.06).toFixed(3),
-      weekChg: +(pseudo(s, 2) * 0.24 - 0.12).toFixed(3),
-      monthChg: +(pseudo(s, 3) * 0.40 - 0.20).toFixed(3),
-    };
-  });
+const TREASURY_MATURITY_KEYS: Record<string, string[]> = {
+  '1M': ['DGS1MO', '1-month', '1 month'],
+  '3M': ['DGS3MO', '3-month', '3 month', '3-Month'],
+  '6M': ['DGS6MO', '6-month', '6 month', '6-Month'],
+  '1Y': ['DGS1', '1-year', '1 year', '1-Year'],
+  '2Y': ['DGS2', '2-year', '2 year', '2-Year'],
+  '3Y': ['DGS3', '3-year', '3 year', '3-Year'],
+  '5Y': ['DGS5', '5-year', '5 year', '5-Year'],
+  '7Y': ['DGS7', '7-year', '7 year', '7-Year'],
+  '10Y': ['DGS10', '10-year', '10 year', '10-Year'],
+  '20Y': ['DGS20', '20-year', '20 year', '20-Year'],
+  '30Y': ['DGS30', '30-year', '30 year', '30-Year'],
+};
+
+const MATURITIES = ['1M', '3M', '6M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y'];
+
+function matchSeries(series: FredSeries[], keys: string[]): FredSeries | null {
+  for (const s of series) {
+    for (const key of keys) {
+      if (s.id.toUpperCase() === key.toUpperCase() || s.title.toLowerCase().includes(key.toLowerCase())) {
+        return s;
+      }
+    }
+  }
+  return null;
 }
 
-function generateCorporateBonds(): CorporateBond[] {
-  const issuers = [
-    { name: 'Apple Inc', rating: 'AA+' }, { name: 'Microsoft Corp', rating: 'AAA' },
-    { name: 'JPMorgan Chase', rating: 'A+' }, { name: 'Amazon.com', rating: 'AA' },
-    { name: 'Goldman Sachs', rating: 'A+' }, { name: 'Meta Platforms', rating: 'A' },
-    { name: 'Bank of America', rating: 'A-' }, { name: 'Tesla Inc', rating: 'BBB' },
-    { name: 'Ford Motor Co', rating: 'BBB-' }, { name: 'AT&T Inc', rating: 'BBB' },
-    { name: 'Verizon Comms', rating: 'BBB+' }, { name: 'Comcast Corp', rating: 'A-' },
-  ];
-  return issuers.map((iss, idx) => {
-    const s = seed(iss.name);
-    const coupon = +(3.5 + pseudo(s, 1) * 3.5).toFixed(3);
-    const yield_ = +(coupon + pseudo(s, 2) * 0.8 - 0.3).toFixed(3);
-    const spread = Math.round(50 + pseudo(s, 3) * 250);
-    const price = +(100 + (coupon - yield_) * (3 + idx * 0.5)).toFixed(2);
-    const yr = 2026 + Math.floor(pseudo(s, 4) * 10);
-    const mo = 1 + Math.floor(pseudo(s, 5) * 12);
-    return {
-      issuer: iss.name, coupon, maturity: `${mo.toString().padStart(2, '0')}/${yr}`,
-      rating: iss.rating, yield_, spread, price,
-    };
-  });
+function parseNum(s: FredSeries | null | undefined): number | null {
+  if (!s) return null;
+  const v = s.value;
+  if (v === null || v === undefined || v === '') return null;
+  const num = typeof v === 'number' ? v : parseFloat(String(v));
+  return isNaN(num) ? null : num;
 }
 
-function generateMuniBonds(): MuniBond[] {
-  const issuers = [
-    'State of California', 'New York City GO', 'Texas Water Dev Board',
-    'Illinois Tollway Auth', 'Florida Board of Ed', 'Massachusetts GO',
-    'Washington State GO', 'Pennsylvania Turnpike',
-  ];
-  const TAX_RATE = 0.37;
-  return issuers.map((name) => {
-    const s = seed(name);
-    const coupon = +(2.5 + pseudo(s, 1) * 2.5).toFixed(3);
-    const yield_ = +(coupon + pseudo(s, 2) * 0.4 - 0.15).toFixed(3);
-    const price = +(100 + (coupon - yield_) * 5).toFixed(2);
-    const yr = 2028 + Math.floor(pseudo(s, 3) * 15);
-    const mo = 1 + Math.floor(pseudo(s, 4) * 12);
-    const ratings = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A'];
-    const rating = ratings[Math.floor(pseudo(s, 5) * ratings.length)];
-    return {
-      issuer: name, coupon, maturity: `${mo.toString().padStart(2, '0')}/${yr}`,
-      rating, yield_, taxEquivYield: +(yield_ / (1 - TAX_RATE)).toFixed(3), price,
-    };
-  });
-}
-
-function generateCreditSpreads(): CreditSpread[] {
-  return [
-    { label: 'IG Corporate', category: 'Investment Grade', spread: 112, change: -3 },
-    { label: 'HY Corporate', category: 'High Yield', spread: 342, change: 8 },
-    { label: 'AAA Spread', category: 'AAA', spread: 48, change: -1 },
-    { label: 'BBB Spread', category: 'BBB', spread: 158, change: 5 },
-  ];
-}
-
-function ChangeIndicator({ value, suffix = '' }: { value: number; suffix?: string }) {
-  if (value === 0) return <span className="text-slate-400">0{suffix}</span>;
-  const positive = value > 0;
+function ChangeIndicator({ value }: { value: number | null }) {
+  if (value === null) return <span className="text-slate-600">—</span>;
+  if (value === 0) return <span className="text-slate-400">0</span>;
+  const pos = value > 0;
   return (
-    <span className={cn('inline-flex items-center gap-0.5', positive ? 'text-red-400' : 'text-emerald-400')}>
-      {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-      {positive ? '+' : ''}{value.toFixed(3)}{suffix}
+    <span className={cn('inline-flex items-center gap-0.5', pos ? 'text-red-400' : 'text-emerald-400')}>
+      {pos ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      {pos ? '+' : ''}{value.toFixed(3)}
     </span>
   );
 }
 
-function BpsChange({ value }: { value: number }) {
-  if (value === 0) return <span className="text-slate-400">0 bps</span>;
-  const positive = value > 0;
+function SpreadValue({ bps, signal }: { bps: number | null; signal: 'normal' | 'warning' | 'inverted' }) {
+  if (bps === null) return <span className="text-slate-600">N/A</span>;
   return (
-    <span className={cn('inline-flex items-center gap-0.5', positive ? 'text-red-400' : 'text-emerald-400')}>
-      {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-      {positive ? '+' : ''}{value} bps
+    <span className={cn('font-semibold', signal === 'inverted' ? 'text-red-400' : signal === 'warning' ? 'text-amber-400' : 'text-emerald-400')}>
+      {bps >= 0 ? '+' : ''}{bps.toFixed(0)} bps
     </span>
   );
 }
 
 export function BondsPage() {
-  const [activeTab, setActiveTab] = useState<BondCategory>('treasuries');
-  const [taxRate, setTaxRate] = useState(37);
+  const [activeTab, setActiveTab] = useState<BondTab>('overview');
 
-  const rates = useMemo(generateTreasuryRates, []);
-  const corporateBonds = useMemo(generateCorporateBonds, []);
-  const muniBonds = useMemo(generateMuniBonds, []);
-  const creditSpreads = useMemo(generateCreditSpreads, []);
+  const ratesQuery = useEconomics('rates');
+  const treasuryQuery = useEconomics('treasury');
 
-  const ten = rates.find((r) => r.maturity === '10Y')!;
-  const two = rates.find((r) => r.maturity === '2Y')!;
-  const spread2s10s = +((ten.yield_ - two.yield_) * 100).toFixed(1);
-  const isInverted = spread2s10s < 0;
+  const ratesSeries = ratesQuery.data?.series ?? [];
+  const treasurySeries = treasuryQuery.data?.series ?? [];
 
-  const summaryCards = [
-    { label: '10Y Treasury', value: `${ten.yield_.toFixed(2)}%`, change: ten.dailyChg, isBps: false },
-    { label: '2Y Treasury', value: `${two.yield_.toFixed(2)}%`, change: two.dailyChg, isBps: false },
-    { label: '2s/10s Spread', value: `${spread2s10s > 0 ? '+' : ''}${spread2s10s} bps`, change: 0, isBps: true, inverted: isInverted },
-    { label: 'IG Corp Spread', value: `${creditSpreads[0].spread} bps`, change: creditSpreads[0].change, isBps: true },
-    { label: 'HY Corp Spread', value: `${creditSpreads[1].spread} bps`, change: creditSpreads[1].change, isBps: true },
-    { label: 'Fed Funds Rate', value: '5.33%', change: 0, isBps: false },
-  ];
+  const isLoading = ratesQuery.isLoading || treasuryQuery.isLoading;
+  const isError = ratesQuery.isError || treasuryQuery.isError;
 
-  const maxYield = Math.max(...rates.map((r) => r.yield_));
+  // Map treasury maturities
+  const maturityMap = useMemo(() => {
+    const result: Record<string, FredSeries | null> = {};
+    for (const m of MATURITIES) {
+      result[m] = matchSeries(treasurySeries, TREASURY_MATURITY_KEYS[m]);
+    }
+    return result;
+  }, [treasurySeries]);
 
-  const adjustedMunis = useMemo(() => {
-    const rate = taxRate / 100;
-    return muniBonds.map((b) => ({
-      ...b,
-      taxEquivYield: +(b.yield_ / (1 - rate)).toFixed(3),
-    }));
-  }, [muniBonds, taxRate]);
+  const yieldMap = useMemo(() => {
+    const result: Record<string, number | null> = {};
+    for (const m of MATURITIES) {
+      result[m] = parseNum(maturityMap[m]);
+    }
+    return result;
+  }, [maturityMap]);
+
+  const availableMaturities = MATURITIES.filter(m => yieldMap[m] !== null);
+
+  // Key rate lookups
+  const fedFunds = matchSeries(ratesSeries, ['FEDFUNDS', 'federal funds', 'fed funds']);
+  const prime = matchSeries(ratesSeries, ['DPRIME', 'prime rate', 'prime loan']);
+  const sofr = matchSeries(ratesSeries, ['SOFR', 'secured overnight']);
+  const mortg30 = matchSeries(ratesSeries, ['MORTGAGE30US', '30-year fixed mortgage', '30 year fixed']);
+  const mortg15 = matchSeries(ratesSeries, ['MORTGAGE15US', '15-year fixed mortgage', '15 year fixed']);
+  const libor3m = matchSeries(ratesSeries, ['USD3MTD156N', 'LIBOR', '3-month LIBOR']);
+
+  // Spread calculations
+  const y10 = yieldMap['10Y'];
+  const y2 = yieldMap['2Y'];
+  const y3m = yieldMap['3M'];
+  const y30 = yieldMap['30Y'];
+  const y5 = yieldMap['5Y'];
+
+  const spread2s10s = y10 !== null && y2 !== null ? (y10 - y2) * 100 : null;
+  const spread3m10 = y10 !== null && y3m !== null ? (y10 - y3m) * 100 : null;
+  const spread5s30s = y30 !== null && y5 !== null ? (y30 - y5) * 100 : null;
+
+  const isInverted = spread2s10s !== null && spread2s10s < 0;
+
+  const spreadSignal = (val: number | null): 'normal' | 'warning' | 'inverted' => {
+    if (val === null) return 'normal';
+    if (val < 0) return 'inverted';
+    if (val < 25) return 'warning';
+    return 'normal';
+  };
+
+  // Max yield for bar chart scale
+  const allYields = availableMaturities.map(m => yieldMap[m] as number);
+  const maxYield = allYields.length ? Math.max(...allYields) : 5;
+  const minYield = allYields.length ? Math.min(...allYields) : 0;
+  const yieldRange = maxYield - minYield || 1;
+
+  // Summary cards
+  const fedVal = parseNum(fedFunds);
+  const tenYield = yieldMap['10Y'];
+  const twoYield = yieldMap['2Y'];
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6 space-y-6">
@@ -194,281 +146,328 @@ export function BondsPage() {
         <Banknote className="h-8 w-8 text-blue-400" />
         <div>
           <h1 className="text-2xl font-bold">Bonds &amp; Fixed Income</h1>
-          <p className="text-slate-400 text-sm">Treasury yields, credit spreads, and fixed income markets</p>
+          <p className="text-slate-400 text-sm">Treasury yields, interest rates, and fixed income markets</p>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
-            <div className="text-xs text-slate-400 mb-1 flex items-center gap-1">
-              {card.label}
-              {'inverted' in card && card.inverted && (
-                <AlertTriangle className="h-3 w-3 text-amber-400" />
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 py-16 text-slate-400">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading bond market data…</span>
+        </div>
+      )}
+
+      {isError && !isLoading && (
+        <div className="rounded-xl border border-red-700/50 bg-red-900/10 px-4 py-3 text-sm text-red-400">
+          Failed to load bond data. Please try again.
+        </div>
+      )}
+
+      {!isLoading && (
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+              <div className="text-xs text-slate-400 mb-1">Fed Funds Rate</div>
+              <div className="text-lg font-bold text-blue-400">{fedVal !== null ? `${fedVal.toFixed(2)}%` : '—'}</div>
+              {fedFunds?.date && <div className="text-[10px] text-slate-500 mt-1">{fedFunds.date}</div>}
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+              <div className="text-xs text-slate-400 mb-1">10Y Treasury</div>
+              <div className="text-lg font-bold text-white">{tenYield !== null ? `${tenYield.toFixed(2)}%` : '—'}</div>
+              {maturityMap['10Y']?.date && <div className="text-[10px] text-slate-500 mt-1">{maturityMap['10Y']!.date}</div>}
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+              <div className="text-xs text-slate-400 mb-1">2Y Treasury</div>
+              <div className="text-lg font-bold text-white">{twoYield !== null ? `${twoYield.toFixed(2)}%` : '—'}</div>
+              {maturityMap['2Y']?.date && <div className="text-[10px] text-slate-500 mt-1">{maturityMap['2Y']!.date}</div>}
+            </div>
+
+            <div className={cn('bg-slate-800 border rounded-lg p-3', isInverted ? 'border-amber-700/50' : 'border-slate-700')}>
+              <div className="text-xs text-slate-400 mb-1 flex items-center gap-1">
+                2s/10s Spread
+                {isInverted && <AlertTriangle className="h-3 w-3 text-amber-400" />}
+              </div>
+              <div className={cn('text-lg font-bold', isInverted ? 'text-amber-400' : 'text-white')}>
+                {spread2s10s !== null ? `${spread2s10s >= 0 ? '+' : ''}${spread2s10s.toFixed(0)} bps` : '—'}
+              </div>
+              {isInverted && <div className="text-[10px] text-amber-500 mt-1">Inverted</div>}
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+              <div className="text-xs text-slate-400 mb-1">30Y Mortgage</div>
+              <div className="text-lg font-bold text-white">
+                {parseNum(mortg30) !== null ? `${parseNum(mortg30)!.toFixed(2)}%` : '—'}
+              </div>
+              {mortg30?.date && <div className="text-[10px] text-slate-500 mt-1">{mortg30.date}</div>}
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+              <div className="text-xs text-slate-400 mb-1">Prime Rate</div>
+              <div className="text-lg font-bold text-white">
+                {parseNum(prime) !== null ? `${parseNum(prime)!.toFixed(2)}%` : '—'}
+              </div>
+              {prime?.date && <div className="text-[10px] text-slate-500 mt-1">{prime.date}</div>}
+            </div>
+          </div>
+
+          {/* Inversion alert */}
+          {isInverted && (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-700/50 bg-amber-900/10 p-3">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+              <span className="text-sm text-amber-400">
+                Yield curve inversion detected (2Y/10Y) — historically a leading recession indicator
+              </span>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex gap-1 bg-slate-800 border border-slate-700 rounded-lg p-1 w-fit">
+            {TABS.map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={cn(
+                  'px-4 py-1.5 rounded text-sm font-medium transition-colors',
+                  activeTab === tab.value
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Overview tab */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Yield curve visual */}
+              {availableMaturities.length > 0 && (
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                  <h2 className="text-sm font-semibold text-slate-300 mb-4">US Treasury Yield Curve</h2>
+                  <div className="flex items-end gap-1" style={{ height: '180px' }}>
+                    {availableMaturities.map((m, i) => {
+                      const y = yieldMap[m] as number;
+                      const heightPct = ((y - minYield) / yieldRange) * 75 + 10;
+                      const prevM = i > 0 ? availableMaturities[i - 1] : null;
+                      const prevY = prevM ? yieldMap[prevM] : null;
+                      const inverted = prevY !== null && y < prevY;
+                      return (
+                        <div key={m} className="flex-1 flex flex-col items-center gap-1">
+                          <span className="text-[10px] text-slate-400">{y.toFixed(2)}%</span>
+                          <div className="w-full flex items-end justify-center" style={{ height: '120px' }}>
+                            <div
+                              className={cn('w-full max-w-[36px] rounded-t transition-all', inverted ? 'bg-amber-500/80' : 'bg-blue-500/80')}
+                              style={{ height: `${heightPct}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-400">{m}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-400">
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500/80" /> Normal</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-500/80" /> Inverted segment</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Spread overview */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { name: '10Y − 2Y', val: spread2s10s },
+                  { name: '10Y − 3M', val: spread3m10 },
+                  { name: '30Y − 5Y', val: spread5s30s },
+                ].map(sp => (
+                  <div key={sp.name} className={cn('rounded-xl border bg-slate-800 p-4', spreadSignal(sp.val) === 'inverted' ? 'border-red-700/50' : spreadSignal(sp.val) === 'warning' ? 'border-amber-700/50' : 'border-slate-700')}>
+                    <div className="text-xs text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                      {spreadSignal(sp.val) === 'inverted' && <AlertTriangle className="h-3 w-3 text-red-400" />}
+                      {sp.name} Spread
+                    </div>
+                    <div className="mt-1">
+                      <SpreadValue bps={sp.val} signal={spreadSignal(sp.val)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Treasuries tab */}
+          {activeTab === 'treasuries' && (
+            <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+              <div className="p-3 border-b border-slate-700">
+                <h2 className="text-sm font-semibold text-slate-300">Treasury Yields</h2>
+              </div>
+              {availableMaturities.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-slate-400 text-xs border-b border-slate-700">
+                        <th className="text-left p-3">Maturity</th>
+                        <th className="text-left p-3">Series</th>
+                        <th className="text-right p-3">Yield</th>
+                        <th className="text-right p-3">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {availableMaturities.map(m => {
+                        const s = maturityMap[m]!;
+                        const y = yieldMap[m] as number;
+                        return (
+                          <tr key={m} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                            <td className="p-3 font-bold text-white">{m}</td>
+                            <td className="p-3 text-slate-400 text-xs">{s.title}</td>
+                            <td className="p-3 text-right font-mono text-white">{y.toFixed(3)}%</td>
+                            <td className="p-3 text-right text-slate-500 text-xs">{s.date || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-10 text-center text-sm text-slate-500">No treasury yield data available.</div>
+              )}
+              {/* Show all treasury series */}
+              {treasurySeries.length > 0 && (
+                <div className="border-t border-slate-700">
+                  <div className="p-3">
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">All Treasury Series</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-slate-500 text-xs border-b border-slate-700/50">
+                            <th className="text-left py-2 pr-4">ID</th>
+                            <th className="text-left py-2 pr-4">Title</th>
+                            <th className="text-right py-2">Value</th>
+                            <th className="text-right py-2 pl-4">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {treasurySeries.map(s => (
+                            <tr key={s.id} className="border-b border-slate-700/30 hover:bg-slate-700/20">
+                              <td className="py-2 pr-4 font-mono text-xs text-slate-400">{s.id}</td>
+                              <td className="py-2 pr-4 text-xs text-slate-300">{s.title}</td>
+                              <td className="py-2 text-right font-mono text-xs text-white">
+                                {s.value !== null && s.value !== undefined ? `${s.value}%` : '—'}
+                              </td>
+                              <td className="py-2 pl-4 text-right text-xs text-slate-500">{s.date || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
-            <div className={cn('text-lg font-bold', 'inverted' in card && card.inverted && 'text-amber-400')}>
-              {card.value}
-            </div>
-            <div className="text-xs mt-1">
-              {card.isBps ? <BpsChange value={card.change} /> : <ChangeIndicator value={card.change} />}
-            </div>
-          </div>
-        ))}
-      </div>
+          )}
 
-      {/* Yield Curve */}
-      <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-slate-300 mb-4">US Treasury Yield Curve</h2>
-        <div className="flex items-end gap-2 h-48">
-          {rates.map((r, i) => {
-            const height = (r.yield_ / maxYield) * 100;
-            const prevYield = i > 0 ? rates[i - 1].yield_ : null;
-            const inverted = prevYield !== null && r.yield_ < prevYield;
-            return (
-              <div key={r.maturity} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-[10px] text-slate-400">{r.yield_.toFixed(2)}%</span>
-                <div className="w-full flex items-end justify-center" style={{ height: '140px' }}>
-                  <div
-                    className={cn(
-                      'w-full max-w-[32px] rounded-t transition-all',
-                      inverted ? 'bg-amber-500/80' : 'bg-blue-500/80'
-                    )}
-                    style={{ height: `${height}%` }}
-                  />
-                </div>
-                <span className="text-[10px] text-slate-400">{r.maturity}</span>
-                <span className="text-[9px]">
-                  <ChangeIndicator value={r.dailyChg} />
-                </span>
+          {/* Rates tab */}
+          {activeTab === 'rates' && (
+            <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+              <div className="p-3 border-b border-slate-700">
+                <h2 className="text-sm font-semibold text-slate-300">Interest Rates</h2>
               </div>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-400">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500/80" /> Normal</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-500/80" /> Inverted</span>
-        </div>
-      </div>
-
-      {/* Category Tabs */}
-      <div className="flex gap-1 bg-slate-800 border border-slate-700 rounded-lg p-1 w-fit">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={cn(
-              'px-4 py-1.5 rounded text-sm font-medium transition-colors',
-              activeTab === tab.value
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700'
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Treasuries Tab */}
-      {activeTab === 'treasuries' && (
-        <div className="space-y-6">
-          {/* Rates Table */}
-          <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-            <div className="p-3 border-b border-slate-700">
-              <h2 className="text-sm font-semibold text-slate-300">Treasury Rates</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-slate-400 text-xs border-b border-slate-700">
-                    <th className="text-left p-3">Maturity</th>
-                    <th className="text-right p-3">Yield</th>
-                    <th className="text-right p-3">Daily Chg</th>
-                    <th className="text-right p-3">1W Chg</th>
-                    <th className="text-right p-3">1M Chg</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rates.map((r) => (
-                    <tr key={r.maturity} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                      <td className="p-3 font-medium">{r.maturity}</td>
-                      <td className="p-3 text-right font-mono">{r.yield_.toFixed(3)}%</td>
-                      <td className="p-3 text-right"><ChangeIndicator value={r.dailyChg} /></td>
-                      <td className="p-3 text-right"><ChangeIndicator value={r.weekChg} /></td>
-                      <td className="p-3 text-right"><ChangeIndicator value={r.monthChg} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Credit Spreads */}
-          <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-            <div className="p-3 border-b border-slate-700">
-              <h2 className="text-sm font-semibold text-slate-300">Credit Spreads</h2>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-slate-700">
-              {creditSpreads.map((cs) => (
-                <div key={cs.label} className="bg-slate-800 p-4">
-                  <div className="text-xs text-slate-400 mb-1">{cs.label}</div>
-                  <div className="text-xl font-bold">{cs.spread} <span className="text-sm font-normal text-slate-400">bps</span></div>
-                  <div className="text-xs mt-1"><BpsChange value={cs.change} /></div>
-                  <div className="text-[10px] text-slate-500 mt-1">{cs.category}</div>
+              {ratesSeries.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-slate-400 text-xs border-b border-slate-700">
+                        <th className="text-left p-3">Rate</th>
+                        <th className="text-right p-3">Value</th>
+                        <th className="text-right p-3">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ratesSeries.map(s => {
+                        const num = parseNum(s);
+                        return (
+                          <tr key={s.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                            <td className="p-3">
+                              <div className="text-sm font-medium text-white">{s.title}</div>
+                              <div className="text-xs text-slate-500">{s.id}</div>
+                            </td>
+                            <td className="p-3 text-right font-mono font-semibold text-white">
+                              {num !== null ? `${num.toFixed(2)}%` : '—'}
+                            </td>
+                            <td className="p-3 text-right text-xs text-slate-500">{s.date || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
+              ) : (
+                <div className="py-10 text-center text-sm text-slate-500">No interest rate data available.</div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Corporate Tab */}
-      {activeTab === 'corporate' && (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-          <div className="p-3 border-b border-slate-700">
-            <h2 className="text-sm font-semibold text-slate-300">Corporate Bonds</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-slate-400 text-xs border-b border-slate-700">
-                  <th className="text-left p-3">Issuer</th>
-                  <th className="text-right p-3">Coupon</th>
-                  <th className="text-right p-3">Maturity</th>
-                  <th className="text-center p-3">Rating</th>
-                  <th className="text-right p-3">Yield</th>
-                  <th className="text-right p-3">Spread (bps)</th>
-                  <th className="text-right p-3">Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {corporateBonds.map((b) => {
-                  const ratingColor = b.rating.startsWith('AAA')
-                    ? 'text-emerald-400'
-                    : b.rating.startsWith('AA')
-                      ? 'text-green-400'
-                      : b.rating.startsWith('A')
-                        ? 'text-blue-400'
-                        : 'text-amber-400';
-                  return (
-                    <tr key={b.issuer} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                      <td className="p-3 font-medium">{b.issuer}</td>
-                      <td className="p-3 text-right font-mono">{b.coupon.toFixed(3)}%</td>
-                      <td className="p-3 text-right text-slate-300">{b.maturity}</td>
-                      <td className={cn('p-3 text-center font-medium', ratingColor)}>{b.rating}</td>
-                      <td className="p-3 text-right font-mono">{b.yield_.toFixed(3)}%</td>
-                      <td className="p-3 text-right font-mono">{b.spread}</td>
-                      <td className="p-3 text-right font-mono">{b.price.toFixed(2)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Municipal Tab */}
-      {activeTab === 'municipal' && (
-        <div className="space-y-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-            <div className="flex items-center gap-4">
-              <label className="text-sm text-slate-400">Federal Tax Rate:</label>
-              <input
-                type="range"
-                min={10}
-                max={50}
-                value={taxRate}
-                onChange={(e) => setTaxRate(Number(e.target.value))}
-                className="w-40 accent-blue-500"
-              />
-              <span className="text-sm font-medium w-12">{taxRate}%</span>
-            </div>
-          </div>
-          <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-            <div className="p-3 border-b border-slate-700">
-              <h2 className="text-sm font-semibold text-slate-300">Municipal Bonds</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-slate-400 text-xs border-b border-slate-700">
-                    <th className="text-left p-3">Issuer</th>
-                    <th className="text-right p-3">Coupon</th>
-                    <th className="text-right p-3">Maturity</th>
-                    <th className="text-center p-3">Rating</th>
-                    <th className="text-right p-3">Yield</th>
-                    <th className="text-right p-3">Tax-Equiv Yield</th>
-                    <th className="text-right p-3">Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adjustedMunis.map((b) => (
-                    <tr key={b.issuer} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                      <td className="p-3 font-medium">{b.issuer}</td>
-                      <td className="p-3 text-right font-mono">{b.coupon.toFixed(3)}%</td>
-                      <td className="p-3 text-right text-slate-300">{b.maturity}</td>
-                      <td className="p-3 text-center font-medium text-emerald-400">{b.rating}</td>
-                      <td className="p-3 text-right font-mono">{b.yield_.toFixed(3)}%</td>
-                      <td className="p-3 text-right font-mono text-blue-400">{b.taxEquivYield.toFixed(3)}%</td>
-                      <td className="p-3 text-right font-mono">{b.price.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* International Tab */}
-      {activeTab === 'international' && (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-          <div className="p-3 border-b border-slate-700">
-            <h2 className="text-sm font-semibold text-slate-300">International Government Bonds (10Y)</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-slate-400 text-xs border-b border-slate-700">
-                  <th className="text-left p-3">Country</th>
-                  <th className="text-right p-3">Yield</th>
-                  <th className="text-right p-3">Daily Chg</th>
-                  <th className="text-right p-3">Spread vs UST</th>
-                </tr>
-              </thead>
-              <tbody>
+          {/* Spreads tab */}
+          {activeTab === 'spreads' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[
-                  { country: 'Germany (Bund)', yield_: 2.42 },
-                  { country: 'United Kingdom (Gilt)', yield_: 4.18 },
-                  { country: 'Japan (JGB)', yield_: 0.88 },
-                  { country: 'France (OAT)', yield_: 2.98 },
-                  { country: 'Italy (BTP)', yield_: 3.72 },
-                  { country: 'Canada', yield_: 3.48 },
-                  { country: 'Australia', yield_: 4.22 },
-                  { country: 'Switzerland', yield_: 0.72 },
-                ].map((bond) => {
-                  const s = seed(bond.country);
-                  const dailyChg = +(pseudo(s, 1) * 0.10 - 0.05).toFixed(3);
-                  const spreadVsUst = Math.round((bond.yield_ - ten.yield_) * 100);
+                  { name: '10Y − 2Y (2s10s)', bps: spread2s10s, desc: 'Classic recession indicator. Inverted when short rates exceed long rates.' },
+                  { name: '10Y − 3M', bps: spread3m10, desc: 'Fed-preferred spread. Strong predictor of recessions when inverted.' },
+                  { name: '30Y − 5Y', bps: spread5s30s, desc: 'Long-end steepness. Reflects longer-term growth and inflation expectations.' },
+                ].map(sp => {
+                  const sig = spreadSignal(sp.bps);
                   return (
-                    <tr key={bond.country} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                      <td className="p-3 font-medium">{bond.country}</td>
-                      <td className="p-3 text-right font-mono">{bond.yield_.toFixed(3)}%</td>
-                      <td className="p-3 text-right"><ChangeIndicator value={dailyChg} /></td>
-                      <td className="p-3 text-right font-mono">
-                        <span className={spreadVsUst < 0 ? 'text-emerald-400' : 'text-slate-300'}>
-                          {spreadVsUst > 0 ? '+' : ''}{spreadVsUst} bps
-                        </span>
-                      </td>
-                    </tr>
+                    <div key={sp.name} className={cn('rounded-xl border bg-slate-800 p-5', sig === 'inverted' ? 'border-red-700/50' : sig === 'warning' ? 'border-amber-700/50' : 'border-slate-700')}>
+                      <div className="flex items-center gap-1 text-xs text-slate-500 uppercase tracking-wider mb-2">
+                        {sig === 'inverted' && <AlertTriangle className="h-3 w-3 text-red-400" />}
+                        {sp.name}
+                      </div>
+                      <div className="text-3xl font-bold mb-1">
+                        <SpreadValue bps={sp.bps} signal={sig} />
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{sp.desc}</p>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </div>
+
+              {/* Key rates comparison */}
+              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-slate-300 mb-4">Key Rate Comparison</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Fed Funds', series: fedFunds },
+                    { label: 'Prime Rate', series: prime },
+                    { label: 'SOFR', series: sofr },
+                    { label: '3M LIBOR / USD', series: libor3m },
+                    { label: '30Y Mortgage', series: mortg30 },
+                    { label: '15Y Mortgage', series: mortg15 },
+                  ].map(({ label, series: s }) => {
+                    const num = parseNum(s);
+                    return (
+                      <div key={label} className="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
+                        <div className="text-xs text-slate-400 mb-1">{label}</div>
+                        <div className="text-xl font-bold text-white">
+                          {num !== null ? `${num.toFixed(2)}%` : '—'}
+                        </div>
+                        {s?.date && <div className="text-[10px] text-slate-500 mt-1">{s.date}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isError && ratesSeries.length === 0 && treasurySeries.length === 0 && (
+            <div className="rounded-xl border border-slate-700 bg-slate-800 py-12 text-center text-sm text-slate-500">
+              No bond market data available.
+            </div>
+          )}
+        </>
       )}
     </div>
   );

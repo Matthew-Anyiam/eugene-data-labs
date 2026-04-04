@@ -1,266 +1,347 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeftRight, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { ArrowLeftRight, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useEconomics } from '../hooks/useEconomics';
+import type { FredSeries } from '../lib/types';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
+// ─── FRED FX series IDs → pair metadata ──────────────────────────────────────
+// FRED exchange rate conventions:
+//   DEXUSEU  USD per EUR  → multiply to convert USD→EUR:  EUR = USD / rate
+//   DEXUSUK  USD per GBP  → same
+//   DEXJPUS  JPY per USD  → multiply to get JPY from USD
+//   DEXCHUS  CNY per USD  → multiply to get CNY from USD
+//   DEXCAUS  CAD per USD
+//   DEXUSAL  AUD per USD  (USD per AUD inverted)
+//   DEXSZUS  CHF per USD  (inverted)
+//   DEXINUS  INR per USD
+//   DEXBZUS  BRL per USD
+//   DEXKOUS  KRW per USD
+//   DEXMXUS  MXN per USD
+
+interface FXMeta {
+  fredId: string;
+  from: string;   // USD base unless noted
+  to: string;
+  fromName: string;
+  toName: string;
+  // Whether the FRED series is already "USD per foreign" (true) vs "foreign per USD" (false)
+  usdPerForeign: boolean;
 }
 
-const CURRENCIES = [
-  { code: 'USD', name: 'US Dollar', symbol: '$', flag: 'US' },
-  { code: 'EUR', name: 'Euro', symbol: '\u20AC', flag: 'EU' },
-  { code: 'GBP', name: 'British Pound', symbol: '\u00A3', flag: 'GB' },
-  { code: 'JPY', name: 'Japanese Yen', symbol: '\u00A5', flag: 'JP' },
-  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', flag: 'CH' },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', flag: 'CA' },
-  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', flag: 'AU' },
-  { code: 'CNY', name: 'Chinese Yuan', symbol: '\u00A5', flag: 'CN' },
-  { code: 'INR', name: 'Indian Rupee', symbol: '\u20B9', flag: 'IN' },
-  { code: 'BRL', name: 'Brazilian Real', symbol: 'R$', flag: 'BR' },
-  { code: 'KRW', name: 'South Korean Won', symbol: '\u20A9', flag: 'KR' },
-  { code: 'MXN', name: 'Mexican Peso', symbol: 'Mex$', flag: 'MX' },
+const FX_META: FXMeta[] = [
+  { fredId: 'DEXUSEU', from: 'USD', to: 'EUR', fromName: 'US Dollar', toName: 'Euro', usdPerForeign: true },
+  { fredId: 'DEXUSUK', from: 'USD', to: 'GBP', fromName: 'US Dollar', toName: 'British Pound', usdPerForeign: true },
+  { fredId: 'DEXJPUS', from: 'USD', to: 'JPY', fromName: 'US Dollar', toName: 'Japanese Yen', usdPerForeign: false },
+  { fredId: 'DEXCHUS', from: 'USD', to: 'CNY', fromName: 'US Dollar', toName: 'Chinese Yuan', usdPerForeign: false },
+  { fredId: 'DEXCAUS', from: 'USD', to: 'CAD', fromName: 'US Dollar', toName: 'Canadian Dollar', usdPerForeign: false },
+  { fredId: 'DEXUSAL', from: 'USD', to: 'AUD', fromName: 'US Dollar', toName: 'Australian Dollar', usdPerForeign: false },
+  { fredId: 'DEXSZUS', from: 'USD', to: 'CHF', fromName: 'US Dollar', toName: 'Swiss Franc', usdPerForeign: false },
+  { fredId: 'DEXINUS', from: 'USD', to: 'INR', fromName: 'US Dollar', toName: 'Indian Rupee', usdPerForeign: false },
+  { fredId: 'DEXBZUS', from: 'USD', to: 'BRL', fromName: 'US Dollar', toName: 'Brazilian Real', usdPerForeign: false },
+  { fredId: 'DEXKOUS', from: 'USD', to: 'KRW', fromName: 'US Dollar', toName: 'South Korean Won', usdPerForeign: false },
+  { fredId: 'DEXMXUS', from: 'USD', to: 'MXN', fromName: 'US Dollar', toName: 'Mexican Peso', usdPerForeign: false },
 ];
 
-// Base rates vs USD
-const BASE_RATES: Record<string, number> = {
-  USD: 1, EUR: 0.92, GBP: 0.79, JPY: 149.5, CHF: 0.88, CAD: 1.36,
-  AUD: 1.53, CNY: 7.24, INR: 83.1, BRL: 4.97, KRW: 1315, MXN: 17.15,
+// ─── Fallback rates (hardcoded) ───────────────────────────────────────────────
+
+const FALLBACK_RATES: Record<string, number> = {
+  // USD → foreign unit
+  EUR: 0.92,
+  GBP: 0.79,
+  JPY: 149.5,
+  CNY: 7.24,
+  CAD: 1.36,
+  AUD: 1.53,
+  CHF: 0.88,
+  INR: 83.1,
+  BRL: 4.97,
+  KRW: 1315,
+  MXN: 17.15,
 };
 
-function getRate(from: string, to: string): number {
-  if (from === to) return 1;
-  const fromUSD = BASE_RATES[from];
-  const toUSD = BASE_RATES[to];
-  return toUSD / fromUSD;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Given FRED rate value + meta, return: 1 USD = X foreign
+function fredToUsdForeign(fredValue: number, meta: FXMeta): number {
+  // DEXUSEU/DEXUSUK: FRED gives USD per 1 foreign → invert to get foreign per 1 USD
+  if (meta.usdPerForeign) return 1 / fredValue;
+  // Everything else: FRED gives foreign per 1 USD directly
+  return fredValue;
 }
 
-interface CrossRate {
-  from: string;
-  to: string;
-  rate: number;
-  change24h: number;
-  change7d: number;
-  change30d: number;
+// 1 fromCode → X toCode
+function crossRate(
+  fromCode: string,
+  toCode: string,
+  usdRates: Record<string, number>,  // key = foreign code, val = foreign per 1 USD
+): number {
+  if (fromCode === toCode) return 1;
+  if (fromCode === 'USD') return usdRates[toCode] ?? 1;
+  if (toCode === 'USD') return 1 / (usdRates[fromCode] ?? 1);
+  // Cross: fromCode → USD → toCode
+  const fromUsd = usdRates[fromCode] ?? 1;
+  const toUsd = usdRates[toCode] ?? 1;
+  return toUsd / fromUsd;
 }
 
-function genCrossRates(): CrossRate[] {
-  const majors = ['EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD'];
-  const pairs: CrossRate[] = [];
-  for (const from of ['USD', ...majors]) {
-    for (const to of ['USD', ...majors]) {
-      if (from === to) continue;
-      if (from !== 'USD' && to !== 'USD') continue;
-      const s = seed(from + to + '_fx');
-      pairs.push({
-        from, to,
-        rate: +getRate(from, to).toFixed(4),
-        change24h: +((pseudo(s, 0) - 0.5) * 1.5).toFixed(2),
-        change7d: +((pseudo(s, 1) - 0.5) * 3).toFixed(2),
-        change30d: +((pseudo(s, 2) - 0.5) * 5).toFixed(2),
-      });
-    }
-  }
-  return pairs;
+function formatRate(r: number): string {
+  if (r >= 100) return r.toFixed(2);
+  if (r >= 1) return r.toFixed(4);
+  return r.toFixed(6);
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function CurrencyConverterPage() {
-  const [fromCurrency, setFromCurrency] = useState('USD');
-  const [toCurrency, setToCurrency] = useState('EUR');
+  const [fromCode, setFromCode] = useState('USD');
+  const [toCode, setToCode] = useState('EUR');
   const [amount, setAmount] = useState('1000');
 
-  const rate = useMemo(() => getRate(fromCurrency, toCurrency), [fromCurrency, toCurrency]);
+  const { data: econData, isLoading, error } = useEconomics('all');
+
+  // Build a map of foreign_code → rate (foreign per 1 USD) from FRED data
+  const usdRates = useMemo<Record<string, number>>(() => {
+    const result: Record<string, number> = {};
+
+    // Start with fallbacks
+    Object.entries(FALLBACK_RATES).forEach(([code, rate]) => {
+      result[code] = rate;
+    });
+
+    if (!econData?.series) return result;
+
+    const seriesMap: Record<string, FredSeries> = {};
+    econData.series.forEach((s) => {
+      seriesMap[s.id] = s;
+    });
+
+    FX_META.forEach((meta) => {
+      const series = seriesMap[meta.fredId];
+      if (!series) return;
+      const raw = typeof series.value === 'string' ? parseFloat(series.value) : series.value;
+      if (isNaN(raw) || raw <= 0) return;
+      result[meta.to] = fredToUsdForeign(raw, meta);
+    });
+
+    return result;
+  }, [econData]);
+
+  // All currencies we have rates for
+  const currencies = useMemo(() => {
+    const codes = ['USD', ...Object.keys(usdRates)];
+    return codes.map((code) => {
+      const meta = FX_META.find((m) => m.to === code);
+      return {
+        code,
+        name: meta ? meta.toName : code === 'USD' ? 'US Dollar' : code,
+      };
+    });
+  }, [usdRates]);
+
+  const rate = useMemo(
+    () => crossRate(fromCode, toCode, usdRates),
+    [fromCode, toCode, usdRates],
+  );
+
   const converted = useMemo(() => {
-    const num = parseFloat(amount);
-    return isNaN(num) ? 0 : num * rate;
+    const n = parseFloat(amount);
+    return isNaN(n) ? null : n * rate;
   }, [amount, rate]);
 
-  const crossRates = useMemo(() => genCrossRates(), []);
+  // Which FRED series are available
+  const availableFredSeries = useMemo(() => {
+    if (!econData?.series) return [];
+    return econData.series.filter((s) => FX_META.some((m) => m.fredId === s.id));
+  }, [econData]);
 
-  const swap = () => {
-    setFromCurrency(toCurrency);
-    setToCurrency(fromCurrency);
-  };
+  const hasFredData = availableFredSeries.length > 0;
 
-  // Cross rate matrix
-  const matrixCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD'];
-
-  // Historical mock
-  const historical = useMemo(() => {
-    const s = seed(fromCurrency + toCurrency + '_hist');
-    return Array.from({ length: 14 }, (_, i) => {
-      const d = new Date(2025, 2, 20 - i);
-      const baseRate = rate;
-      const variation = (pseudo(s, i) - 0.5) * rate * 0.03;
-      return { date: d.toISOString().slice(0, 10), rate: +(baseRate + variation).toFixed(4) };
-    });
-  }, [fromCurrency, toCurrency, rate]);
+  function swap() {
+    setFromCode(toCode);
+    setToCode(fromCode);
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <ArrowLeftRight className="h-6 w-6 text-lime-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Currency Converter</h1>
-          <p className="text-sm text-slate-400">FX rates, cross-rate matrix, and historical data</p>
+          <p className="text-sm text-slate-400">
+            {hasFredData
+              ? 'Rates from FRED (Federal Reserve Economic Data)'
+              : 'FX rates — reference data'}
+          </p>
         </div>
+        {isLoading && <Loader2 className="ml-auto h-4 w-4 animate-spin text-slate-500" />}
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-amber-700/50 bg-amber-900/10 px-4 py-3 text-xs text-amber-400">
+          Could not load live FRED data — showing reference rates.
+        </div>
+      )}
 
       {/* Converter */}
       <div className="rounded-xl border border-slate-700 bg-slate-800 p-6">
-        <div className="flex flex-col items-center gap-4 sm:flex-row">
-          <div className="flex-1 w-full">
-            <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">From</label>
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-end">
+          {/* From */}
+          <div className="flex-1 space-y-1">
+            <label className="block text-[10px] uppercase tracking-wider text-slate-500">From</label>
             <div className="flex gap-2">
-              <select value={fromCurrency} onChange={e => setFromCurrency(e.target.value)}
-                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white">
-                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+              <select
+                value={fromCode}
+                onChange={(e) => setFromCode(e.target.value)}
+                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white focus:border-lime-500 focus:outline-none"
+              >
+                {currencies.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} — {c.name}
+                  </option>
+                ))}
               </select>
-              <input value={amount} onChange={e => setAmount(e.target.value)}
-                type="number" className="flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white focus:border-lime-500 focus:outline-none" />
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-32 flex-1 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white focus:border-lime-500 focus:outline-none"
+              />
             </div>
           </div>
 
-          <button onClick={swap} className="mt-4 sm:mt-5 rounded-full border border-slate-600 p-2 text-slate-400 hover:text-white hover:border-lime-500 transition-colors">
+          {/* Swap */}
+          <button
+            onClick={swap}
+            className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-slate-600 text-slate-400 transition-colors hover:border-lime-500 hover:text-lime-400 sm:mb-0.5"
+            title="Swap currencies"
+          >
             <RefreshCw className="h-4 w-4" />
           </button>
 
-          <div className="flex-1 w-full">
-            <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">To</label>
+          {/* To */}
+          <div className="flex-1 space-y-1">
+            <label className="block text-[10px] uppercase tracking-wider text-slate-500">To</label>
             <div className="flex gap-2">
-              <select value={toCurrency} onChange={e => setToCurrency(e.target.value)}
-                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white">
-                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+              <select
+                value={toCode}
+                onChange={(e) => setToCode(e.target.value)}
+                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white focus:border-lime-500 focus:outline-none"
+              >
+                {currencies.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} — {c.name}
+                  </option>
+                ))}
               </select>
-              <div className="flex-1 rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-sm text-lime-400 font-bold">
-                {converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div className="flex w-32 flex-1 items-center rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-sm font-bold text-lime-400">
+                {converted !== null
+                  ? converted.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })
+                  : '—'}
               </div>
             </div>
           </div>
         </div>
 
         <div className="mt-4 text-center text-sm text-slate-400">
-          1 {fromCurrency} = <span className="font-bold text-white">{rate.toFixed(4)}</span> {toCurrency}
-          <span className="mx-2 text-slate-600">|</span>
-          1 {toCurrency} = <span className="font-bold text-white">{(1 / rate).toFixed(4)}</span> {fromCurrency}
+          1 {fromCode} ={' '}
+          <span className="font-bold text-white">{formatRate(rate)}</span> {toCode}
+          <span className="mx-2 text-slate-600">·</span>
+          1 {toCode} ={' '}
+          <span className="font-bold text-white">{formatRate(1 / rate)}</span> {fromCode}
         </div>
       </div>
 
-      {/* Quick convert amounts */}
+      {/* Quick convert */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[100, 500, 1000, 10000].map(amt => {
-          const result = amt * rate;
-          return (
-            <div key={amt} className="rounded-xl border border-slate-700 bg-slate-800 p-3 text-center">
-              <div className="text-xs text-slate-400">{amt.toLocaleString()} {fromCurrency}</div>
-              <div className="mt-1 text-sm font-bold text-lime-400">
-                {result.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {toCurrency}
-              </div>
+        {[100, 500, 1000, 10000].map((amt) => (
+          <div
+            key={amt}
+            className="cursor-pointer rounded-xl border border-slate-700 bg-slate-800 p-3 text-center transition-colors hover:border-lime-600/50"
+            onClick={() => setAmount(String(amt))}
+          >
+            <div className="text-xs text-slate-400">
+              {amt.toLocaleString()} {fromCode}
             </div>
-          );
-        })}
+            <div className="mt-1 text-sm font-bold text-lime-400">
+              {(amt * rate).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{' '}
+              {toCode}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Major pairs */}
+      {/* Available FRED FX rates table */}
       <div>
-        <h2 className="mb-3 text-sm font-semibold text-white">Major Currency Pairs</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+          USD Exchange Rates
+          {hasFredData && (
+            <span className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[10px] text-emerald-400">
+              FRED live
+            </span>
+          )}
+        </h2>
         <div className="overflow-x-auto rounded-xl border border-slate-700">
           <table className="w-full text-sm">
             <thead className="border-b border-slate-700 bg-slate-800/50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Pair</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Rate</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">24h</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">7d</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">30d</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Currency</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">
+                  1 USD =
+                </th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">
+                  1 unit = USD
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">
+                  FRED Series
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">
+                  As of
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
-              {crossRates.filter(r => r.from === 'USD').map(r => (
-                <tr key={r.to} className="bg-slate-800 hover:bg-slate-750 cursor-pointer"
-                  onClick={() => { setFromCurrency(r.from); setToCurrency(r.to); }}>
-                  <td className="px-3 py-2 text-xs font-bold text-white">{r.from}/{r.to}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{r.rate}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span className={cn('flex items-center justify-end gap-0.5 text-xs font-medium', r.change24h >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                      {r.change24h >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {r.change24h >= 0 ? '+' : ''}{r.change24h}%
-                    </span>
-                  </td>
-                  <td className={cn('px-3 py-2 text-right text-xs font-medium', r.change7d >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {r.change7d >= 0 ? '+' : ''}{r.change7d}%
-                  </td>
-                  <td className={cn('px-3 py-2 text-right text-xs font-medium', r.change30d >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {r.change30d >= 0 ? '+' : ''}{r.change30d}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Cross rate matrix */}
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-white">Cross Rate Matrix</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                <th className="px-2 py-1.5 text-left text-xs font-medium text-slate-400" />
-                {matrixCurrencies.map(c => (
-                  <th key={c} className="px-2 py-1.5 text-center text-xs font-medium text-slate-400">{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {matrixCurrencies.map(from => (
-                <tr key={from} className="border-t border-slate-700/50">
-                  <td className="px-2 py-1.5 text-xs font-medium text-slate-300">{from}</td>
-                  {matrixCurrencies.map(to => {
-                    const r = getRate(from, to);
-                    const isSame = from === to;
-                    return (
-                      <td key={to} className={cn('px-2 py-1.5 text-center text-[10px]',
-                        isSame ? 'text-slate-600' : 'text-slate-300 cursor-pointer hover:text-lime-400')}
-                        onClick={() => { if (!isSame) { setFromCurrency(from); setToCurrency(to); } }}>
-                        {isSame ? '—' : r < 10 ? r.toFixed(4) : r < 1000 ? r.toFixed(2) : r.toFixed(0)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Historical rates */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-white">{fromCurrency}/{toCurrency} — 14-Day History</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-700 bg-slate-800/50">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Date</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Rate</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Change</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50">
-              {historical.map((h, i) => {
-                const prev = historical[i + 1];
-                const change = prev ? ((h.rate - prev.rate) / prev.rate) * 100 : 0;
+              {FX_META.map((meta) => {
+                const rateVal = usdRates[meta.to] ?? FALLBACK_RATES[meta.to];
+                const fredSeries = availableFredSeries.find((s) => s.id === meta.fredId);
+                const isLive = !!fredSeries;
                 return (
-                  <tr key={h.date} className="bg-slate-800 hover:bg-slate-750">
-                    <td className="px-3 py-2 text-xs text-slate-400">{h.date}</td>
-                    <td className="px-3 py-2 text-right text-xs text-white font-medium">{h.rate}</td>
-                    <td className={cn('px-3 py-2 text-right text-xs font-medium', change >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                      {i < historical.length - 1 ? `${change >= 0 ? '+' : ''}${change.toFixed(3)}%` : '—'}
+                  <tr
+                    key={meta.fredId}
+                    className="cursor-pointer bg-slate-800 hover:bg-slate-700/50"
+                    onClick={() => {
+                      setFromCode('USD');
+                      setToCode(meta.to);
+                    }}
+                  >
+                    <td className="px-3 py-2 text-xs font-bold text-white">
+                      USD/{meta.to}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-300">{meta.toName}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs text-lime-400">
+                      {rateVal != null ? formatRate(rateVal) : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs text-slate-300">
+                      {rateVal != null ? formatRate(1 / rateVal) : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-500">
+                      {isLive ? (
+                        <span className="font-mono text-slate-400">{meta.fredId}</span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-500">
+                      {fredSeries?.date ?? (
+                        <span className="text-slate-600">reference</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -269,6 +350,63 @@ export function CurrencyConverterPage() {
           </table>
         </div>
       </div>
+
+      {/* Cross-rate matrix */}
+      {(() => {
+        const matrixCodes = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'];
+        return (
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-white">Cross-Rate Matrix</h3>
+            <div className="overflow-x-auto">
+              <table className="text-sm">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-1.5 text-left text-xs font-medium text-slate-400" />
+                    {matrixCodes.map((c) => (
+                      <th
+                        key={c}
+                        className="px-2 py-1.5 text-center text-xs font-medium text-slate-400"
+                      >
+                        {c}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrixCodes.map((fromC) => (
+                    <tr key={fromC} className="border-t border-slate-700/50">
+                      <td className="px-2 py-1.5 text-xs font-medium text-slate-300">{fromC}</td>
+                      {matrixCodes.map((toC) => {
+                        const r = crossRate(fromC, toC, usdRates);
+                        const isSame = fromC === toC;
+                        return (
+                          <td
+                            key={toC}
+                            className={cn(
+                              'px-2 py-1.5 text-center text-[10px]',
+                              isSame
+                                ? 'text-slate-600'
+                                : 'cursor-pointer text-slate-300 hover:text-lime-400',
+                            )}
+                            onClick={() => {
+                              if (!isSame) {
+                                setFromCode(fromC);
+                                setToCode(toC);
+                              }
+                            }}
+                          >
+                            {isSame ? '—' : formatRate(r)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

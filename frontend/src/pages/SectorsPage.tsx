@@ -15,152 +15,303 @@ import {
   Lightbulb,
   Building,
   Mountain,
+  Loader2,
+  AlertCircle,
+  ChevronLeft,
 } from 'lucide-react';
-import { cn, formatPercent } from '../lib/utils';
+import { Link } from 'react-router-dom';
+import { cn, formatPercent, formatPrice } from '../lib/utils';
+import { useScreener } from '../hooks/useScreener';
+import type { ScreenerResult } from '../lib/types';
 
-// ─── Deterministic mock data helpers ────────────────────────────────
-
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
-
-// ─── Types ──────────────────────────────────────────────────────────
-
-type TimePeriod = '1D' | '1W' | '1M' | '3M' | 'YTD' | '1Y';
-type SortMode = 'name' | 'performance' | 'weight';
-type RotationPhase = 'Accumulation' | 'Markup' | 'Distribution' | 'Markdown';
-
-const TIME_PERIODS: TimePeriod[] = ['1D', '1W', '1M', '3M', 'YTD', '1Y'];
-
-interface SectorDef {
-  name: string;
-  icon: React.ElementType;
-  tickers: [string, string, string];
-  stockCount: number;
-  weight: number;
-}
-
-interface SectorPerf {
-  '1D': number;
-  '1W': number;
-  '1M': number;
-  '3M': number;
-  YTD: number;
-  '1Y': number;
-}
-
-// ─── Sector definitions ─────────────────────────────────────────────
-
-const SECTORS: SectorDef[] = [
-  { name: 'Technology', icon: Zap, tickers: ['AAPL', 'MSFT', 'NVDA'], stockCount: 76, weight: 29.5 },
-  { name: 'Healthcare', icon: Heart, tickers: ['UNH', 'JNJ', 'LLY'], stockCount: 64, weight: 12.8 },
-  { name: 'Financials', icon: Landmark, tickers: ['JPM', 'BAC', 'GS'], stockCount: 72, weight: 13.2 },
-  { name: 'Consumer Discretionary', icon: ShoppingCart, tickers: ['AMZN', 'TSLA', 'HD'], stockCount: 53, weight: 10.4 },
-  { name: 'Communication Services', icon: Radio, tickers: ['GOOGL', 'META', 'NFLX'], stockCount: 27, weight: 8.9 },
-  { name: 'Industrials', icon: Factory, tickers: ['CAT', 'UNP', 'HON'], stockCount: 78, weight: 8.7 },
-  { name: 'Consumer Staples', icon: ShoppingBag, tickers: ['PG', 'KO', 'WMT'], stockCount: 38, weight: 6.1 },
-  { name: 'Energy', icon: Fuel, tickers: ['XOM', 'CVX', 'COP'], stockCount: 23, weight: 3.9 },
-  { name: 'Utilities', icon: Lightbulb, tickers: ['NEE', 'DUK', 'SO'], stockCount: 31, weight: 2.5 },
-  { name: 'Real Estate', icon: Building, tickers: ['PLD', 'AMT', 'SPG'], stockCount: 29, weight: 2.3 },
-  { name: 'Materials', icon: Mountain, tickers: ['LIN', 'APD', 'FCX'], stockCount: 28, weight: 1.7 },
+const SECTOR_DEFS: { name: string; icon: React.ElementType }[] = [
+  { name: 'Technology', icon: Zap },
+  { name: 'Healthcare', icon: Heart },
+  { name: 'Financial Services', icon: Landmark },
+  { name: 'Consumer Cyclical', icon: ShoppingCart },
+  { name: 'Communication Services', icon: Radio },
+  { name: 'Industrials', icon: Factory },
+  { name: 'Consumer Defensive', icon: ShoppingBag },
+  { name: 'Energy', icon: Fuel },
+  { name: 'Utilities', icon: Lightbulb },
+  { name: 'Real Estate', icon: Building },
+  { name: 'Basic Materials', icon: Mountain },
 ];
 
-// ─── Generate mock performance data ─────────────────────────────────
+function fmtMarketCap(v: number): string {
+  if (!v) return '—';
+  if (v >= 1e12) return '$' + (v / 1e12).toFixed(2) + 'T';
+  if (v >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+  return '$' + v.toLocaleString();
+}
 
-function generatePerf(sectorName: string): SectorPerf {
-  const s = seed(sectorName);
-  const range = (idx: number, lo: number, hi: number) =>
-    lo + pseudo(s, idx) * (hi - lo);
-  return {
-    '1D': +(range(0, -2.5, 2.5)).toFixed(2),
-    '1W': +(range(1, -5, 5)).toFixed(2),
-    '1M': +(range(2, -8, 10)).toFixed(2),
-    '3M': +(range(3, -12, 15)).toFixed(2),
-    YTD: +(range(4, -15, 25)).toFixed(2),
-    '1Y': +(range(5, -20, 40)).toFixed(2),
+function fmtVolume(v: number): string {
+  if (!v) return '—';
+  if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+  return v.toString();
+}
+
+function sectorIconColor(sector: string): string {
+  const map: Record<string, string> = {
+    'Technology': 'text-blue-400',
+    'Healthcare': 'text-emerald-400',
+    'Financial Services': 'text-amber-400',
+    'Consumer Cyclical': 'text-purple-400',
+    'Communication Services': 'text-cyan-400',
+    'Industrials': 'text-orange-400',
+    'Consumer Defensive': 'text-pink-400',
+    'Energy': 'text-yellow-400',
+    'Utilities': 'text-teal-400',
+    'Real Estate': 'text-indigo-400',
+    'Basic Materials': 'text-lime-400',
   };
+  return map[sector] ?? 'text-slate-400';
 }
 
-function getRotationPhase(sectorName: string): RotationPhase {
-  const s = seed(sectorName);
-  const v = pseudo(s, 99);
-  const phases: RotationPhase[] = ['Accumulation', 'Markup', 'Distribution', 'Markdown'];
-  return phases[Math.floor(v * 4)];
-}
+/* ── Single sector card ─────────────────────────────── */
+function SectorCard({
+  name,
+  icon: Icon,
+  onDrillIn,
+}: {
+  name: string;
+  icon: React.ElementType;
+  onDrillIn: () => void;
+}) {
+  const { data, isLoading, error } = useScreener({ sector: name, limit: 10 });
+  const results = data?.results ?? [];
 
-const PHASE_COLORS: Record<RotationPhase, string> = {
-  Accumulation: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  Markup: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  Distribution: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  Markdown: 'bg-red-500/20 text-red-400 border-red-500/30',
-};
+  const totalMcap = results.reduce((s, r) => s + (r.market_cap ?? 0), 0);
+  const avgBeta = results.length
+    ? results.reduce((s, r) => s + (r.beta ?? 0), 0) / results.length
+    : 0;
+  const topByMcap = [...results].sort((a, b) => (b.market_cap ?? 0) - (a.market_cap ?? 0)).slice(0, 3);
+  const iconColor = sectorIconColor(name);
 
-// ─── Component ──────────────────────────────────────────────────────
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-4 hover:border-slate-600 transition-colors">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-700/60 rounded-lg">
+            <Icon className={cn('h-5 w-5', iconColor)} />
+          </div>
+          <div>
+            <h3 className="text-white font-semibold text-sm">{name}</h3>
+            {isLoading ? (
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500">
+                {data?.count ?? results.length} stocks &middot; MCap {fmtMarketCap(totalMcap)}
+              </p>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={onDrillIn}
+          className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs text-slate-400 hover:border-slate-500 hover:text-white transition-colors"
+        >
+          View All
+        </button>
+      </div>
 
-export function SectorsPage() {
-  const [activePeriod, setActivePeriod] = useState<TimePeriod>('YTD');
-  const [sortMode, setSortMode] = useState<SortMode>('performance');
+      {error && (
+        <div className="flex items-center gap-1.5 text-xs text-red-400">
+          <AlertCircle className="h-3.5 w-3.5" />
+          Failed to load
+        </div>
+      )}
 
-  const sectorData = useMemo(
-    () =>
-      SECTORS.map((sec) => ({
-        ...sec,
-        perf: generatePerf(sec.name),
-        phase: getRotationPhase(sec.name),
-      })),
-    [],
+      {/* Stats row */}
+      {!isLoading && results.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg bg-slate-700/40 p-3">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">Avg Beta</div>
+            <div className={cn('mt-1 text-sm font-bold', avgBeta > 1.2 ? 'text-amber-400' : 'text-slate-200')}>
+              {avgBeta.toFixed(2)}
+            </div>
+          </div>
+          <div className="rounded-lg bg-slate-700/40 p-3">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">Stocks</div>
+            <div className="mt-1 text-sm font-bold text-slate-200">{data?.count ?? results.length}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Top holdings */}
+      {!isLoading && topByMcap.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-[10px] text-slate-500 uppercase tracking-wider">Top Holdings</div>
+          {topByMcap.map(r => (
+            <div key={r.ticker} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Link to={`/company/${r.ticker}`} className={cn('font-mono text-xs font-bold hover:underline', iconColor)}>
+                  {r.ticker}
+                </Link>
+                <span className="text-xs text-slate-500 truncate max-w-[120px]">{r.name}</span>
+              </div>
+              <span className="font-mono text-xs text-slate-300">{fmtMarketCap(r.market_cap)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+        </div>
+      )}
+    </div>
   );
+}
+
+/* ── Drill-in view: sector stock list ───────────────── */
+function SectorDrillIn({
+  sectorName,
+  icon: Icon,
+  onBack,
+}: {
+  sectorName: string;
+  icon: React.ElementType;
+  onBack: () => void;
+}) {
+  const [sortKey, setSortKey] = useState<keyof ScreenerResult>('market_cap');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const { data, isLoading, error } = useScreener({ sector: sectorName, limit: 50 });
+  const results = data?.results ?? [];
 
   const sorted = useMemo(() => {
-    const copy = [...sectorData];
-    switch (sortMode) {
-      case 'name':
-        copy.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'performance':
-        copy.sort((a, b) => b.perf[activePeriod] - a.perf[activePeriod]);
-        break;
-      case 'weight':
-        copy.sort((a, b) => b.weight - a.weight);
-        break;
-    }
+    const copy = [...results];
+    copy.sort((a, b) => {
+      const av = (a[sortKey] as number) ?? 0;
+      const bv = (b[sortKey] as number) ?? 0;
+      return sortDir === 'desc' ? bv - av : av - bv;
+    });
     return copy;
-  }, [sectorData, sortMode, activePeriod]);
+  }, [results, sortKey, sortDir]);
 
-  // Summary stats
-  const best = useMemo(
-    () =>
-      sectorData.reduce((a, b) =>
-        a.perf[activePeriod] >= b.perf[activePeriod] ? a : b,
-      ),
-    [sectorData, activePeriod],
+  const iconColor = sectorIconColor(sectorName);
+
+  const toggleSort = (key: keyof ScreenerResult) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  const SortTh = ({ label, field }: { label: string; field: keyof ScreenerResult }) => (
+    <th className="px-3 py-2 text-right">
+      <button
+        onClick={() => toggleSort(field)}
+        className={cn('text-xs font-medium flex items-center justify-end gap-1', sortKey === field ? iconColor : 'text-slate-400 hover:text-white')}
+      >
+        {label}
+        <ArrowUpDown className="h-3 w-3" />
+      </button>
+    </th>
   );
 
-  const worst = useMemo(
-    () =>
-      sectorData.reduce((a, b) =>
-        a.perf[activePeriod] <= b.perf[activePeriod] ? a : b,
-      ),
-    [sectorData, activePeriod],
-  );
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to Sectors
+      </button>
 
-  const breadth = useMemo(
-    () => sectorData.filter((s) => s.perf[activePeriod] > 0).length,
-    [sectorData, activePeriod],
-  );
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-slate-700/60 rounded-lg">
+          <Icon className={cn('h-5 w-5', iconColor)} />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-white">{sectorName}</h2>
+          {data && <p className="text-sm text-slate-400">{data.count} stocks</p>}
+        </div>
+      </div>
 
-  // Max absolute YTD for bar scaling
-  const maxAbsYtd = useMemo(
-    () =>
-      Math.max(...sectorData.map((s) => Math.abs(s.perf.YTD)), 1),
-    [sectorData],
+      {isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+          <span className="ml-2 text-sm text-slate-400">Loading {sectorName} stocks…</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Failed to load sector data: {(error as Error).message}
+        </div>
+      )}
+
+      {sorted.length > 0 && (
+        <div className="overflow-x-auto rounded-xl border border-slate-700">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-700 bg-slate-800/50">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Company</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Industry</th>
+                <SortTh label="Price" field="price" />
+                <SortTh label="Market Cap" field="market_cap" />
+                <SortTh label="Volume" field="volume" />
+                <SortTh label="Beta" field="beta" />
+                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Exchange</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/50">
+              {sorted.map((r: ScreenerResult) => (
+                <tr key={r.ticker} className="bg-slate-800 hover:bg-slate-750">
+                  <td className="px-3 py-2">
+                    <Link to={`/company/${r.ticker}`} className={cn('font-mono text-xs font-bold hover:underline', iconColor)}>
+                      {r.ticker}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-slate-300 max-w-[180px] truncate">{r.name}</td>
+                  <td className="px-3 py-2 text-xs text-slate-500 max-w-[140px] truncate">{r.industry ?? '—'}</td>
+                  <td className="px-3 py-2 text-right text-xs font-mono text-slate-200">
+                    {r.price ? formatPrice(r.price) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs text-slate-300">{fmtMarketCap(r.market_cap)}</td>
+                  <td className="px-3 py-2 text-right text-xs text-slate-400">{fmtVolume(r.volume)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={cn('text-xs font-medium', (r.beta ?? 0) > 1.2 ? 'text-amber-400' : 'text-slate-300')}>
+                      {r.beta?.toFixed(2) ?? '—'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-slate-500">{r.exchange ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
+}
+
+/* ── Main Page ─────────────────────────────────────── */
+export function SectorsPage() {
+  const [drillSector, setDrillSector] = useState<string | null>(null);
+
+  const drillDef = drillSector ? SECTOR_DEFS.find(s => s.name === drillSector) : null;
+
+  if (drillDef) {
+    return (
+      <div className="min-h-screen bg-slate-900 p-6 space-y-6">
+        <SectorDrillIn
+          sectorName={drillDef.name}
+          icon={drillDef.icon}
+          onBack={() => setDrillSector(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 p-6 space-y-6">
@@ -170,254 +321,22 @@ export function SectorsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Sector Analysis</h1>
           <p className="text-sm text-slate-400">
-            GICS sector performance, rotation phases, and market cap weights
+            Live sector constituents, market cap, and top holdings
           </p>
         </div>
       </div>
 
-      {/* Summary row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SummaryCard
-          label="Best Sector"
-          value={best.name}
-          sub={formatPercent(best.perf[activePeriod])}
-          positive={best.perf[activePeriod] >= 0}
-        />
-        <SummaryCard
-          label="Worst Sector"
-          value={worst.name}
-          sub={formatPercent(worst.perf[activePeriod])}
-          positive={worst.perf[activePeriod] >= 0}
-        />
-        <SummaryCard
-          label="Market Breadth"
-          value={`${breadth} / ${sectorData.length}`}
-          sub={`${breadth} sectors positive (${activePeriod})`}
-          positive={breadth > sectorData.length / 2}
-        />
-      </div>
-
-      {/* Controls: time tabs + sort */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-1 bg-slate-800 rounded-lg p-1 border border-slate-700">
-          {TIME_PERIODS.map((tp) => (
-            <button
-              key={tp}
-              onClick={() => setActivePeriod(tp)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                activePeriod === tp
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700',
-              )}
-            >
-              {tp}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <ArrowUpDown className="h-4 w-4 text-slate-400" />
-          <select
-            value={sortMode}
-            onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="bg-slate-800 border border-slate-700 text-sm text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="performance">Sort by Performance</option>
-            <option value="name">Sort by Name</option>
-            <option value="weight">Sort by Market Cap Weight</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Sector cards */}
+      {/* Sector grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        {sorted.map((sec) => {
-          const Icon = sec.icon;
-          const activeVal = sec.perf[activePeriod];
-          return (
-            <div
-              key={sec.name}
-              className="bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-4 hover:border-slate-600 transition-colors"
-            >
-              {/* Card header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-slate-700/60 rounded-lg">
-                    <Icon className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold text-sm">{sec.name}</h3>
-                    <p className="text-xs text-slate-500">
-                      {sec.stockCount} stocks &middot; {sec.weight}% weight
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    'text-lg font-bold',
-                    activeVal >= 0 ? 'text-emerald-400' : 'text-red-400',
-                  )}
-                >
-                  {formatPercent(activeVal)}
-                </div>
-              </div>
-
-              {/* Performance row */}
-              <div className="grid grid-cols-6 gap-2 text-center">
-                {TIME_PERIODS.map((tp) => {
-                  const v = sec.perf[tp];
-                  return (
-                    <div
-                      key={tp}
-                      className={cn(
-                        'rounded-md py-1.5 px-1',
-                        tp === activePeriod
-                          ? 'bg-slate-700 ring-1 ring-blue-500/50'
-                          : 'bg-slate-700/40',
-                      )}
-                    >
-                      <div className="text-[10px] text-slate-500 mb-0.5">{tp}</div>
-                      <div
-                        className={cn(
-                          'text-xs font-medium',
-                          v >= 0 ? 'text-emerald-400' : 'text-red-400',
-                        )}
-                      >
-                        {v >= 0 ? '+' : ''}
-                        {v.toFixed(1)}%
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* YTD performance bar */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-slate-500">
-                  <span>YTD Performance</span>
-                  <span>{formatPercent(sec.perf.YTD)}</span>
-                </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden relative">
-                  <div className="absolute inset-y-0 left-1/2 w-px bg-slate-600" />
-                  {sec.perf.YTD >= 0 ? (
-                    <div
-                      className="absolute inset-y-0 left-1/2 bg-emerald-500 rounded-r-full"
-                      style={{
-                        width: `${(sec.perf.YTD / maxAbsYtd) * 50}%`,
-                      }}
-                    />
-                  ) : (
-                    <div
-                      className="absolute inset-y-0 bg-red-500 rounded-l-full"
-                      style={{
-                        width: `${(Math.abs(sec.perf.YTD) / maxAbsYtd) * 50}%`,
-                        right: '50%',
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Top holdings */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500">Top holdings:</span>
-                {sec.tickers.map((t) => (
-                  <span
-                    key={t}
-                    className="text-xs font-mono bg-slate-700/60 text-slate-300 px-2 py-0.5 rounded"
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        {SECTOR_DEFS.map(sec => (
+          <SectorCard
+            key={sec.name}
+            name={sec.name}
+            icon={sec.icon}
+            onDrillIn={() => setDrillSector(sec.name)}
+          />
+        ))}
       </div>
-
-      {/* Sector Rotation Matrix */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-blue-400" />
-          <h2 className="text-lg font-semibold text-white">
-            Sector Rotation Matrix
-          </h2>
-        </div>
-        <p className="text-xs text-slate-400">
-          Phases based on relative momentum and money flow signals
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {(['Accumulation', 'Markup', 'Distribution', 'Markdown'] as RotationPhase[]).map(
-            (phase) => {
-              const matching = sectorData.filter((s) => s.phase === phase);
-              return (
-                <div
-                  key={phase}
-                  className={cn(
-                    'rounded-lg border p-4 space-y-2',
-                    PHASE_COLORS[phase],
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    {phase === 'Markup' || phase === 'Accumulation' ? (
-                      <TrendingUp className="h-4 w-4" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4" />
-                    )}
-                    <span className="text-sm font-semibold">{phase}</span>
-                  </div>
-                  <div className="space-y-1">
-                    {matching.length === 0 ? (
-                      <span className="text-xs opacity-50">None</span>
-                    ) : (
-                      matching.map((s) => (
-                        <div
-                          key={s.name}
-                          className="text-xs flex items-center justify-between"
-                        >
-                          <span>{s.name}</span>
-                          <span className="font-mono">
-                            {formatPercent(s.perf[activePeriod])}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            },
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Summary Card ───────────────────────────────────────────────────
-
-function SummaryCard({
-  label,
-  value,
-  sub,
-  positive,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  positive: boolean;
-}) {
-  return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-      <p className="text-xs text-slate-500 mb-1">{label}</p>
-      <p className="text-white font-semibold text-lg">{value}</p>
-      <p
-        className={cn(
-          'text-sm mt-0.5',
-          positive ? 'text-emerald-400' : 'text-red-400',
-        )}
-      >
-        {sub}
-      </p>
     </div>
   );
 }

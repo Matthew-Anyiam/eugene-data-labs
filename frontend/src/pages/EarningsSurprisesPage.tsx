@@ -1,269 +1,340 @@
 import { useState, useMemo } from 'react';
-import { Zap, TrendingUp, TrendingDown, Filter } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Zap, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useEarnings } from '../hooks/useEstimates';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
+const QUICK_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM'] as const;
 
-const STOCKS = [
-  { ticker: 'AAPL', name: 'Apple' }, { ticker: 'MSFT', name: 'Microsoft' },
-  { ticker: 'GOOGL', name: 'Alphabet' }, { ticker: 'AMZN', name: 'Amazon' },
-  { ticker: 'NVDA', name: 'NVIDIA' }, { ticker: 'META', name: 'Meta' },
-  { ticker: 'TSLA', name: 'Tesla' }, { ticker: 'JPM', name: 'JPMorgan' },
-  { ticker: 'V', name: 'Visa' }, { ticker: 'UNH', name: 'UnitedHealth' },
-  { ticker: 'NFLX', name: 'Netflix' }, { ticker: 'AMD', name: 'AMD' },
-  { ticker: 'CRM', name: 'Salesforce' }, { ticker: 'DIS', name: 'Disney' },
-  { ticker: 'BA', name: 'Boeing' }, { ticker: 'GS', name: 'Goldman Sachs' },
-  { ticker: 'COST', name: 'Costco' }, { ticker: 'HD', name: 'Home Depot' },
-  { ticker: 'WMT', name: 'Walmart' }, { ticker: 'PG', name: 'P&G' },
-  { ticker: 'KO', name: 'Coca-Cola' }, { ticker: 'PEP', name: 'PepsiCo' },
-  { ticker: 'INTC', name: 'Intel' }, { ticker: 'QCOM', name: 'Qualcomm' },
-  { ticker: 'ADBE', name: 'Adobe' }, { ticker: 'PYPL', name: 'PayPal' },
-  { ticker: 'ABNB', name: 'Airbnb' }, { ticker: 'UBER', name: 'Uber' },
-  { ticker: 'SQ', name: 'Block' }, { ticker: 'SHOP', name: 'Shopify' },
-];
-
-interface Surprise {
-  ticker: string;
-  name: string;
-  reportDate: string;
-  quarter: string;
-  epsEstimate: number;
-  epsActual: number;
-  epsSurprise: number;
-  epsSurprisePct: number;
-  revEstimate: number;
-  revActual: number;
-  revSurprise: number;
-  revSurprisePct: number;
-  priceReaction: number;
-  sector: string;
+function surprisePct(actual: number | null, estimated: number): number | null {
+  if (actual == null || estimated === 0) return null;
+  return ((actual - estimated) / Math.abs(estimated)) * 100;
 }
 
-const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Consumer', 'Industrial', 'Energy'];
-
-function genSurprises(): Surprise[] {
-  return STOCKS.map((stock, si) => {
-    const s = seed(stock.ticker + '_surp');
-    const epsEst = 0.5 + pseudo(s, 0) * 5;
-    const epsSurpPct = (pseudo(s, 1) - 0.4) * 30;
-    const epsActual = epsEst * (1 + epsSurpPct / 100);
-    const revEst = 5 + pseudo(s, 2) * 80;
-    const revSurpPct = (pseudo(s, 3) - 0.45) * 10;
-    const revActual = revEst * (1 + revSurpPct / 100);
-    const priceReaction = (pseudo(s, 4) - 0.45) * 15;
-    const qtr = Math.floor(pseudo(s, 5) * 4);
-    const month = qtr * 3 + 1 + Math.floor(pseudo(s, 6) * 2);
-    const day = 1 + Math.floor(pseudo(s, 7) * 28);
-
-    return {
-      ticker: stock.ticker, name: stock.name,
-      reportDate: `2025-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-      quarter: `Q${qtr + 1} 2025`,
-      epsEstimate: +epsEst.toFixed(2), epsActual: +epsActual.toFixed(2),
-      epsSurprise: +(epsActual - epsEst).toFixed(2), epsSurprisePct: +epsSurpPct.toFixed(1),
-      revEstimate: +revEst.toFixed(1), revActual: +revActual.toFixed(1),
-      revSurprise: +(revActual - revEst).toFixed(1), revSurprisePct: +revSurpPct.toFixed(1),
-      priceReaction: +priceReaction.toFixed(1),
-      sector: SECTORS[Math.floor(pseudo(s, 8) * SECTORS.length)],
-    };
-  });
+function formatRevenue(val: number | null): string {
+  if (val == null) return '—';
+  if (Math.abs(val) >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
+  if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
+  return `$${val.toFixed(2)}`;
 }
-
-type SortKey = 'epsSurprisePct' | 'revSurprisePct' | 'priceReaction';
 
 export function EarningsSurprisesPage() {
+  const [selectedTicker, setSelectedTicker] = useState('AAPL');
+  const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'beats' | 'misses'>('all');
-  const [sortBy, setSortBy] = useState<SortKey>('epsSurprisePct');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [sectorFilter, setSectorFilter] = useState<string>('all');
 
-  const allSurprises = useMemo(() => genSurprises(), []);
+  const { data: earnings, isLoading, error } = useEarnings(selectedTicker);
+
+  const handleTickerSelect = (ticker: string) => {
+    setSelectedTicker(ticker);
+    setSearch('');
+  };
+
+  const enriched = useMemo(() => {
+    if (!earnings) return [];
+    return earnings
+      .filter((e) => e.eps_actual != null)
+      .map((e) => ({
+        ...e,
+        epsSurprisePct: surprisePct(e.eps_actual, e.eps_estimated),
+        revSurprisePct: surprisePct(e.revenue_actual, e.revenue_estimated),
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [earnings]);
 
   const filtered = useMemo(() => {
-    let list = [...allSurprises];
-    if (filter === 'beats') list = list.filter(s => s.epsSurprisePct > 0);
-    if (filter === 'misses') list = list.filter(s => s.epsSurprisePct < 0);
-    if (sectorFilter !== 'all') list = list.filter(s => s.sector === sectorFilter);
-    list.sort((a, b) => sortDir === 'desc' ? Math.abs(b[sortBy]) - Math.abs(a[sortBy]) : Math.abs(a[sortBy]) - Math.abs(b[sortBy]));
-    return list;
-  }, [allSurprises, filter, sectorFilter, sortBy, sortDir]);
+    if (filter === 'beats') return enriched.filter((e) => (e.epsSurprisePct ?? 0) > 0);
+    if (filter === 'misses') return enriched.filter((e) => (e.epsSurprisePct ?? 0) < 0);
+    return enriched;
+  }, [enriched, filter]);
 
-  const beats = allSurprises.filter(s => s.epsSurprisePct > 0);
-  const misses = allSurprises.filter(s => s.epsSurprisePct < 0);
-  const avgSurprise = allSurprises.reduce((s, x) => s + x.epsSurprisePct, 0) / allSurprises.length;
-  const avgReaction = allSurprises.reduce((s, x) => s + x.priceReaction, 0) / allSurprises.length;
-  const biggestBeat = [...allSurprises].sort((a, b) => b.epsSurprisePct - a.epsSurprisePct)[0];
-  const biggestMiss = [...allSurprises].sort((a, b) => a.epsSurprisePct - b.epsSurprisePct)[0];
+  const beats = enriched.filter((e) => (e.epsSurprisePct ?? 0) > 0);
+  const misses = enriched.filter((e) => (e.epsSurprisePct ?? 0) < 0);
 
-  const toggleSort = (key: SortKey) => {
-    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortBy(key); setSortDir('desc'); }
-  };
+  const avgSurprise =
+    enriched.length > 0
+      ? enriched.reduce((s, e) => s + (e.epsSurprisePct ?? 0), 0) / enriched.length
+      : null;
+
+  const biggestBeat =
+    beats.length > 0
+      ? [...beats].sort((a, b) => (b.epsSurprisePct ?? 0) - (a.epsSurprisePct ?? 0))[0]
+      : null;
+
+  const biggestMiss =
+    misses.length > 0
+      ? [...misses].sort((a, b) => (a.epsSurprisePct ?? 0) - (b.epsSurprisePct ?? 0))[0]
+      : null;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Zap className="h-6 w-6 text-fuchsia-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Earnings Surprises</h1>
-          <p className="text-sm text-slate-400">Biggest EPS beats and misses, revenue surprises, price reactions</p>
+          <p className="text-sm text-slate-400">
+            EPS beats and misses, revenue surprises, and historical earnings performance
+          </p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-          {(['all', 'beats', 'misses'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={cn('rounded-md px-3 py-1 text-xs font-medium capitalize', filter === f ? 'bg-fuchsia-600 text-white' : 'text-slate-400 hover:text-white')}>
-              {f}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Filter className="h-3.5 w-3.5 text-slate-500" />
-          <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)}
-            className="rounded-lg border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-white">
-            <option value="all">All Sectors</option>
-            {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {[
-          { label: 'Total Reports', value: allSurprises.length.toString(), color: 'text-white' },
-          { label: 'Beats', value: `${beats.length} (${((beats.length / allSurprises.length) * 100).toFixed(0)}%)`, color: 'text-emerald-400' },
-          { label: 'Misses', value: `${misses.length} (${((misses.length / allSurprises.length) * 100).toFixed(0)}%)`, color: 'text-red-400' },
-          { label: 'Avg Surprise', value: `${avgSurprise >= 0 ? '+' : ''}${avgSurprise.toFixed(1)}%`, color: avgSurprise >= 0 ? 'text-emerald-400' : 'text-red-400' },
-          { label: 'Avg Reaction', value: `${avgReaction >= 0 ? '+' : ''}${avgReaction.toFixed(1)}%`, color: avgReaction >= 0 ? 'text-emerald-400' : 'text-red-400' },
-          { label: 'Beat Rate', value: `${((beats.length / allSurprises.length) * 100).toFixed(0)}%`, color: 'text-fuchsia-400' },
-        ].map(c => (
-          <div key={c.label} className="rounded-xl border border-slate-700 bg-slate-800 p-3">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</div>
-            <div className={cn('mt-1 text-lg font-bold', c.color)}>{c.value}</div>
+      {/* Ticker selector */}
+      <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Enter ticker symbol..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && search.trim()) handleTickerSelect(search.trim());
+              }}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-fuchsia-500"
+            />
           </div>
-        ))}
-      </div>
-
-      {/* Biggest beat/miss */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-          <div className="text-xs text-emerald-400 uppercase tracking-wider mb-2">Biggest Beat</div>
-          <div className="flex items-center gap-3">
-            <Link to={`/company/${biggestBeat.ticker}`} className="font-mono text-lg font-bold text-emerald-400 hover:underline">{biggestBeat.ticker}</Link>
-            <span className="text-sm text-slate-300">{biggestBeat.name}</span>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-400">+{biggestBeat.epsSurprisePct}%</div>
-          <div className="text-xs text-slate-400">EPS: ${biggestBeat.epsActual} vs est. ${biggestBeat.epsEstimate}</div>
-        </div>
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-          <div className="text-xs text-red-400 uppercase tracking-wider mb-2">Biggest Miss</div>
-          <div className="flex items-center gap-3">
-            <Link to={`/company/${biggestMiss.ticker}`} className="font-mono text-lg font-bold text-red-400 hover:underline">{biggestMiss.ticker}</Link>
-            <span className="text-sm text-slate-300">{biggestMiss.name}</span>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-red-400">{biggestMiss.epsSurprisePct}%</div>
-          <div className="text-xs text-slate-400">EPS: ${biggestMiss.epsActual} vs est. ${biggestMiss.epsEstimate}</div>
-        </div>
-      </div>
-
-      {/* Surprise distribution */}
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-white">EPS Surprise Distribution</h3>
-        <div className="flex items-end gap-1">
-          {['-15+', '-10', '-5', '0', '+5', '+10', '+15+'].map((label, i) => {
-            const ranges = [[-100, -10], [-10, -5], [-5, 0], [0, 5], [5, 10], [10, 15], [15, 100]];
-            const [low, high] = ranges[i];
-            const count = allSurprises.filter(s => s.epsSurprisePct >= low && s.epsSurprisePct < high).length;
-            const maxCount = 15;
-            const height = Math.max(8, (count / maxCount) * 100);
-            return (
-              <div key={label} className="flex flex-1 flex-col items-center gap-1">
-                <span className="text-[10px] text-slate-400">{count}</span>
-                <div className={cn('w-full rounded-t', i < 3 ? 'bg-red-500/50' : i === 3 ? 'bg-slate-600' : 'bg-emerald-500/50')}
-                  style={{ height: `${height}px` }} />
-                <span className="text-[9px] text-slate-500">{label}%</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Full table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-700">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-700 bg-slate-800/50">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Company</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Quarter</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">EPS Est</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">EPS Act</th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort('epsSurprisePct')}
-                  className={cn('text-xs font-medium', sortBy === 'epsSurprisePct' ? 'text-fuchsia-400' : 'text-slate-400 hover:text-slate-300')}>
-                  EPS Surprise {sortBy === 'epsSurprisePct' && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Rev Est</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Rev Act</th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort('revSurprisePct')}
-                  className={cn('text-xs font-medium', sortBy === 'revSurprisePct' ? 'text-fuchsia-400' : 'text-slate-400 hover:text-slate-300')}>
-                  Rev Surprise {sortBy === 'revSurprisePct' && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort('priceReaction')}
-                  className={cn('text-xs font-medium', sortBy === 'priceReaction' ? 'text-fuchsia-400' : 'text-slate-400 hover:text-slate-300')}>
-                  Price {sortBy === 'priceReaction' && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {filtered.map(s => (
-              <tr key={s.ticker} className={cn('hover:bg-slate-750', s.epsSurprisePct > 0 ? 'bg-slate-800' : 'bg-red-500/5')}>
-                <td className="px-3 py-2">
-                  <Link to={`/company/${s.ticker}`} className="font-mono text-xs font-bold text-fuchsia-400 hover:underline">{s.ticker}</Link>
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-300">{s.name}</td>
-                <td className="px-3 py-2 text-xs text-slate-400">{s.quarter}</td>
-                <td className="px-3 py-2 text-right text-xs text-slate-400">${s.epsEstimate}</td>
-                <td className="px-3 py-2 text-right text-xs text-white font-medium">${s.epsActual}</td>
-                <td className="px-3 py-2 text-right">
-                  <span className={cn('flex items-center justify-end gap-0.5 text-xs font-bold',
-                    s.epsSurprisePct >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {s.epsSurprisePct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {s.epsSurprisePct >= 0 ? '+' : ''}{s.epsSurprisePct}%
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right text-xs text-slate-400">${s.revEstimate}B</td>
-                <td className="px-3 py-2 text-right text-xs text-white font-medium">${s.revActual}B</td>
-                <td className={cn('px-3 py-2 text-right text-xs font-medium',
-                  s.revSurprisePct >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                  {s.revSurprisePct >= 0 ? '+' : ''}{s.revSurprisePct}%
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <span className={cn('text-xs font-bold', s.priceReaction >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {s.priceReaction >= 0 ? '+' : ''}{s.priceReaction}%
-                  </span>
-                </td>
-              </tr>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_TICKERS.map((t) => (
+              <button
+                key={t}
+                onClick={() => handleTickerSelect(t)}
+                className={cn(
+                  'px-3 py-1.5 rounded text-sm font-medium border transition-colors',
+                  selectedTicker === t
+                    ? 'bg-fuchsia-600 border-fuchsia-500 text-white'
+                    : 'bg-slate-900 border-slate-600 text-slate-300 hover:border-slate-500',
+                )}
+              >
+                {t}
+              </button>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-16 text-slate-400 gap-3">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading earnings data for {selectedTicker}…</span>
+        </div>
+      )}
+
+      {/* Error */}
+      {!isLoading && error && (
+        <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 text-red-400 text-sm">
+          Failed to load earnings data for {selectedTicker}. The data may not be available.
+        </div>
+      )}
+
+      {/* No data */}
+      {!isLoading && !error && enriched.length === 0 && (
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-8 text-center text-slate-400">
+          No earnings history found for{' '}
+          <span className="text-white font-medium">{selectedTicker}</span>.
+        </div>
+      )}
+
+      {!isLoading && enriched.length > 0 && (
+        <>
+          {/* Filter tabs */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
+              {(['all', 'beats', 'misses'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={cn(
+                    'rounded-md px-3 py-1 text-xs font-medium capitalize',
+                    filter === f ? 'bg-fuchsia-600 text-white' : 'text-slate-400 hover:text-white',
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500">Total Reports</div>
+              <div className="mt-1 text-lg font-bold text-white">{enriched.length}</div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500">EPS Beats</div>
+              <div className="mt-1 text-lg font-bold text-emerald-400">
+                {beats.length}
+                {enriched.length > 0 && (
+                  <span className="text-sm text-slate-500 ml-1">
+                    ({((beats.length / enriched.length) * 100).toFixed(0)}%)
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500">EPS Misses</div>
+              <div className="mt-1 text-lg font-bold text-red-400">
+                {misses.length}
+                {enriched.length > 0 && (
+                  <span className="text-sm text-slate-500 ml-1">
+                    ({((misses.length / enriched.length) * 100).toFixed(0)}%)
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500">Avg EPS Surprise</div>
+              <div
+                className={cn(
+                  'mt-1 text-lg font-bold',
+                  avgSurprise == null
+                    ? 'text-slate-400'
+                    : avgSurprise >= 0
+                    ? 'text-emerald-400'
+                    : 'text-red-400',
+                )}
+              >
+                {avgSurprise != null
+                  ? `${avgSurprise >= 0 ? '+' : ''}${avgSurprise.toFixed(1)}%`
+                  : '—'}
+              </div>
+            </div>
+          </div>
+
+          {/* Biggest beat / miss */}
+          {(biggestBeat || biggestMiss) && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {biggestBeat && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                  <div className="text-xs text-emerald-400 uppercase tracking-wider mb-2">Biggest Beat</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-lg font-bold text-emerald-400">
+                      {biggestBeat.fiscal_period}
+                    </span>
+                    <span className="text-xs text-slate-400">{biggestBeat.date}</span>
+                  </div>
+                  <div className="mt-2 text-2xl font-bold text-emerald-400">
+                    +{biggestBeat.epsSurprisePct!.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    EPS: ${biggestBeat.eps_actual?.toFixed(2)} vs est. $
+                    {biggestBeat.eps_estimated.toFixed(2)}
+                  </div>
+                </div>
+              )}
+              {biggestMiss && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+                  <div className="text-xs text-red-400 uppercase tracking-wider mb-2">Biggest Miss</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-lg font-bold text-red-400">
+                      {biggestMiss.fiscal_period}
+                    </span>
+                    <span className="text-xs text-slate-400">{biggestMiss.date}</span>
+                  </div>
+                  <div className="mt-2 text-2xl font-bold text-red-400">
+                    {biggestMiss.epsSurprisePct!.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    EPS: ${biggestMiss.eps_actual?.toFixed(2)} vs est. $
+                    {biggestMiss.eps_estimated.toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Full table */}
+          <div className="overflow-x-auto rounded-xl border border-slate-700">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-700 bg-slate-800/50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Date</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Period</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">EPS Est.</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">EPS Actual</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">EPS Surprise</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Rev Est.</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Rev Actual</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Rev Surprise</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {filtered.map((e, i) => {
+                  const epsColor =
+                    e.epsSurprisePct == null
+                      ? 'text-slate-400'
+                      : e.epsSurprisePct >= 0
+                      ? 'text-emerald-400'
+                      : 'text-red-400';
+                  const revColor =
+                    e.revSurprisePct == null
+                      ? 'text-slate-400'
+                      : e.revSurprisePct >= 0
+                      ? 'text-emerald-400'
+                      : 'text-red-400';
+                  return (
+                    <tr
+                      key={i}
+                      className={cn(
+                        'hover:bg-slate-700/30 transition-colors',
+                        (e.epsSurprisePct ?? 0) < 0 ? 'bg-red-500/5' : 'bg-slate-800',
+                      )}
+                    >
+                      <td className="px-3 py-2 text-xs text-slate-400">{e.date}</td>
+                      <td className="px-3 py-2 text-xs text-slate-300 font-medium">
+                        {e.fiscal_period}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs text-slate-400">
+                        ${e.eps_estimated.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs text-white font-medium">
+                        {e.eps_actual != null ? `$${e.eps_actual.toFixed(2)}` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {e.epsSurprisePct != null ? (
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-0.5 text-xs font-bold',
+                              epsColor,
+                            )}
+                          >
+                            {e.epsSurprisePct >= 0 ? (
+                              <TrendingUp className="h-3 w-3" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3" />
+                            )}
+                            {e.epsSurprisePct >= 0 ? '+' : ''}
+                            {e.epsSurprisePct.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs text-slate-400">
+                        {formatRevenue(e.revenue_estimated)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs text-white font-medium">
+                        {formatRevenue(e.revenue_actual)}
+                      </td>
+                      <td
+                        className={cn(
+                          'px-3 py-2 text-right text-xs font-medium',
+                          revColor,
+                        )}
+                      >
+                        {e.revSurprisePct != null
+                          ? `${e.revSurprisePct >= 0 ? '+' : ''}${e.revSurprisePct.toFixed(1)}%`
+                          : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

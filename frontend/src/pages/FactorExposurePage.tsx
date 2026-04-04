@@ -1,291 +1,401 @@
 import { useState, useMemo } from 'react';
-import { Sliders, Search, TrendingUp, TrendingDown } from 'lucide-react';
+import { Sliders, Loader2 } from 'lucide-react';
+import { useOHLCV } from '../hooks/useOHLCV';
+import { useMetrics } from '../hooks/useMetrics';
 import { cn } from '../lib/utils';
+import type { OHLCVBar } from '../lib/types';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
+// ─── Math helpers ─────────────────────────────────────────────────────
 
-const TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'V', 'JNJ', 'WMT', 'XOM'];
-
-const FACTORS = ['Value', 'Momentum', 'Quality', 'Size', 'Low Volatility', 'Growth'] as const;
-const FACTOR_COLORS = {
-  Value: { bar: 'bg-blue-500', text: 'text-blue-400' },
-  Momentum: { bar: 'bg-emerald-500', text: 'text-emerald-400' },
-  Quality: { bar: 'bg-purple-500', text: 'text-purple-400' },
-  Size: { bar: 'bg-amber-500', text: 'text-amber-400' },
-  'Low Volatility': { bar: 'bg-cyan-500', text: 'text-cyan-400' },
-  Growth: { bar: 'bg-pink-500', text: 'text-pink-400' },
-};
-
-interface FactorData {
-  factor: string;
-  score: number; // -1 to 1
-  percentile: number;
-  contribution: number; // % of return attributed
+function dailyReturns(bars: OHLCVBar[]): number[] {
+  const out: number[] = [];
+  for (let i = 1; i < bars.length; i++) {
+    if (bars[i - 1].close > 0) {
+      out.push((bars[i].close - bars[i - 1].close) / bars[i - 1].close);
+    }
+  }
+  return out;
 }
 
-interface TickerFactors {
-  ticker: string;
-  factors: FactorData[];
-  overallScore: number;
-  alpha: number;
-  beta: number;
-  rSquared: number;
+function mean(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  return arr.reduce((s, v) => s + v, 0) / arr.length;
 }
 
-function genFactorData(ticker: string): TickerFactors {
-  const s = seed(ticker + '_factor');
-  const factors: FactorData[] = FACTORS.map((factor, i) => ({
-    factor,
-    score: +((pseudo(s, i * 10) * 2 - 1)).toFixed(2),
-    percentile: Math.floor(pseudo(s, i * 10 + 1) * 100),
-    contribution: +((pseudo(s, i * 10 + 2) - 0.3) * 8).toFixed(2),
-  }));
-
-  return {
-    ticker,
-    factors,
-    overallScore: +(factors.reduce((s, f) => s + f.score, 0) / factors.length).toFixed(2),
-    alpha: +((pseudo(s, 70) - 0.3) * 10).toFixed(2),
-    beta: +(0.5 + pseudo(s, 71) * 1.5).toFixed(2),
-    rSquared: +(0.5 + pseudo(s, 72) * 0.49).toFixed(2),
-  };
+function stddev(arr: number[]): number {
+  if (arr.length < 2) return 0;
+  const m = mean(arr);
+  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1));
 }
 
-const FACTOR_RETURNS = FACTORS.map((f, i) => {
-  const s = seed(f + '_ret');
-  return {
-    factor: f,
-    ytd: +((pseudo(s, 0) - 0.3) * 20).toFixed(2),
-    m1: +((pseudo(s, 1) - 0.4) * 8).toFixed(2),
-    m3: +((pseudo(s, 2) - 0.35) * 15).toFixed(2),
-    y1: +((pseudo(s, 3) - 0.3) * 25).toFixed(2),
-  };
-});
+function annualizedVolatility(returns: number[]): number {
+  return stddev(returns) * Math.sqrt(252);
+}
+
+function momentumReturn(bars: OHLCVBar[], days: number): number | null {
+  if (bars.length <= days) return null;
+  const from = bars[bars.length - 1 - days].close;
+  const to = bars[bars.length - 1].close;
+  if (from === 0) return null;
+  return (to - from) / from;
+}
+
+/**
+ * Normalize a raw metric value into a -1..+1 score where 0 = neutral.
+ * Direction: higher = better (e.g., ROE), unless inverted (e.g., P/E).
+ */
+function scoreFromRatio(value: number | undefined, low: number, high: number, invert = false): number | null {
+  if (value == null || !isFinite(value)) return null;
+  const clamped = Math.max(low, Math.min(high, value));
+  const normalized = (clamped - low) / (high - low); // 0..1
+  const score = normalized * 2 - 1; // -1..+1
+  return invert ? -score : score;
+}
+
+// ─── Factor configuration ─────────────────────────────────────────────
+
+const FACTOR_META = {
+  Value: {
+    color: { bar: 'bg-blue-500', text: 'text-blue-400', badge: 'bg-blue-900/30 text-blue-300' },
+    desc: 'Low P/E and P/B relative to market. Higher score = cheaper valuation.',
+  },
+  Momentum: {
+    color: { bar: 'bg-emerald-500', text: 'text-emerald-400', badge: 'bg-emerald-900/30 text-emerald-300' },
+    desc: '1M and 3M price momentum from OHLCV. Higher score = stronger recent trend.',
+  },
+  Quality: {
+    color: { bar: 'bg-purple-500', text: 'text-purple-400', badge: 'bg-purple-900/30 text-purple-300' },
+    desc: 'ROE, net margin, and operating margin. Higher score = higher quality business.',
+  },
+  Volatility: {
+    color: { bar: 'bg-rose-500', text: 'text-rose-400', badge: 'bg-rose-900/30 text-rose-300' },
+    desc: 'Annualized return std from OHLCV. Lower volatility = higher factor score.',
+  },
+} as const;
+
+type FactorName = keyof typeof FACTOR_META;
+
+interface FactorScore {
+  name: FactorName;
+  score: number | null; // -1 to +1
+  components: { label: string; raw: string | null; contribution: number | null }[];
+}
+
+// ─── Constants ───────────────────────────────────────────────────────
+
+const DEFAULT_TICKER = 'AAPL';
+const QUICK_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'JPM', 'JNJ', 'XOM', 'META', 'GOOGL', 'V'];
+
+// ─── Main page ────────────────────────────────────────────────────────
 
 export function FactorExposurePage() {
-  const [selectedTicker, setSelectedTicker] = useState('AAPL');
-  const [tickerInput, setTickerInput] = useState('');
-  const [view, setView] = useState<'exposure' | 'returns' | 'matrix'>('exposure');
+  const [ticker, setTicker] = useState(DEFAULT_TICKER);
+  const [inputValue, setInputValue] = useState(DEFAULT_TICKER);
 
-  const data = useMemo(() => genFactorData(selectedTicker), [selectedTicker]);
-  const allData = useMemo(() => TICKERS.map(t => genFactorData(t)), []);
-  const selectTicker = (t: string) => { setSelectedTicker(t.toUpperCase()); setTickerInput(''); };
+  const { data: ohlcv, isLoading: ohlcvLoading, isError: ohlcvError } = useOHLCV(ticker);
+  const { data: metricsResp, isLoading: metricsLoading, isError: metricsError } = useMetrics(ticker);
+
+  const isLoading = ohlcvLoading || metricsLoading;
+  const isError = ohlcvError || metricsError;
+
+  const factors = useMemo((): FactorScore[] => {
+    const bars = ohlcv?.bars ?? [];
+    const periods = metricsResp?.data?.periods ?? [];
+    const latestMetrics = periods[0]?.metrics ?? {};
+
+    const returns = dailyReturns(bars);
+    const annVol = returns.length > 5 ? annualizedVolatility(returns) : null;
+    const mom1m = momentumReturn(bars, 21);
+    const mom3m = momentumReturn(bars, 63);
+
+    // ── Value ──
+    const pe = latestMetrics.valuation?.['price_to_earnings'];
+    const pb = latestMetrics.valuation?.['price_to_book'];
+    const peScore = scoreFromRatio(pe, 5, 60, true);  // lower P/E = better value
+    const pbScore = scoreFromRatio(pb, 0.5, 15, true); // lower P/B = better value
+    const valueScore = peScore != null && pbScore != null
+      ? (peScore + pbScore) / 2
+      : peScore ?? pbScore ?? null;
+
+    // ── Momentum ──
+    const mom1mScore = mom1m != null ? scoreFromRatio(mom1m * 100, -30, 30) : null;
+    const mom3mScore = mom3m != null ? scoreFromRatio(mom3m * 100, -50, 50) : null;
+    const momentumScore = mom1mScore != null && mom3mScore != null
+      ? mom1mScore * 0.4 + mom3mScore * 0.6
+      : mom3mScore ?? mom1mScore ?? null;
+
+    // ── Quality ──
+    const roe = latestMetrics.profitability?.['return_on_equity'];
+    const netMargin = latestMetrics.profitability?.['net_profit_margin'];
+    const opMargin = latestMetrics.profitability?.['operating_margin'];
+    const roeScore = scoreFromRatio(roe != null ? roe * 100 : undefined, -10, 50);
+    const netMarginScore = scoreFromRatio(netMargin != null ? netMargin * 100 : undefined, -20, 40);
+    const opMarginScore = scoreFromRatio(opMargin != null ? opMargin * 100 : undefined, -20, 45);
+    const qualityComponents = [roeScore, netMarginScore, opMarginScore].filter((s) => s != null) as number[];
+    const qualityScore = qualityComponents.length > 0
+      ? qualityComponents.reduce((s, v) => s + v, 0) / qualityComponents.length
+      : null;
+
+    // ── Volatility (Low-Vol factor: lower vol = higher score) ──
+    const volScore = annVol != null ? scoreFromRatio(annVol * 100, 10, 100, true) : null;
+
+    return [
+      {
+        name: 'Value',
+        score: valueScore,
+        components: [
+          { label: 'P/E Ratio', raw: pe != null ? pe.toFixed(1) : null, contribution: peScore },
+          { label: 'P/B Ratio', raw: pb != null ? pb.toFixed(2) : null, contribution: pbScore },
+        ],
+      },
+      {
+        name: 'Momentum',
+        score: momentumScore,
+        components: [
+          { label: '1M Return', raw: mom1m != null ? `${(mom1m * 100).toFixed(2)}%` : null, contribution: mom1mScore },
+          { label: '3M Return', raw: mom3m != null ? `${(mom3m * 100).toFixed(2)}%` : null, contribution: mom3mScore },
+        ],
+      },
+      {
+        name: 'Quality',
+        score: qualityScore,
+        components: [
+          { label: 'ROE', raw: roe != null ? `${(roe * 100).toFixed(1)}%` : null, contribution: roeScore },
+          { label: 'Net Margin', raw: netMargin != null ? `${(netMargin * 100).toFixed(1)}%` : null, contribution: netMarginScore },
+          { label: 'Op. Margin', raw: opMargin != null ? `${(opMargin * 100).toFixed(1)}%` : null, contribution: opMarginScore },
+        ],
+      },
+      {
+        name: 'Volatility',
+        score: volScore,
+        components: [
+          { label: 'Ann. Volatility', raw: annVol != null ? `${(annVol * 100).toFixed(1)}%` : null, contribution: volScore },
+        ],
+      },
+    ];
+  }, [ohlcv, metricsResp]);
+
+  const overallScore = useMemo(() => {
+    const valid = factors.filter((f) => f.score != null).map((f) => f.score as number);
+    if (valid.length === 0) return null;
+    return valid.reduce((s, v) => s + v, 0) / valid.length;
+  }, [factors]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = inputValue.trim().toUpperCase();
+    if (t) setTicker(t);
+  };
+
+  const hasData = factors.some((f) => f.score != null);
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Sliders className="h-6 w-6 text-indigo-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Factor Exposure</h1>
-          <p className="text-sm text-slate-400">Multi-factor risk decomposition and attribution</p>
+          <p className="text-sm text-slate-400">
+            Value, Momentum, Quality, and Volatility scores from live metrics + OHLCV
+          </p>
         </div>
       </div>
 
       {/* Ticker selector */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-          <input value={tickerInput} onChange={e => setTickerInput(e.target.value.toUpperCase())}
-            onKeyDown={e => { if (e.key === 'Enter' && tickerInput) selectTicker(tickerInput); }}
-            placeholder="Ticker..." className="w-28 rounded-lg border border-slate-600 bg-slate-900 py-1.5 pl-8 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none" />
-        </div>
-        {TICKERS.map(t => (
-          <button key={t} onClick={() => selectTicker(t)}
-            className={cn('rounded-lg px-2.5 py-1 text-xs font-medium', selectedTicker === t ? 'bg-indigo-600 text-white' : 'border border-slate-700 text-slate-400 hover:text-white')}>
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value.toUpperCase())}
+            placeholder="Ticker…"
+            className="w-28 rounded-lg border border-slate-600 bg-slate-900 px-3 py-1.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+          >
+            Analyze
+          </button>
+        </form>
+        {QUICK_TICKERS.map((t) => (
+          <button
+            key={t}
+            onClick={() => { setTicker(t); setInputValue(t); }}
+            className={cn(
+              'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
+              ticker === t ? 'bg-indigo-600 text-white' : 'border border-slate-700 text-slate-400 hover:text-white',
+            )}
+          >
             {t}
           </button>
         ))}
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">Overall Factor Score</div>
-          <div className={cn('mt-1 text-2xl font-bold', data.overallScore >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-            {data.overallScore >= 0 ? '+' : ''}{data.overallScore}
-          </div>
+      {/* Loading / error */}
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 py-12 text-slate-400">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading data for {ticker}…</span>
         </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">Alpha</div>
-          <div className={cn('mt-1 text-2xl font-bold', data.alpha >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-            {data.alpha >= 0 ? '+' : ''}{data.alpha}%
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">Beta</div>
-          <div className="mt-1 text-2xl font-bold text-white">{data.beta}</div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider">R-Squared</div>
-          <div className="mt-1 text-2xl font-bold text-white">{data.rSquared}</div>
-        </div>
-      </div>
+      )}
 
-      {/* View toggle */}
-      <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-        {(['exposure', 'returns', 'matrix'] as const).map(v => (
-          <button key={v} onClick={() => setView(v)}
-            className={cn('rounded-md px-4 py-1.5 text-xs font-medium capitalize', view === v ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white')}>
-            {v === 'exposure' ? 'Factor Exposure' : v === 'returns' ? 'Factor Returns' : 'Cross-Stock Matrix'}
-          </button>
-        ))}
-      </div>
+      {isError && !isLoading && (
+        <div className="rounded-lg border border-rose-700/50 bg-rose-950/20 p-4 text-sm text-rose-400">
+          Failed to load data for {ticker}.
+        </div>
+      )}
 
-      {view === 'exposure' && (
+      {!isLoading && !isError && !hasData && (
+        <div className="rounded-lg border border-slate-700 p-4 text-sm text-slate-400">
+          No factor data could be computed for {ticker}. The symbol may not have sufficient OHLCV or metrics history.
+        </div>
+      )}
+
+      {hasData && (
         <>
-          {/* Factor bars */}
+          {/* Overall score card */}
           <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <h3 className="mb-4 text-sm font-semibold text-white">{selectedTicker} Factor Exposure</h3>
-            <div className="space-y-4">
-              {data.factors.map(f => {
-                const colors = FACTOR_COLORS[f.factor as keyof typeof FACTOR_COLORS];
-                const barWidth = Math.abs(f.score) * 50;
-                return (
-                  <div key={f.factor}>
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className={cn('text-xs font-medium', colors.text)}>{f.factor}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-slate-500">P{f.percentile}</span>
-                        <span className={cn('text-xs font-medium', f.score >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                          {f.score >= 0 ? '+' : ''}{f.score}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex h-5 w-full items-center">
-                        {f.score < 0 ? (
-                          <div className="flex w-full">
-                            <div className="flex w-1/2 justify-end">
-                              <div className={cn('h-5 rounded-l opacity-60', colors.bar)} style={{ width: `${barWidth}%` }} />
-                            </div>
-                            <div className="w-px bg-slate-600" />
-                            <div className="w-1/2" />
-                          </div>
-                        ) : (
-                          <div className="flex w-full">
-                            <div className="w-1/2" />
-                            <div className="w-px bg-slate-600" />
-                            <div className="w-1/2">
-                              <div className={cn('h-5 rounded-r opacity-60', colors.bar)} style={{ width: `${barWidth}%` }} />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-slate-500 uppercase tracking-wider">Overall Factor Score</div>
+                <div className={cn(
+                  'mt-1 text-3xl font-bold',
+                  overallScore == null ? 'text-slate-500' :
+                  overallScore >= 0.3 ? 'text-emerald-400' :
+                  overallScore >= -0.3 ? 'text-amber-400' :
+                  'text-rose-400',
+                )}>
+                  {overallScore != null
+                    ? `${overallScore >= 0 ? '+' : ''}${overallScore.toFixed(2)}`
+                    : '—'}
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  Range: −1.0 (worst) to +1.0 (best) · {factors.filter((f) => f.score != null).length}/{factors.length} factors available
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-500">Ticker</div>
+                <div className="text-xl font-bold text-indigo-400">{ticker}</div>
+              </div>
             </div>
           </div>
 
-          {/* Attribution table */}
-          <div className="overflow-x-auto rounded-xl border border-slate-700">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-700 bg-slate-800/50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Factor</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Score</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Percentile</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Return Contribution</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {data.factors.map(f => {
-                  const colors = FACTOR_COLORS[f.factor as keyof typeof FACTOR_COLORS];
-                  return (
-                    <tr key={f.factor} className="bg-slate-800 hover:bg-slate-750">
-                      <td className={cn('px-3 py-2 text-xs font-medium', colors.text)}>{f.factor}</td>
-                      <td className={cn('px-3 py-2 text-right text-xs font-medium', f.score >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                        {f.score >= 0 ? '+' : ''}{f.score}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs text-slate-300">{f.percentile}th</td>
-                      <td className={cn('px-3 py-2 text-right text-xs font-medium', f.contribution >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                        {f.contribution >= 0 ? '+' : ''}{f.contribution}%
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+          {/* Factor cards */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {factors.map((factor) => {
+              const meta = FACTOR_META[factor.name];
+              const score = factor.score;
+              const barWidth = score != null ? Math.abs(score) * 50 : 0;
+              const isNeg = score != null && score < 0;
 
-      {view === 'returns' && (
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-700 bg-slate-800/50">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Factor</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">1M</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">3M</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">YTD</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">1Y</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50">
-              {FACTOR_RETURNS.map(fr => {
-                const colors = FACTOR_COLORS[fr.factor as keyof typeof FACTOR_COLORS];
-                return (
-                  <tr key={fr.factor} className="bg-slate-800 hover:bg-slate-750">
-                    <td className={cn('px-3 py-2 text-xs font-medium', colors.text)}>{fr.factor}</td>
-                    {[fr.m1, fr.m3, fr.ytd, fr.y1].map((v, i) => (
-                      <td key={i} className={cn('px-3 py-2 text-right text-xs font-medium', v >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                        {v >= 0 ? '+' : ''}{v}%
-                      </td>
+              return (
+                <div key={factor.name} className="rounded-xl border border-slate-700 bg-slate-800 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className={cn('text-sm font-semibold', meta.color.text)}>{factor.name}</span>
+                    <span className={cn(
+                      'rounded-full px-2.5 py-0.5 text-xs font-bold',
+                      meta.color.badge,
+                    )}>
+                      {score != null ? `${score >= 0 ? '+' : ''}${score.toFixed(2)}` : 'N/A'}
+                    </span>
+                  </div>
+
+                  {/* Score bar */}
+                  <div className="h-4 w-full rounded bg-slate-900 relative overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-px h-full bg-slate-600" />
+                    </div>
+                    {score != null && (
+                      <div
+                        className={cn('absolute top-0 h-full rounded-sm opacity-70', meta.color.bar)}
+                        style={{
+                          width: `${barWidth}%`,
+                          left: isNeg ? `${50 - barWidth}%` : '50%',
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Component breakdown */}
+                  <div className="space-y-1">
+                    {factor.components.map((c) => (
+                      <div key={c.label} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">{c.label}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-300 font-mono">{c.raw ?? '—'}</span>
+                          {c.contribution != null && (
+                            <span className={cn(
+                              'font-mono text-[10px]',
+                              c.contribution >= 0 ? 'text-emerald-400' : 'text-rose-400',
+                            )}>
+                              {c.contribution >= 0 ? '+' : ''}{c.contribution.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  </div>
 
-      {view === 'matrix' && (
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-700 bg-slate-800/50">
-              <tr>
-                <th className="px-2 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
-                {FACTORS.map(f => (
-                  <th key={f} className="px-2 py-2 text-center text-[10px] font-medium text-slate-400">{f}</th>
-                ))}
-                <th className="px-2 py-2 text-center text-xs font-medium text-slate-400">Overall</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50">
-              {allData.map(td => (
-                <tr key={td.ticker} className={cn('bg-slate-800 hover:bg-slate-750', td.ticker === selectedTicker && 'bg-slate-700/50')}>
-                  <td className="px-2 py-2 text-xs font-bold text-indigo-400">{td.ticker}</td>
-                  {td.factors.map(f => {
-                    const intensity = Math.abs(f.score);
-                    const bg = f.score >= 0
-                      ? `rgba(52, 211, 153, ${intensity * 0.3})`
-                      : `rgba(248, 113, 113, ${intensity * 0.3})`;
+                  <p className="text-[10px] text-slate-500 leading-relaxed">{meta.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Radar-style summary table */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-white">Factor Summary</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700">
+                    <th className="pb-2 text-left text-xs text-slate-400">Factor</th>
+                    <th className="pb-2 text-right text-xs text-slate-400">Score</th>
+                    <th className="pb-2 text-right text-xs text-slate-400">Signal</th>
+                    <th className="pb-2 pr-2 text-xs text-slate-400 w-48">Strength</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/40">
+                  {factors.map((f) => {
+                    const meta = FACTOR_META[f.name];
+                    const pct = f.score != null ? Math.abs(f.score) * 50 : 0;
+                    const signal =
+                      f.score == null ? 'N/A' :
+                      f.score >= 0.5 ? 'Strong positive' :
+                      f.score >= 0.2 ? 'Positive' :
+                      f.score >= -0.2 ? 'Neutral' :
+                      f.score >= -0.5 ? 'Negative' :
+                      'Strong negative';
                     return (
-                      <td key={f.factor} className="px-2 py-2 text-center text-[11px] font-medium" style={{ backgroundColor: bg }}>
-                        <span className={f.score >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                          {f.score >= 0 ? '+' : ''}{f.score}
-                        </span>
-                      </td>
+                      <tr key={f.name}>
+                        <td className={cn('py-2 text-xs font-medium', meta.color.text)}>{f.name}</td>
+                        <td className={cn(
+                          'py-2 text-right text-xs font-mono',
+                          f.score == null ? 'text-slate-500' :
+                          f.score >= 0 ? 'text-emerald-400' : 'text-rose-400',
+                        )}>
+                          {f.score != null ? `${f.score >= 0 ? '+' : ''}${f.score.toFixed(3)}` : '—'}
+                        </td>
+                        <td className="py-2 text-right text-xs text-slate-400">{signal}</td>
+                        <td className="py-2 pr-2">
+                          <div className="h-2.5 w-full rounded-full bg-slate-700 overflow-hidden">
+                            {f.score != null && (
+                              <div
+                                className={cn('h-full rounded-full', meta.color.bar, 'opacity-70')}
+                                style={{ width: `${pct * 2}%` }}
+                              />
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })}
-                  <td className={cn('px-2 py-2 text-center text-xs font-bold', td.overallScore >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {td.overallScore >= 0 ? '+' : ''}{td.overallScore}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -1,118 +1,195 @@
-import { useState, useMemo } from 'react';
-import { UserCheck, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { UserCheck, TrendingUp, TrendingDown, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useInsiders } from '../hooks/useInsiders';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
-
-const STOCKS = [
-  { ticker: 'AAPL', name: 'Apple' }, { ticker: 'MSFT', name: 'Microsoft' },
-  { ticker: 'GOOGL', name: 'Alphabet' }, { ticker: 'AMZN', name: 'Amazon' },
-  { ticker: 'NVDA', name: 'NVIDIA' }, { ticker: 'META', name: 'Meta' },
-  { ticker: 'TSLA', name: 'Tesla' }, { ticker: 'JPM', name: 'JPMorgan' },
-  { ticker: 'V', name: 'Visa' }, { ticker: 'UNH', name: 'UnitedHealth' },
-  { ticker: 'NFLX', name: 'Netflix' }, { ticker: 'AMD', name: 'AMD' },
-  { ticker: 'CRM', name: 'Salesforce' }, { ticker: 'DIS', name: 'Disney' },
-  { ticker: 'BA', name: 'Boeing' }, { ticker: 'GS', name: 'Goldman Sachs' },
-  { ticker: 'COST', name: 'Costco' }, { ticker: 'HD', name: 'Home Depot' },
-  { ticker: 'WMT', name: 'Walmart' }, { ticker: 'PG', name: 'P&G' },
-  { ticker: 'INTC', name: 'Intel' }, { ticker: 'QCOM', name: 'Qualcomm' },
-  { ticker: 'ADBE', name: 'Adobe' }, { ticker: 'PYPL', name: 'PayPal' },
-  { ticker: 'SQ', name: 'Block' }, { ticker: 'UBER', name: 'Uber' },
+const TICKERS = [
+  { ticker: 'AAPL', name: 'Apple' },
+  { ticker: 'MSFT', name: 'Microsoft' },
+  { ticker: 'GOOGL', name: 'Alphabet' },
+  { ticker: 'AMZN', name: 'Amazon' },
+  { ticker: 'NVDA', name: 'NVIDIA' },
+  { ticker: 'META', name: 'Meta' },
+  { ticker: 'TSLA', name: 'Tesla' },
+  { ticker: 'JPM', name: 'JPMorgan' },
 ];
 
-interface InsiderSignal {
+function signalColor(signal: string): string {
+  const s = signal.toLowerCase();
+  if (s.includes('strong buy') || s === 'bullish') return 'bg-emerald-500/20 text-emerald-400';
+  if (s.includes('buy')) return 'bg-green-500/20 text-green-400';
+  if (s.includes('neutral')) return 'bg-slate-500/20 text-slate-400';
+  if (s.includes('strong sell') || s === 'bearish') return 'bg-red-500/20 text-red-400';
+  if (s.includes('sell')) return 'bg-orange-500/20 text-orange-400';
+  return 'bg-slate-500/20 text-slate-300';
+}
+
+function scoreColor(score: number): string {
+  if (score >= 60) return 'text-emerald-400';
+  if (score >= 20) return 'text-green-400';
+  if (score >= -20) return 'text-slate-300';
+  if (score >= -60) return 'text-orange-400';
+  return 'text-red-400';
+}
+
+function formatValue(v: number | null | undefined): string {
+  if (v == null) return '—';
+  if (Math.abs(v) >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (Math.abs(v) >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (Math.abs(v) >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
+  return `$${v.toFixed(0)}`;
+}
+
+/** Half-arc SVG gauge for a score in [-100, 100] */
+function SentimentGauge({ score }: { score: number }) {
+  const clamped = Math.max(-100, Math.min(100, score));
+  // Map [-100,100] -> [180,0] degrees (left = bearish, right = bullish)
+  const angleDeg = 180 - ((clamped + 100) / 200) * 180;
+  const rad = (angleDeg * Math.PI) / 180;
+  const cx = 60;
+  const cy = 56;
+  const r = 44;
+  const nx = cx + r * Math.cos(rad);
+  const ny = cy - r * Math.sin(rad);
+
+  const color =
+    clamped >= 20
+      ? '#34d399' // emerald
+      : clamped >= -20
+      ? '#94a3b8' // slate
+      : '#f87171'; // red
+
+  return (
+    <svg viewBox="0 0 120 64" className="w-full max-w-[160px]">
+      {/* Background arc */}
+      <path d="M 16 56 A 44 44 0 0 1 104 56" fill="none" stroke="#334155" strokeWidth="8" strokeLinecap="round" />
+      {/* Colored fill arc */}
+      {clamped !== 0 && (() => {
+        const startAngle = 0; // right = 0deg in standard, but we need 180 (left) to start
+        // We'll draw from neutral (top = 90deg) to needle position
+        const neutralRad = Math.PI / 2; // 90deg
+        const needleRad = rad;
+        // Determine sweep
+        const large = Math.abs(clamped) > 50 ? 1 : 0;
+        const sweep = clamped > 0 ? 1 : 0; // clockwise = towards right = bullish
+
+        // Start from neutral top
+        const sx = cx + r * Math.cos(neutralRad);
+        const sy = cy - r * Math.sin(neutralRad);
+
+        return (
+          <path
+            d={`M ${sx} ${sy} A ${r} ${r} 0 ${large} ${sweep} ${nx} ${ny}`}
+            fill="none"
+            stroke={color}
+            strokeWidth="8"
+            strokeLinecap="round"
+            opacity="0.8"
+          />
+        );
+      })()}
+      {/* Needle */}
+      <line
+        x1={cx}
+        y1={cy}
+        x2={nx}
+        y2={ny}
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle cx={cx} cy={cy} r="4" fill={color} />
+      {/* Labels */}
+      <text x="12" y="68" fontSize="7" fill="#64748b">Bear</text>
+      <text x="94" y="68" fontSize="7" fill="#64748b">Bull</text>
+    </svg>
+  );
+}
+
+function TickerSentimentCard({
+  ticker,
+  name,
+  isSelected,
+  onSelect,
+}: {
   ticker: string;
   name: string;
-  buys30d: number;
-  sells30d: number;
-  buyValue: number;
-  sellValue: number;
-  netSignal: number; // -100 to +100
-  sentiment: 'Strong Buy' | 'Buy' | 'Neutral' | 'Sell' | 'Strong Sell';
-  topInsider: string;
-  topAction: 'Buy' | 'Sell';
-  topAmount: number;
-  lastDate: string;
-  priceAtFiling: number;
-  currentPrice: number;
-  priceSince: number;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const { data: result, isLoading, error } = useInsiders(ticker);
+  const insidersData = result?.data;
+  const sentiment = insidersData?.sentiment;
+  const summary = insidersData?.summary;
+
+  return (
+    <button
+      onClick={onSelect}
+      className={cn(
+        'rounded-xl border p-4 text-left transition-all',
+        isSelected
+          ? 'border-green-500 bg-green-900/10'
+          : 'border-slate-700 bg-slate-800 hover:border-slate-500',
+      )}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="font-mono text-sm font-bold text-green-400">{ticker}</div>
+          <div className="text-[10px] text-slate-500">{name}</div>
+        </div>
+        {!isLoading && !error && sentiment && (
+          <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', signalColor(sentiment.signal))}>
+            {sentiment.signal}
+          </span>
+        )}
+        {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />}
+        {error && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
+      </div>
+
+      {!isLoading && !error && sentiment ? (
+        <>
+          <div className="flex justify-center">
+            <SentimentGauge score={sentiment.score} />
+          </div>
+          <div className="mt-2 text-center">
+            <span className={cn('text-lg font-bold', scoreColor(sentiment.score))}>
+              {sentiment.score >= 0 ? '+' : ''}{sentiment.score.toFixed(0)}
+            </span>
+          </div>
+          <div className="mt-2 flex justify-between text-[10px]">
+            <span className="text-emerald-400">{formatValue(sentiment.buy_value)}</span>
+            <span className={cn('font-medium', summary?.net_direction?.toLowerCase() === 'buying' ? 'text-emerald-400' : 'text-red-400')}>
+              {summary?.net_direction ?? ''}
+            </span>
+            <span className="text-red-400">{formatValue(sentiment.sell_value)}</span>
+          </div>
+        </>
+      ) : isLoading ? (
+        <div className="py-4 text-center text-xs text-slate-500">Loading…</div>
+      ) : (
+        <div className="py-4 text-center text-xs text-slate-500">No data</div>
+      )}
+    </button>
+  );
 }
-
-function genSignals(): InsiderSignal[] {
-  return STOCKS.map((stock) => {
-    const s = seed(stock.ticker + '_inssent');
-    const buys = Math.floor(pseudo(s, 0) * 12);
-    const sells = Math.floor(pseudo(s, 1) * 8);
-    const buyVal = buys * (100000 + pseudo(s, 2) * 5000000);
-    const sellVal = sells * (50000 + pseudo(s, 3) * 3000000);
-    const net = buys + sells > 0 ? ((buyVal - sellVal) / (buyVal + sellVal || 1)) * 100 : 0;
-    const sentiment = net > 50 ? 'Strong Buy' : net > 15 ? 'Buy' : net > -15 ? 'Neutral' : net > -50 ? 'Sell' : 'Strong Sell';
-    const names = ['CEO', 'CFO', 'COO', 'CTO', 'VP Sales', 'Board Director', 'EVP', 'General Counsel'];
-    const topInsider = names[Math.floor(pseudo(s, 4) * names.length)];
-    const topAction = pseudo(s, 5) > 0.4 ? 'Buy' : 'Sell';
-    const topAmount = 50000 + pseudo(s, 6) * 5000000;
-    const month = 1 + Math.floor(pseudo(s, 7) * 3);
-    const day = 1 + Math.floor(pseudo(s, 8) * 28);
-    const priceAtFiling = 50 + pseudo(s, 9) * 400;
-    const priceSince = (pseudo(s, 10) - 0.4) * 20;
-    const currentPrice = priceAtFiling * (1 + priceSince / 100);
-
-    return {
-      ticker: stock.ticker, name: stock.name,
-      buys30d: buys, sells30d: sells,
-      buyValue: +buyVal.toFixed(0), sellValue: +sellVal.toFixed(0),
-      netSignal: +net.toFixed(0), sentiment,
-      topInsider, topAction: topAction as 'Buy' | 'Sell',
-      topAmount: +topAmount.toFixed(0),
-      lastDate: `2025-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-      priceAtFiling: +priceAtFiling.toFixed(2),
-      currentPrice: +currentPrice.toFixed(2),
-      priceSince: +priceSince.toFixed(1),
-    };
-  });
-}
-
-const SIGNAL_COLORS: Record<string, string> = {
-  'Strong Buy': 'bg-emerald-500/20 text-emerald-400',
-  'Buy': 'bg-green-500/20 text-green-400',
-  'Neutral': 'bg-slate-500/20 text-slate-400',
-  'Sell': 'bg-orange-500/20 text-orange-400',
-  'Strong Sell': 'bg-red-500/20 text-red-400',
-};
 
 export function InsiderSentimentPage() {
-  const [filter, setFilter] = useState<'all' | 'bullish' | 'bearish'>('all');
-  const [sortBy, setSortBy] = useState<'netSignal' | 'buyValue' | 'priceSince'>('netSignal');
-  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
+  const [selectedTicker, setSelectedTicker] = useState('AAPL');
 
-  const allSignals = useMemo(() => genSignals(), []);
+  const { data: result, isLoading, error, refetch } = useInsiders(selectedTicker);
+  const insidersData = result?.data;
+  const sentiment = insidersData?.sentiment;
+  const summary = insidersData?.summary;
 
-  const filtered = useMemo(() => {
-    let list = [...allSignals];
-    if (filter === 'bullish') list = list.filter(s => s.netSignal > 0);
-    if (filter === 'bearish') list = list.filter(s => s.netSignal < 0);
-    list.sort((a, b) => sortDir === 'desc' ? b[sortBy] - a[sortBy] : a[sortBy] - b[sortBy]);
-    return list;
-  }, [allSignals, filter, sortBy, sortDir]);
+  const selectedName = TICKERS.find(t => t.ticker === selectedTicker)?.name ?? selectedTicker;
 
-  const totalBuyValue = allSignals.reduce((s, x) => s + x.buyValue, 0);
-  const totalSellValue = allSignals.reduce((s, x) => s + x.sellValue, 0);
-  const bullishStocks = allSignals.filter(s => s.netSignal > 15).length;
-  const bearishStocks = allSignals.filter(s => s.netSignal < -15).length;
-  const avgSignal = allSignals.reduce((s, x) => s + x.netSignal, 0) / allSignals.length;
+  // Build detail rows from flattened transactions
+  const allTxns = insidersData?.insider_filings.flatMap(f =>
+    f.transactions.map(tx => ({ ...tx, owner: f.owner })),
+  ) ?? [];
 
-  const toggleSort = (key: typeof sortBy) => {
-    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortBy(key); setSortDir('desc'); }
-  };
+  const totalBuy = summary?.total_purchases ?? allTxns.filter(t => t.direction?.toLowerCase() === 'buy').length;
+  const totalSell = summary?.total_sales ?? allTxns.filter(t => t.direction?.toLowerCase() === 'sell').length;
 
   return (
     <div className="space-y-6">
@@ -120,135 +197,199 @@ export function InsiderSentimentPage() {
         <UserCheck className="h-6 w-6 text-green-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Insider Sentiment</h1>
-          <p className="text-sm text-slate-400">Aggregate insider buy/sell signals across major stocks</p>
+          <p className="text-sm text-slate-400">Insider buy/sell signals from SEC Form 4 filings</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-        {(['all', 'bullish', 'bearish'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={cn('rounded-md px-4 py-1.5 text-xs font-medium capitalize', filter === f ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white')}>
-            {f}
-          </button>
+      {/* Ticker grid — each card fetches its own data */}
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {TICKERS.map(({ ticker, name }) => (
+          <TickerSentimentCard
+            key={ticker}
+            ticker={ticker}
+            name={name}
+            isSelected={selectedTicker === ticker}
+            onSelect={() => setSelectedTicker(ticker)}
+          />
         ))}
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {[
-          { label: 'Total Buy Value', value: `$${(totalBuyValue / 1e6).toFixed(1)}M`, color: 'text-emerald-400' },
-          { label: 'Total Sell Value', value: `$${(totalSellValue / 1e6).toFixed(1)}M`, color: 'text-red-400' },
-          { label: 'Bullish Stocks', value: bullishStocks.toString(), color: 'text-emerald-400' },
-          { label: 'Bearish Stocks', value: bearishStocks.toString(), color: 'text-red-400' },
-          { label: 'Avg Signal', value: `${avgSignal >= 0 ? '+' : ''}${avgSignal.toFixed(0)}`, color: avgSignal >= 0 ? 'text-emerald-400' : 'text-red-400' },
-        ].map(c => (
-          <div key={c.label} className="rounded-xl border border-slate-700 bg-slate-800 p-3">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</div>
-            <div className={cn('mt-1 text-lg font-bold', c.color)}>{c.value}</div>
+      {/* Selected ticker detail */}
+      <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-white">
+              {selectedTicker} — {selectedName}
+            </h2>
+            <p className="text-xs text-slate-500">Detailed insider sentiment breakdown</p>
           </div>
-        ))}
-      </div>
-
-      {/* Buy/Sell bar */}
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-white">Aggregate Buy vs Sell Volume</h3>
-        <div className="flex h-6 overflow-hidden rounded-full">
-          <div className="bg-emerald-500/60" style={{ width: `${(totalBuyValue / (totalBuyValue + totalSellValue)) * 100}%` }} />
-          <div className="bg-red-500/60" style={{ width: `${(totalSellValue / (totalBuyValue + totalSellValue)) * 100}%` }} />
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-400 hover:text-white"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Refresh
+          </button>
         </div>
-        <div className="mt-2 flex justify-between text-xs">
-          <span className="text-emerald-400">Buys: ${(totalBuyValue / 1e6).toFixed(1)}M</span>
-          <span className="text-red-400">Sells: ${(totalSellValue / 1e6).toFixed(1)}M</span>
-        </div>
-      </div>
 
-      {/* Signal gauge for top 5 */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {[...allSignals].sort((a, b) => Math.abs(b.netSignal) - Math.abs(a.netSignal)).slice(0, 6).map(s => (
-          <div key={s.ticker} className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <Link to={`/company/${s.ticker}`} className="font-mono text-sm font-bold text-green-400 hover:underline">{s.ticker}</Link>
-              <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', SIGNAL_COLORS[s.sentiment])}>
-                {s.sentiment}
-              </span>
+        {isLoading && (
+          <div className="flex items-center justify-center gap-2 py-12 text-slate-400">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm">Loading {selectedTicker} sentiment…</span>
+          </div>
+        )}
+
+        {error && !isLoading && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-800 bg-red-900/20 p-4 text-red-400">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span className="text-sm">Failed to load insider sentiment for {selectedTicker}.</span>
+          </div>
+        )}
+
+        {!isLoading && !error && sentiment && (
+          <>
+            {/* Main sentiment metrics */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {/* Score + Gauge */}
+              <div className="col-span-full sm:col-span-1 lg:col-span-1 flex flex-col items-center justify-center rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Sentiment Score</div>
+                <SentimentGauge score={sentiment.score} />
+                <div className={cn('mt-1 text-2xl font-bold', scoreColor(sentiment.score))}>
+                  {sentiment.score >= 0 ? '+' : ''}{sentiment.score.toFixed(0)}
+                </div>
+                <span className={cn('mt-1 rounded px-2 py-0.5 text-[10px] font-bold', signalColor(sentiment.signal))}>
+                  {sentiment.signal}
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">Buy Value</div>
+                <div className="mt-1 text-xl font-bold text-emerald-400">{formatValue(sentiment.buy_value)}</div>
+                <div className="mt-1 text-xs text-slate-500">{totalBuy} purchase{totalBuy !== 1 ? 's' : ''}</div>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">Sell Value</div>
+                <div className="mt-1 text-xl font-bold text-red-400">{formatValue(sentiment.sell_value)}</div>
+                <div className="mt-1 text-xs text-slate-500">{totalSell} sale{totalSell !== 1 ? 's' : ''}</div>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">Net Value</div>
+                <div className={cn('mt-1 text-xl font-bold', (sentiment.net_value ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                  {sentiment.net_value != null
+                    ? `${sentiment.net_value >= 0 ? '+' : ''}${formatValue(Math.abs(sentiment.net_value))}`
+                    : '—'}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">Net flow</div>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">Net Direction</div>
+                <div
+                  className={cn(
+                    'mt-1 text-xl font-bold',
+                    summary?.net_direction?.toLowerCase() === 'buying' ? 'text-emerald-400' : 'text-red-400',
+                  )}
+                >
+                  {summary?.net_direction ?? '—'}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {insidersData.count} filing{insidersData.count !== 1 ? 's' : ''}
+                </div>
+              </div>
             </div>
-            <div className="relative h-3 rounded-full bg-slate-700 overflow-hidden">
-              <div className="absolute inset-y-0 left-1/2 w-0.5 bg-slate-500 z-10" />
-              {s.netSignal >= 0 ? (
-                <div className="absolute inset-y-0 left-1/2 bg-emerald-500/60 rounded-r" style={{ width: `${(s.netSignal / 100) * 50}%` }} />
+
+            {/* Buy vs Sell bar */}
+            <div className="mt-4 rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <h3 className="mb-2 text-sm font-semibold text-white">Buy vs Sell Value</h3>
+              {(sentiment.buy_value + sentiment.sell_value) > 0 ? (
+                <>
+                  <div className="flex h-6 overflow-hidden rounded-full">
+                    <div
+                      className="bg-emerald-500/60 transition-all"
+                      style={{
+                        width: `${(sentiment.buy_value / (sentiment.buy_value + sentiment.sell_value)) * 100}%`,
+                      }}
+                    />
+                    <div
+                      className="bg-red-500/60 transition-all"
+                      style={{
+                        width: `${(sentiment.sell_value / (sentiment.buy_value + sentiment.sell_value)) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2 flex justify-between text-xs">
+                    <span className="flex items-center gap-1 text-emerald-400">
+                      <TrendingUp className="h-3 w-3" />
+                      Buys: {formatValue(sentiment.buy_value)}
+                    </span>
+                    <span className="flex items-center gap-1 text-red-400">
+                      <TrendingDown className="h-3 w-3" />
+                      Sells: {formatValue(sentiment.sell_value)}
+                    </span>
+                  </div>
+                </>
               ) : (
-                <div className="absolute inset-y-0 bg-red-500/60 rounded-l" style={{ width: `${(Math.abs(s.netSignal) / 100) * 50}%`, right: '50%' }} />
+                <p className="text-xs text-slate-500">No value data available.</p>
               )}
             </div>
-            <div className="mt-2 flex justify-between text-[10px] text-slate-500">
-              <span>{s.buys30d} buys</span>
-              <span className={cn('font-bold', s.netSignal >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                Signal: {s.netSignal >= 0 ? '+' : ''}{s.netSignal}
-              </span>
-              <span>{s.sells30d} sells</span>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Full table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-700">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-700 bg-slate-800/50">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Company</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Buys</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Sells</th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort('buyValue')} className={cn('text-xs font-medium', sortBy === 'buyValue' ? 'text-green-400' : 'text-slate-400')}>
-                  Buy Value {sortBy === 'buyValue' && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort('netSignal')} className={cn('text-xs font-medium', sortBy === 'netSignal' ? 'text-green-400' : 'text-slate-400')}>
-                  Signal {sortBy === 'netSignal' && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-slate-400">Sentiment</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Top Insider</th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort('priceSince')} className={cn('text-xs font-medium', sortBy === 'priceSince' ? 'text-green-400' : 'text-slate-400')}>
-                  Since Filing {sortBy === 'priceSince' && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {filtered.map(s => (
-              <tr key={s.ticker} className="bg-slate-800 hover:bg-slate-750">
-                <td className="px-3 py-2">
-                  <Link to={`/company/${s.ticker}`} className="font-mono text-xs font-bold text-green-400 hover:underline">{s.ticker}</Link>
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-300">{s.name}</td>
-                <td className="px-3 py-2 text-right text-xs text-emerald-400">{s.buys30d}</td>
-                <td className="px-3 py-2 text-right text-xs text-red-400">{s.sells30d}</td>
-                <td className="px-3 py-2 text-right text-xs text-slate-300">${(s.buyValue / 1e6).toFixed(1)}M</td>
-                <td className={cn('px-3 py-2 text-right text-xs font-bold', s.netSignal >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                  {s.netSignal >= 0 ? '+' : ''}{s.netSignal}
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', SIGNAL_COLORS[s.sentiment])}>{s.sentiment}</span>
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-400">
-                  {s.topInsider} <span className={cn('font-medium', s.topAction === 'Buy' ? 'text-emerald-400' : 'text-red-400')}>({s.topAction})</span>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <span className={cn('flex items-center justify-end gap-0.5 text-xs font-medium', s.priceSince >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {s.priceSince >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {s.priceSince >= 0 ? '+' : ''}{s.priceSince}%
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            {/* Recent filings breakdown */}
+            {insidersData.insider_filings.length > 0 && (
+              <div className="mt-4 overflow-x-auto rounded-xl border border-slate-700">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-slate-700 bg-slate-800/50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Filed</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Owner</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Title</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-slate-400">Form</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Txns</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-slate-400">Net Dir.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {insidersData.insider_filings.slice(0, 15).map((filing, i) => {
+                      const buys = filing.transactions.filter(t => t.direction?.toLowerCase() === 'buy').length;
+                      const sells = filing.transactions.filter(t => t.direction?.toLowerCase() === 'sell').length;
+                      const net = buys > sells ? 'Buy' : sells > buys ? 'Sell' : 'Mixed';
+                      return (
+                        <tr key={i} className="bg-slate-800 hover:bg-slate-750">
+                          <td className="px-3 py-2 text-xs text-slate-400">{filing.filed_date}</td>
+                          <td className="px-3 py-2 text-xs text-white">{filing.owner.name}</td>
+                          <td className="px-3 py-2 text-xs text-slate-400 max-w-[140px] truncate" title={filing.owner.title}>
+                            {filing.owner.title || (filing.owner.is_director ? 'Director' : filing.owner.is_officer ? 'Officer' : '—')}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs font-mono text-indigo-400">{filing.form}</td>
+                          <td className="px-3 py-2 text-right text-xs text-slate-300">{filing.transactions.length}</td>
+                          <td className="px-3 py-2 text-center">
+                            <span
+                              className={cn(
+                                'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                net === 'Buy'
+                                  ? 'bg-emerald-900/40 text-emerald-400'
+                                  : net === 'Sell'
+                                  ? 'bg-red-900/40 text-red-400'
+                                  : 'bg-slate-700 text-slate-300',
+                              )}
+                            >
+                              {net}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {!isLoading && !error && !sentiment && (
+          <p className="py-8 text-center text-sm text-slate-500">No sentiment data available for {selectedTicker}.</p>
+        )}
       </div>
     </div>
   );

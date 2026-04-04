@@ -1,114 +1,43 @@
-import { useState, useMemo } from 'react';
-import { Moon, Sun, TrendingUp, TrendingDown, Clock, ArrowUp, ArrowDown } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Moon, Clock, Loader2, Search, TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { usePrices } from '../hooks/usePrices';
+import { useOHLCV } from '../hooks/useOHLCV';
 import { cn } from '../lib/utils';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
-
-const TICKERS = [
-  { ticker: 'AAPL', name: 'Apple' }, { ticker: 'MSFT', name: 'Microsoft' },
-  { ticker: 'GOOGL', name: 'Alphabet' }, { ticker: 'AMZN', name: 'Amazon' },
-  { ticker: 'NVDA', name: 'NVIDIA' }, { ticker: 'META', name: 'Meta' },
-  { ticker: 'TSLA', name: 'Tesla' }, { ticker: 'JPM', name: 'JPMorgan' },
-  { ticker: 'V', name: 'Visa' }, { ticker: 'UNH', name: 'UnitedHealth' },
-  { ticker: 'NFLX', name: 'Netflix' }, { ticker: 'AMD', name: 'AMD' },
-  { ticker: 'CRM', name: 'Salesforce' }, { ticker: 'DIS', name: 'Disney' },
-  { ticker: 'GS', name: 'Goldman Sachs' }, { ticker: 'BA', name: 'Boeing' },
-  { ticker: 'COIN', name: 'Coinbase' }, { ticker: 'PLTR', name: 'Palantir' },
-  { ticker: 'RIVN', name: 'Rivian' }, { ticker: 'SOFI', name: 'SoFi' },
-  { ticker: 'NIO', name: 'NIO' }, { ticker: 'BABA', name: 'Alibaba' },
-  { ticker: 'SNAP', name: 'Snap' }, { ticker: 'UBER', name: 'Uber' },
-  { ticker: 'SQ', name: 'Block' }, { ticker: 'ROKU', name: 'Roku' },
-  { ticker: 'SHOP', name: 'Shopify' }, { ticker: 'ABNB', name: 'Airbnb' },
-  { ticker: 'HOOD', name: 'Robinhood' }, { ticker: 'DKNG', name: 'DraftKings' },
-];
-
-interface PremarketStock {
-  ticker: string;
-  name: string;
-  prevClose: number;
-  prePrice: number;
-  preChange: number;
-  prePct: number;
-  preVolume: number;
-  postPrice: number;
-  postChange: number;
-  postPct: number;
-  postVolume: number;
-  gap: number;
-  catalyst: string;
-}
-
-const CATALYSTS = [
-  'Earnings beat', 'Earnings miss', 'Guidance raised', 'Guidance lowered',
-  'Analyst upgrade', 'Analyst downgrade', 'FDA approval', 'M&A news',
-  'Sector rotation', 'Insider buying', 'Short squeeze', 'New product',
-  'Macro data', 'Geopolitical', 'Dividend increase', '',
-];
-
-function genPremarket(): PremarketStock[] {
-  return TICKERS.map((t, ti) => {
-    const s = seed(t.ticker + '_pre');
-    const prevClose = 50 + pseudo(s, 0) * 400;
-    const preChange = (pseudo(s, 1) - 0.45) * prevClose * 0.08;
-    const prePrice = prevClose + preChange;
-    const prePct = (preChange / prevClose) * 100;
-    const postChange = (pseudo(s, 2) - 0.45) * prevClose * 0.06;
-    const postPrice = prevClose + postChange;
-    const postPct = (postChange / prevClose) * 100;
-    const preVolume = Math.floor(100000 + pseudo(s, 3) * 5000000);
-    const postVolume = Math.floor(50000 + pseudo(s, 4) * 3000000);
-    const gap = +((prePrice - prevClose) / prevClose * 100).toFixed(2);
-    const catalyst = CATALYSTS[Math.floor(pseudo(s, 5) * CATALYSTS.length)];
-
-    return {
-      ticker: t.ticker, name: t.name, prevClose: +prevClose.toFixed(2),
-      prePrice: +prePrice.toFixed(2), preChange: +preChange.toFixed(2),
-      prePct: +prePct.toFixed(2), preVolume,
-      postPrice: +postPrice.toFixed(2), postChange: +postChange.toFixed(2),
-      postPct: +postPct.toFixed(2), postVolume, gap, catalyst,
-    };
-  });
-}
-
-type Session = 'premarket' | 'afterhours';
-type SortKey = 'prePct' | 'postPct' | 'preVolume' | 'postVolume' | 'gap';
+const DEFAULT_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META', 'GOOGL', 'AMD'];
 
 export function PremarketPage() {
-  const [session, setSession] = useState<Session>('premarket');
-  const [sortBy, setSortBy] = useState<SortKey>('prePct');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [filter, setFilter] = useState<'all' | 'gainers' | 'losers'>('all');
+  const [ticker, setTicker] = useState('AAPL');
+  const [input, setInput] = useState('');
 
-  const allStocks = useMemo(() => genPremarket(), []);
+  const pricesQ = usePrices(ticker);
+  const ohlcvQ = useOHLCV(ticker);
 
-  const filtered = useMemo(() => {
-    let list = [...allStocks];
-    if (filter === 'gainers') list = list.filter(s => session === 'premarket' ? s.prePct > 0 : s.postPct > 0);
-    if (filter === 'losers') list = list.filter(s => session === 'premarket' ? s.prePct < 0 : s.postPct < 0);
-    list.sort((a, b) => {
-      const av = Math.abs(a[sortBy]);
-      const bv = Math.abs(b[sortBy]);
-      return sortDir === 'desc' ? bv - av : av - bv;
-    });
-    return list;
-  }, [allStocks, filter, session, sortBy, sortDir]);
+  const price = pricesQ.data;
+  const bars = ohlcvQ.data?.bars ?? [];
 
-  const gainers = allStocks.filter(s => session === 'premarket' ? s.prePct > 0 : s.postPct > 0);
-  const losers = allStocks.filter(s => session === 'premarket' ? s.prePct < 0 : s.postPct < 0);
-  const avgGap = allStocks.reduce((s, x) => s + Math.abs(x.gap), 0) / allStocks.length;
-  const totalVol = allStocks.reduce((s, x) => s + (session === 'premarket' ? x.preVolume : x.postVolume), 0);
+  // Previous close = last completed bar's close
+  const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null;
+  const latestBar = bars.length >= 1 ? bars[bars.length - 1] : null;
+  const prevClose = prevBar?.close ?? null;
 
-  const toggleSort = (key: SortKey) => {
-    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortBy(key); setSortDir('desc'); }
+  const priceChangeFromPrev =
+    price && prevClose !== null ? price.price - prevClose : null;
+  const priceChangePct =
+    priceChangeFromPrev !== null && prevClose
+      ? (priceChangeFromPrev / prevClose) * 100
+      : null;
+
+  const isLoading = pricesQ.isLoading || ohlcvQ.isLoading;
+  const isError = pricesQ.isError || ohlcvQ.isError;
+  const errorMsg =
+    (pricesQ.error as Error)?.message ??
+    (ohlcvQ.error as Error)?.message ??
+    'Unknown error';
+
+  const handleSearch = () => {
+    const t = input.trim().toUpperCase();
+    if (t) { setTicker(t); setInput(''); }
   };
 
   return (
@@ -117,185 +46,291 @@ export function PremarketPage() {
         <Moon className="h-6 w-6 text-indigo-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Pre/Post Market</h1>
-          <p className="text-sm text-slate-400">Extended hours movers, gap analysis, and catalysts</p>
+          <p className="text-sm text-slate-400">Current price, day range, volume, and prior close</p>
         </div>
       </div>
 
-      {/* Session toggle + filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-          <button onClick={() => setSession('premarket')}
-            className={cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium', session === 'premarket' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white')}>
-            <Sun className="h-3.5 w-3.5" /> Pre-Market
-          </button>
-          <button onClick={() => setSession('afterhours')}
-            className={cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium', session === 'afterhours' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white')}>
-            <Moon className="h-3.5 w-3.5" /> After-Hours
-          </button>
+      {/* Extended hours banner */}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+        <Clock className="h-5 w-5 flex-shrink-0 text-amber-400" />
+        <div>
+          <span className="text-sm font-semibold text-amber-300">Extended Hours Data Coming Soon</span>
+          <p className="text-xs text-amber-400/80 mt-0.5">
+            Pre-market (4:00–9:30 AM ET) and after-hours (4:00–8:00 PM ET) real-time quotes will be
+            available in an upcoming release.
+          </p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-          {(['all', 'gainers', 'losers'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={cn('rounded-md px-3 py-1 text-xs font-medium capitalize', filter === f ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white')}>
-              {f}
+      </div>
+
+      {/* Ticker selector */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+            placeholder="Ticker..."
+            className="w-28 rounded-lg border border-slate-600 bg-slate-900 py-1.5 pl-8 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+        <button
+          onClick={handleSearch}
+          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+        >
+          Load
+        </button>
+        <div className="flex flex-wrap gap-1">
+          {DEFAULT_TICKERS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTicker(t)}
+              className={cn(
+                'rounded-lg px-2.5 py-1 text-xs font-medium',
+                ticker === t
+                  ? 'bg-indigo-600 text-white'
+                  : 'border border-slate-700 text-slate-400 hover:text-white'
+              )}
+            >
+              {t}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-          <Clock className="h-3.5 w-3.5" />
-          {session === 'premarket' ? '4:00 AM - 9:30 AM ET' : '4:00 PM - 8:00 PM ET'}
-        </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Gainers', value: gainers.length.toString(), color: 'text-emerald-400' },
-          { label: 'Losers', value: losers.length.toString(), color: 'text-red-400' },
-          { label: 'Avg Gap', value: `${avgGap.toFixed(2)}%`, color: 'text-amber-400' },
-          { label: 'Total Volume', value: `${(totalVol / 1e6).toFixed(1)}M`, color: 'text-white' },
-        ].map(c => (
-          <div key={c.label} className="rounded-xl border border-slate-700 bg-slate-800 p-3">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</div>
-            <div className={cn('mt-1 text-lg font-bold', c.color)}>{c.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Top movers cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-400">
-            <ArrowUp className="h-4 w-4" /> Top Gainers
-          </h3>
-          <div className="space-y-2">
-            {[...allStocks].sort((a, b) => (session === 'premarket' ? b.prePct - a.prePct : b.postPct - a.postPct)).slice(0, 5).map(s => {
-              const pct = session === 'premarket' ? s.prePct : s.postPct;
-              const price = session === 'premarket' ? s.prePrice : s.postPrice;
-              return (
-                <div key={s.ticker} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Link to={`/company/${s.ticker}`} className="font-mono text-xs font-bold text-indigo-400 hover:underline">{s.ticker}</Link>
-                    <span className="text-[10px] text-slate-500">{s.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-300">${price}</span>
-                    <span className="text-xs font-medium text-emerald-400">+{pct.toFixed(2)}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 py-12 text-slate-400">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading data for {ticker}…</span>
         </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-red-400">
-            <ArrowDown className="h-4 w-4" /> Top Losers
-          </h3>
-          <div className="space-y-2">
-            {[...allStocks].sort((a, b) => (session === 'premarket' ? a.prePct - b.prePct : a.postPct - b.postPct)).slice(0, 5).map(s => {
-              const pct = session === 'premarket' ? s.prePct : s.postPct;
-              const price = session === 'premarket' ? s.prePrice : s.postPrice;
-              return (
-                <div key={s.ticker} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Link to={`/company/${s.ticker}`} className="font-mono text-xs font-bold text-indigo-400 hover:underline">{s.ticker}</Link>
-                    <span className="text-[10px] text-slate-500">{s.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-300">${price}</span>
-                    <span className="text-xs font-medium text-red-400">{pct.toFixed(2)}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      )}
 
-      {/* Full table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-700">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-700 bg-slate-800/50">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Ticker</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Company</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Prev Close</th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort(session === 'premarket' ? 'prePct' : 'postPct')}
-                  className={cn('text-xs font-medium', (sortBy === 'prePct' || sortBy === 'postPct') ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-300')}>
-                  {session === 'premarket' ? 'Pre %' : 'AH %'} {(sortBy === 'prePct' || sortBy === 'postPct') && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">{session === 'premarket' ? 'Pre Price' : 'AH Price'}</th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort(session === 'premarket' ? 'preVolume' : 'postVolume')}
-                  className={cn('text-xs font-medium', (sortBy === 'preVolume' || sortBy === 'postVolume') ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-300')}>
-                  Volume {(sortBy === 'preVolume' || sortBy === 'postVolume') && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-              <th className="px-3 py-2 text-right">
-                <button onClick={() => toggleSort('gap')}
-                  className={cn('text-xs font-medium', sortBy === 'gap' ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-300')}>
-                  Gap {sortBy === 'gap' && (sortDir === 'desc' ? '↓' : '↑')}
-                </button>
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Catalyst</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {filtered.map(s => {
-              const pct = session === 'premarket' ? s.prePct : s.postPct;
-              const price = session === 'premarket' ? s.prePrice : s.postPrice;
-              const vol = session === 'premarket' ? s.preVolume : s.postVolume;
-              return (
-                <tr key={s.ticker} className="bg-slate-800 hover:bg-slate-750">
-                  <td className="px-3 py-2">
-                    <Link to={`/company/${s.ticker}`} className="font-mono text-xs font-bold text-indigo-400 hover:underline">{s.ticker}</Link>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-slate-300">{s.name}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-400">${s.prevClose}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span className={cn('flex items-center justify-end gap-0.5 text-xs font-medium', pct >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                      {pct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+      {isError && (
+        <div className="rounded-xl border border-red-700/50 bg-red-900/20 p-4 text-sm text-red-400">
+          Failed to load data: {errorMsg}
+        </div>
+      )}
+
+      {!isLoading && !isError && price && (
+        <>
+          {/* Main price card */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-wider text-slate-500">{ticker} — Regular Session</div>
+                <div className="mt-2 flex items-baseline gap-3">
+                  <span className="text-4xl font-bold text-white">${price.price.toFixed(2)}</span>
+                  {priceChangeFromPrev !== null && priceChangePct !== null && (
+                    <span
+                      className={cn(
+                        'flex items-center gap-1 text-lg font-semibold',
+                        priceChangeFromPrev >= 0 ? 'text-emerald-400' : 'text-red-400'
+                      )}
+                    >
+                      {priceChangeFromPrev >= 0 ? (
+                        <TrendingUp className="h-4 w-4" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4" />
+                      )}
+                      {priceChangeFromPrev >= 0 ? '+' : ''}
+                      {priceChangeFromPrev.toFixed(2)} ({priceChangePct.toFixed(2)}%)
                     </span>
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">${price}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-400">{(vol / 1e3).toFixed(0)}K</td>
-                  <td className={cn('px-3 py-2 text-right text-xs font-medium', s.gap >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {s.gap >= 0 ? '+' : ''}{s.gap}%
-                  </td>
-                  <td className="px-3 py-2 text-xs text-slate-500">{s.catalyst || '—'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Gap distribution */}
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-white">Gap Distribution</h3>
-        <div className="flex items-end gap-1">
-          {['-5+', '-4', '-3', '-2', '-1', '0', '+1', '+2', '+3', '+4', '+5+'].map((label, i) => {
-            const low = i - 5;
-            const count = allStocks.filter(s => {
-              if (i === 0) return s.gap <= -5;
-              if (i === 10) return s.gap >= 5;
-              return s.gap >= low && s.gap < low + 1;
-            }).length;
-            const height = count > 0 ? Math.max(16, count * 20) : 4;
-            return (
-              <div key={label} className="flex flex-1 flex-col items-center gap-1">
-                <span className="text-[10px] text-slate-400">{count}</span>
-                <div className={cn('w-full rounded-t', i < 5 ? 'bg-red-500/50' : i === 5 ? 'bg-slate-600' : 'bg-emerald-500/50')}
-                  style={{ height: `${height}px` }} />
-                <span className="text-[9px] text-slate-500">{label}%</span>
+                  )}
+                </div>
+                {prevClose !== null && (
+                  <div className="mt-1 text-xs text-slate-500">
+                    vs prior close ${prevClose.toFixed(2)}
+                  </div>
+                )}
               </div>
-            );
-          })}
+              <div className="text-right">
+                <div className="text-xs text-slate-500">Session change</div>
+                <span
+                  className={cn(
+                    'text-sm font-semibold',
+                    price.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  )}
+                >
+                  {price.change >= 0 ? '+' : ''}
+                  {price.change.toFixed(2)} ({price.change_percent.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500">Last Close</div>
+              <div className="mt-1 text-lg font-bold text-white">
+                {prevClose !== null ? `$${prevClose.toFixed(2)}` : '—'}
+              </div>
+              {latestBar && (
+                <div className="mt-0.5 text-[10px] text-slate-600">{latestBar.date}</div>
+              )}
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500">Day Range</div>
+              <div className="mt-1 text-sm font-bold text-white">
+                ${price.day_low.toFixed(2)}
+                <span className="text-slate-500"> – </span>
+                ${price.day_high.toFixed(2)}
+              </div>
+              {price.day_low < price.day_high && (
+                <div className="mt-1.5 h-1.5 rounded-full bg-slate-700">
+                  <div
+                    className="h-1.5 rounded-full bg-indigo-500/60"
+                    style={{
+                      width: `${((price.price - price.day_low) / (price.day_high - price.day_low)) * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500">Volume</div>
+              <div className="mt-1 text-lg font-bold text-white">
+                {price.volume >= 1e6
+                  ? `${(price.volume / 1e6).toFixed(1)}M`
+                  : `${(price.volume / 1e3).toFixed(0)}K`}
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500">52-Week Range</div>
+              <div className="mt-1 text-sm font-bold text-white">
+                ${price.year_low.toFixed(2)}
+                <span className="text-slate-500"> – </span>
+                ${price.year_high.toFixed(2)}
+              </div>
+              {price.year_low < price.year_high && (
+                <div className="mt-1.5 h-1.5 rounded-full bg-slate-700">
+                  <div
+                    className="h-1.5 rounded-full bg-amber-500/60"
+                    style={{
+                      width: `${((price.price - price.year_low) / (price.year_high - price.year_low)) * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Moving averages + market cap */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500">50-Day Avg</div>
+              <div className="mt-1 text-lg font-bold text-white">
+                ${price.avg_50.toFixed(2)}
+              </div>
+              <div
+                className={cn(
+                  'mt-0.5 text-xs font-medium',
+                  price.price > price.avg_50 ? 'text-emerald-400' : 'text-red-400'
+                )}
+              >
+                {price.price > price.avg_50 ? 'Above' : 'Below'} (
+                {(((price.price - price.avg_50) / price.avg_50) * 100).toFixed(1)}%)
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500">200-Day Avg</div>
+              <div className="mt-1 text-lg font-bold text-white">
+                ${price.avg_200.toFixed(2)}
+              </div>
+              <div
+                className={cn(
+                  'mt-0.5 text-xs font-medium',
+                  price.price > price.avg_200 ? 'text-emerald-400' : 'text-red-400'
+                )}
+              >
+                {price.price > price.avg_200 ? 'Above' : 'Below'} (
+                {(((price.price - price.avg_200) / price.avg_200) * 100).toFixed(1)}%)
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500">Market Cap</div>
+              <div className="mt-1 text-lg font-bold text-white">
+                {price.market_cap >= 1e12
+                  ? `$${(price.market_cap / 1e12).toFixed(2)}T`
+                  : price.market_cap >= 1e9
+                  ? `$${(price.market_cap / 1e9).toFixed(1)}B`
+                  : `$${(price.market_cap / 1e6).toFixed(0)}M`}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent OHLCV bars */}
+          {bars.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-sm font-semibold text-white">Recent Sessions</h2>
+              <div className="overflow-x-auto rounded-xl border border-slate-700">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-slate-700 bg-slate-800/50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Date</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Open</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">High</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Low</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Close</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Volume</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {[...bars].reverse().slice(0, 10).map((bar, i, arr) => {
+                      const prev = arr[i + 1];
+                      const chg = prev ? bar.close - prev.close : 0;
+                      const chgPct = prev ? (chg / prev.close) * 100 : 0;
+                      return (
+                        <tr key={bar.date} className="bg-slate-800 hover:bg-slate-700/40">
+                          <td className="px-3 py-2 text-xs text-slate-400">{bar.date}</td>
+                          <td className="px-3 py-2 text-right text-xs text-slate-300">
+                            ${bar.open.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs text-emerald-400">
+                            ${bar.high.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs text-red-400">
+                            ${bar.low.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs font-medium text-white">
+                            ${bar.close.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs text-slate-400">
+                            {(bar.volume / 1e6).toFixed(1)}M
+                          </td>
+                          <td
+                            className={cn(
+                              'px-3 py-2 text-right text-xs font-medium',
+                              prev
+                                ? chg >= 0
+                                  ? 'text-emerald-400'
+                                  : 'text-red-400'
+                                : 'text-slate-500'
+                            )}
+                          >
+                            {prev
+                              ? `${chg >= 0 ? '+' : ''}${chgPct.toFixed(2)}%`
+                              : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {!isLoading && !isError && !price && (
+        <div className="flex items-start gap-3 rounded-xl border border-slate-700 bg-slate-800 p-6 text-sm text-slate-400">
+          <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
+          <span>No price data available for <span className="font-mono text-white">{ticker}</span>.</span>
         </div>
-      </div>
+      )}
     </div>
   );
 }

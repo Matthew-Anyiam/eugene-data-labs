@@ -1,115 +1,113 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, Search } from 'lucide-react';
+import { BarChart3, Search, Loader2 } from 'lucide-react';
+import { useOHLCV } from '../hooks/useOHLCV';
+import { useTechnicals } from '../hooks/useTechnicals';
+import type { OHLCVBar } from '../lib/types';
 import { cn } from '../lib/utils';
 
-function seed(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-function pseudo(s: number, i: number): number {
-  return ((s * 16807 + i * 2531011) % 2147483647) / 2147483647;
-}
+const DEFAULT_TICKERS = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'];
+const NUM_BUCKETS = 30;
 
-const TICKERS = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'];
-
-interface PriceLevel {
-  price: number;
+interface VolumeBucket {
+  priceMin: number;
+  priceMax: number;
+  priceMid: number;
   volume: number;
-  buyVolume: number;
-  sellVolume: number;
   isPOC: boolean;
   isVAH: boolean;
   isVAL: boolean;
 }
 
-interface ProfileData {
-  ticker: string;
-  currentPrice: number;
-  vwap: number;
-  poc: number;
-  vah: number;
-  val: number;
-  totalVolume: number;
-  buyPct: number;
-  levels: PriceLevel[];
-  sessions: { time: string; high: number; low: number; volume: number; vwap: number }[];
-  distribution: 'Normal' | 'P-Shape' | 'b-Shape' | 'D-Shape' | 'Bimodal';
-}
+function buildVolumeProfile(bars: OHLCVBar[]): VolumeBucket[] {
+  if (bars.length === 0) return [];
 
-function genProfile(ticker: string): ProfileData {
-  const s = seed(ticker + '_profile');
-  const basePrice = 100 + pseudo(s, 0) * 400;
-  const range = basePrice * 0.03;
-  const low = basePrice - range;
-  const numLevels = 30;
-  const step = (range * 2) / numLevels;
+  const allHigh = Math.max(...bars.map((b) => b.high));
+  const allLow = Math.min(...bars.map((b) => b.low));
+  const range = allHigh - allLow;
+  if (range === 0) return [];
 
-  // Generate volume at each price level (bell curve centered at POC)
-  const pocIdx = Math.floor(numLevels * (0.4 + pseudo(s, 1) * 0.2));
-  const maxVol = 5000000 + pseudo(s, 2) * 20000000;
+  const step = range / NUM_BUCKETS;
+  const buckets: number[] = new Array(NUM_BUCKETS).fill(0);
 
-  const levels: PriceLevel[] = Array.from({ length: numLevels }, (_, i) => {
-    const price = +(low + i * step).toFixed(2);
-    const dist = Math.abs(i - pocIdx) / numLevels;
-    const volume = Math.floor(maxVol * Math.exp(-dist * dist * 8) * (0.5 + pseudo(s, 10 + i) * 0.5));
-    const buyPct = 0.3 + pseudo(s, 40 + i) * 0.4;
-    return {
-      price, volume,
-      buyVolume: Math.floor(volume * buyPct),
-      sellVolume: Math.floor(volume * (1 - buyPct)),
-      isPOC: i === pocIdx,
-      isVAH: false, isVAL: false,
-    };
-  });
+  for (const bar of bars) {
+    // Distribute bar's volume evenly across the price range it covers
+    const barRange = bar.high - bar.low || step;
+    for (let i = 0; i < NUM_BUCKETS; i++) {
+      const bMin = allLow + i * step;
+      const bMax = bMin + step;
+      const overlap = Math.max(0, Math.min(bar.high, bMax) - Math.max(bar.low, bMin));
+      buckets[i] += (overlap / barRange) * bar.volume;
+    }
+  }
 
-  // Calculate value area (70% of volume)
-  const totalVol = levels.reduce((s, l) => s + l.volume, 0);
+  // Find POC (max volume bucket)
+  const maxVol = Math.max(...buckets);
+  const pocIdx = buckets.indexOf(maxVol);
+
+  // Value area = 70% of total volume, expanding from POC
+  const totalVol = buckets.reduce((s, v) => s + v, 0);
   const vaTarget = totalVol * 0.7;
-  let vaSum = levels[pocIdx].volume;
+  let vaSum = buckets[pocIdx];
   let upper = pocIdx;
   let lower = pocIdx;
   while (vaSum < vaTarget) {
-    const upVol = upper + 1 < numLevels ? levels[upper + 1].volume : 0;
-    const downVol = lower - 1 >= 0 ? levels[lower - 1].volume : 0;
-    if (upVol >= downVol && upper + 1 < numLevels) { upper++; vaSum += levels[upper].volume; }
-    else if (lower - 1 >= 0) { lower--; vaSum += levels[lower].volume; }
-    else break;
+    const upVol = upper + 1 < NUM_BUCKETS ? buckets[upper + 1] : 0;
+    const downVol = lower - 1 >= 0 ? buckets[lower - 1] : 0;
+    if (upVol >= downVol && upper + 1 < NUM_BUCKETS) {
+      upper++;
+      vaSum += buckets[upper];
+    } else if (lower - 1 >= 0) {
+      lower--;
+      vaSum += buckets[lower];
+    } else break;
   }
-  levels[upper].isVAH = true;
-  levels[lower].isVAL = true;
 
-  const poc = levels[pocIdx].price;
-  const vah = levels[upper].price;
-  const val = levels[lower].price;
-  const currentPrice = +(poc + (pseudo(s, 3) - 0.5) * range).toFixed(2);
-  const vwap = +(poc + (pseudo(s, 4) - 0.5) * range * 0.3).toFixed(2);
-  const buyPct = levels.reduce((s, l) => s + l.buyVolume, 0) / totalVol * 100;
-
-  const distR = pseudo(s, 5);
-  const distribution = distR > 0.8 ? 'Bimodal' : distR > 0.6 ? 'P-Shape' : distR > 0.4 ? 'b-Shape' : distR > 0.2 ? 'D-Shape' : 'Normal';
-
-  const sessions = Array.from({ length: 7 }, (_, i) => {
-    const ds = seed(ticker + '_sess' + i);
-    return {
-      time: `${9 + i}:30`,
-      high: +(poc + pseudo(ds, 0) * range).toFixed(2),
-      low: +(poc - pseudo(ds, 1) * range).toFixed(2),
-      volume: Math.floor(totalVol / 7 * (0.5 + pseudo(ds, 2))),
-      vwap: +(vwap + (pseudo(ds, 3) - 0.5) * 2).toFixed(2),
-    };
-  });
-
-  return { ticker, currentPrice, vwap, poc, vah, val, totalVolume: totalVol, buyPct: +buyPct.toFixed(1), levels, sessions, distribution };
+  return buckets.map((vol, i) => ({
+    priceMin: allLow + i * step,
+    priceMax: allLow + (i + 1) * step,
+    priceMid: allLow + (i + 0.5) * step,
+    volume: vol,
+    isPOC: i === pocIdx,
+    isVAH: i === upper,
+    isVAL: i === lower,
+  }));
 }
 
 export function MarketProfilePage() {
-  const [selectedTicker, setSelectedTicker] = useState('SPY');
-  const [tickerInput, setTickerInput] = useState('');
+  const [ticker, setTicker] = useState('SPY');
+  const [input, setInput] = useState('');
 
-  const data = useMemo(() => genProfile(selectedTicker), [selectedTicker]);
-  const selectTicker = (t: string) => { setSelectedTicker(t.toUpperCase()); setTickerInput(''); };
-  const maxVolume = Math.max(...data.levels.map(l => l.volume));
+  const ohlcvQ = useOHLCV(ticker);
+  const techQ = useTechnicals(ticker);
+
+  const bars = ohlcvQ.data?.bars ?? [];
+  const indicators = techQ.data?.data?.indicators;
+  const vwap = indicators?.vwap;
+
+  const volumeProfile = useMemo(() => buildVolumeProfile(bars), [bars]);
+  const maxVolume = useMemo(
+    () => (volumeProfile.length > 0 ? Math.max(...volumeProfile.map((b) => b.volume)) : 0),
+    [volumeProfile]
+  );
+
+  const poc = volumeProfile.find((b) => b.isPOC);
+  const vah = volumeProfile.find((b) => b.isVAH);
+  const val = volumeProfile.find((b) => b.isVAL);
+
+  const currentPrice = bars.length > 0 ? bars[bars.length - 1].close : null;
+  const totalVolume = bars.reduce((s, b) => s + b.volume, 0);
+
+  const isLoading = ohlcvQ.isLoading || techQ.isLoading;
+  const isError = ohlcvQ.isError || techQ.isError;
+  const errorMsg =
+    (ohlcvQ.error as Error)?.message ??
+    (techQ.error as Error)?.message ??
+    'Unknown error';
+
+  const handleSearch = () => {
+    const t = input.trim().toUpperCase();
+    if (t) { setTicker(t); setInput(''); }
+  };
 
   return (
     <div className="space-y-6">
@@ -117,7 +115,9 @@ export function MarketProfilePage() {
         <BarChart3 className="h-6 w-6 text-purple-400" />
         <div>
           <h1 className="text-xl font-bold text-white">Market Profile</h1>
-          <p className="text-sm text-slate-400">Volume profile, VWAP, value area, and price distribution</p>
+          <p className="text-sm text-slate-400">
+            Volume profile, VWAP, value area, and price distribution from OHLCV
+          </p>
         </div>
       </div>
 
@@ -125,142 +125,278 @@ export function MarketProfilePage() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-          <input value={tickerInput} onChange={e => setTickerInput(e.target.value.toUpperCase())}
-            onKeyDown={e => { if (e.key === 'Enter' && tickerInput) selectTicker(tickerInput); }}
-            placeholder="Ticker..." className="w-28 rounded-lg border border-slate-600 bg-slate-900 py-1.5 pl-8 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none" />
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+            placeholder="Ticker..."
+            className="w-28 rounded-lg border border-slate-600 bg-slate-900 py-1.5 pl-8 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none"
+          />
         </div>
-        {TICKERS.map(t => (
-          <button key={t} onClick={() => selectTicker(t)}
-            className={cn('rounded-lg px-2.5 py-1 text-xs font-medium', selectedTicker === t ? 'bg-purple-600 text-white' : 'border border-slate-700 text-slate-400 hover:text-white')}>
-            {t}
-          </button>
-        ))}
+        <button
+          onClick={handleSearch}
+          className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-500"
+        >
+          Load
+        </button>
+        <div className="flex flex-wrap gap-1">
+          {DEFAULT_TICKERS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTicker(t)}
+              className={cn(
+                'rounded-lg px-2.5 py-1 text-xs font-medium',
+                ticker === t
+                  ? 'bg-purple-600 text-white'
+                  : 'border border-slate-700 text-slate-400 hover:text-white'
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Key levels */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {[
-          { label: 'Current Price', value: `$${data.currentPrice}`, color: 'text-white' },
-          { label: 'VWAP', value: `$${data.vwap}`, color: data.currentPrice > data.vwap ? 'text-emerald-400' : 'text-red-400' },
-          { label: 'POC', value: `$${data.poc}`, color: 'text-purple-400' },
-          { label: 'VAH', value: `$${data.vah}`, color: 'text-amber-400' },
-          { label: 'VAL', value: `$${data.val}`, color: 'text-amber-400' },
-          { label: 'Distribution', value: data.distribution, color: 'text-slate-300' },
-        ].map(c => (
-          <div key={c.label} className="rounded-xl border border-slate-700 bg-slate-800 p-3">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</div>
-            <div className={cn('mt-1 text-lg font-bold', c.color)}>{c.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Volume Profile visualization */}
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white">Volume Profile</h3>
-          <div className="flex items-center gap-3 text-[10px]">
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Buys</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Sells</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-6 bg-purple-500/30" /> POC</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-6 bg-amber-500/20" /> Value Area</span>
-          </div>
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 py-12 text-slate-400">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Building volume profile for {ticker}…</span>
         </div>
-        <div className="space-y-0.5">
-          {[...data.levels].reverse().map((level) => {
-            const width = maxVolume > 0 ? (level.volume / maxVolume) * 100 : 0;
-            const buyWidth = level.volume > 0 ? (level.buyVolume / level.volume) * width : 0;
-            const sellWidth = width - buyWidth;
-            const isInVA = level.price >= data.val && level.price <= data.vah;
-            const isCurrentPrice = Math.abs(level.price - data.currentPrice) < (data.levels[1]?.price - data.levels[0]?.price || 1);
+      )}
 
-            return (
-              <div key={level.price} className={cn('flex items-center gap-2', level.isPOC ? 'bg-purple-500/10' : isInVA ? 'bg-amber-500/5' : '')}>
-                <span className={cn('w-16 text-right text-[10px] font-mono', level.isPOC ? 'text-purple-400 font-bold' : level.isVAH || level.isVAL ? 'text-amber-400' : isCurrentPrice ? 'text-white font-bold' : 'text-slate-500')}>
-                  ${level.price.toFixed(2)}
-                  {level.isPOC && ' POC'}
-                  {level.isVAH && ' VAH'}
-                  {level.isVAL && ' VAL'}
-                </span>
-                {isCurrentPrice && <span className="text-[8px] text-white">&#9654;</span>}
-                <div className="flex flex-1 gap-0">
-                  <div className="bg-emerald-500/50 rounded-l" style={{ width: `${buyWidth}%`, height: '12px' }} />
-                  <div className="bg-red-500/50 rounded-r" style={{ width: `${sellWidth}%`, height: '12px' }} />
-                </div>
-                <span className="w-14 text-right text-[9px] text-slate-600">{(level.volume / 1e6).toFixed(1)}M</span>
+      {isError && (
+        <div className="rounded-xl border border-red-700/50 bg-red-900/20 p-4 text-sm text-red-400">
+          Failed to load data: {errorMsg}
+        </div>
+      )}
+
+      {!isLoading && !isError && (
+        <>
+          {/* Key levels */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              {
+                label: 'Current Price',
+                value: currentPrice ? `$${currentPrice.toFixed(2)}` : '—',
+                color: 'text-white',
+              },
+              {
+                label: 'VWAP',
+                value: vwap ? `$${vwap.toFixed(2)}` : '—',
+                color:
+                  currentPrice && vwap
+                    ? currentPrice > vwap
+                      ? 'text-emerald-400'
+                      : 'text-red-400'
+                    : 'text-slate-400',
+              },
+              {
+                label: 'POC',
+                value: poc ? `$${poc.priceMid.toFixed(2)}` : '—',
+                color: 'text-purple-400',
+              },
+              {
+                label: 'VAH',
+                value: vah ? `$${vah.priceMid.toFixed(2)}` : '—',
+                color: 'text-amber-400',
+              },
+              {
+                label: 'VAL',
+                value: val ? `$${val.priceMid.toFixed(2)}` : '—',
+                color: 'text-amber-400',
+              },
+              {
+                label: 'Total Volume',
+                value:
+                  totalVolume >= 1e9
+                    ? `${(totalVolume / 1e9).toFixed(1)}B`
+                    : `${(totalVolume / 1e6).toFixed(0)}M`,
+                color: 'text-slate-300',
+              },
+            ].map((c) => (
+              <div key={c.label} className="rounded-xl border border-slate-700 bg-slate-800 p-3">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</div>
+                <div className={cn('mt-1 text-lg font-bold', c.color)}>{c.value}</div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            ))}
+          </div>
 
-      {/* Volume stats */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-white">Buy vs Sell Volume</h3>
-          <div className="flex h-6 overflow-hidden rounded-full">
-            <div className="bg-emerald-500/60" style={{ width: `${data.buyPct}%` }} />
-            <div className="bg-red-500/60" style={{ width: `${100 - data.buyPct}%` }} />
-          </div>
-          <div className="mt-2 flex justify-between text-xs">
-            <span className="text-emerald-400">Buy {data.buyPct}%</span>
-            <span className="text-red-400">Sell {(100 - data.buyPct).toFixed(1)}%</span>
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-white">Position vs Key Levels</h3>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-400">Price vs VWAP</span>
-              <span className={cn('font-medium', data.currentPrice > data.vwap ? 'text-emerald-400' : 'text-red-400')}>
-                {data.currentPrice > data.vwap ? 'Above' : 'Below'} ({((data.currentPrice - data.vwap) / data.vwap * 100).toFixed(2)}%)
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">Price vs POC</span>
-              <span className={cn('font-medium', data.currentPrice > data.poc ? 'text-emerald-400' : 'text-red-400')}>
-                {data.currentPrice > data.poc ? 'Above' : 'Below'} ({((data.currentPrice - data.poc) / data.poc * 100).toFixed(2)}%)
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">In Value Area</span>
-              <span className={cn('font-medium', data.currentPrice >= data.val && data.currentPrice <= data.vah ? 'text-emerald-400' : 'text-amber-400')}>
-                {data.currentPrice >= data.val && data.currentPrice <= data.vah ? 'Yes' : 'No'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+          {/* Volume profile chart */}
+          {volumeProfile.length > 0 ? (
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Volume Profile</h3>
+                <div className="flex items-center gap-3 text-[10px]">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-2 w-3 rounded-sm bg-purple-500/70" /> POC
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-2 w-3 rounded-sm bg-amber-500/40" /> Value Area
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-2 w-3 rounded-sm bg-blue-500/40" /> Other
+                  </span>
+                  {vwap && (
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block h-0.5 w-3 bg-emerald-400" /> VWAP
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                {[...volumeProfile].reverse().map((bucket) => {
+                  const barWidth = maxVolume > 0 ? (bucket.volume / maxVolume) * 100 : 0;
+                  const inVA =
+                    poc && vah && val
+                      ? bucket.priceMid >= val.priceMid && bucket.priceMid <= vah.priceMid
+                      : false;
+                  const isCurrentPriceBucket =
+                    currentPrice !== null &&
+                    currentPrice >= bucket.priceMin &&
+                    currentPrice < bucket.priceMax;
+                  const isVwapBucket =
+                    vwap !== undefined &&
+                    vwap >= bucket.priceMin &&
+                    vwap < bucket.priceMax;
 
-      {/* Session data */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-white">Session Breakdown</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-700 bg-slate-800/50">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Time</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">High</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Low</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Range</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Volume</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">VWAP</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50">
-              {data.sessions.map(s => (
-                <tr key={s.time} className="bg-slate-800 hover:bg-slate-750">
-                  <td className="px-3 py-2 text-xs text-slate-400">{s.time}</td>
-                  <td className="px-3 py-2 text-right text-xs text-emerald-400">${s.high}</td>
-                  <td className="px-3 py-2 text-right text-xs text-red-400">${s.low}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">${(s.high - s.low).toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-300">{(s.volume / 1e6).toFixed(1)}M</td>
-                  <td className="px-3 py-2 text-right text-xs text-purple-400">${s.vwap}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  return (
+                    <div
+                      key={bucket.priceMin.toFixed(2)}
+                      className={cn(
+                        'flex items-center gap-2',
+                        bucket.isPOC ? 'bg-purple-500/10 rounded' : ''
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'w-20 text-right font-mono text-[10px]',
+                          bucket.isPOC
+                            ? 'font-bold text-purple-400'
+                            : bucket.isVAH || bucket.isVAL
+                            ? 'text-amber-400'
+                            : isCurrentPriceBucket
+                            ? 'font-bold text-white'
+                            : 'text-slate-600'
+                        )}
+                      >
+                        ${bucket.priceMid.toFixed(2)}
+                        {bucket.isPOC ? ' POC' : ''}
+                        {bucket.isVAH ? ' VAH' : ''}
+                        {bucket.isVAL ? ' VAL' : ''}
+                      </span>
+                      {isCurrentPriceBucket && (
+                        <span className="text-[8px] text-white">&#9654;</span>
+                      )}
+                      {isVwapBucket && !isCurrentPriceBucket && (
+                        <span className="text-[8px] text-emerald-400">V</span>
+                      )}
+                      <div className="flex flex-1">
+                        <div
+                          className={cn(
+                            'rounded',
+                            bucket.isPOC
+                              ? 'bg-purple-500/70'
+                              : inVA
+                              ? 'bg-amber-500/35'
+                              : 'bg-blue-500/40'
+                          )}
+                          style={{ width: `${Math.max(1, barWidth)}%`, height: '10px' }}
+                        />
+                      </div>
+                      <span className="w-14 text-right text-[9px] text-slate-600">
+                        {bucket.volume >= 1e6
+                          ? `${(bucket.volume / 1e6).toFixed(1)}M`
+                          : `${(bucket.volume / 1e3).toFixed(0)}K`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-10 text-center text-sm text-slate-500">
+              No OHLCV data available for {ticker}.
+            </div>
+          )}
+
+          {/* Position vs key levels */}
+          {volumeProfile.length > 0 && currentPrice !== null && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <h3 className="mb-3 text-sm font-semibold text-white">Position vs Key Levels</h3>
+                <div className="space-y-2 text-xs">
+                  {vwap !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Price vs VWAP</span>
+                      <span
+                        className={cn(
+                          'font-medium',
+                          currentPrice > vwap ? 'text-emerald-400' : 'text-red-400'
+                        )}
+                      >
+                        {currentPrice > vwap ? 'Above' : 'Below'} (
+                        {(((currentPrice - vwap) / vwap) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+                  )}
+                  {poc && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Price vs POC</span>
+                      <span
+                        className={cn(
+                          'font-medium',
+                          currentPrice > poc.priceMid ? 'text-emerald-400' : 'text-red-400'
+                        )}
+                      >
+                        {currentPrice > poc.priceMid ? 'Above' : 'Below'} (
+                        {(((currentPrice - poc.priceMid) / poc.priceMid) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+                  )}
+                  {vah && val && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">In Value Area</span>
+                      <span
+                        className={cn(
+                          'font-medium',
+                          currentPrice >= val.priceMid && currentPrice <= vah.priceMid
+                            ? 'text-emerald-400'
+                            : 'text-amber-400'
+                        )}
+                      >
+                        {currentPrice >= val.priceMid && currentPrice <= vah.priceMid
+                          ? 'Yes'
+                          : 'No'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Technicals summary */}
+              {indicators && (
+                <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-white">Technical Indicators</h3>
+                  <div className="space-y-2 text-xs">
+                    {[
+                      { label: 'RSI (14)', value: indicators.rsi?.toFixed(1) ?? '—', color: indicators.rsi ? (indicators.rsi > 70 ? 'text-red-400' : indicators.rsi < 30 ? 'text-emerald-400' : 'text-white') : 'text-slate-500' },
+                      { label: 'SMA 20', value: indicators.sma?.sma_20 ? `$${indicators.sma.sma_20.toFixed(2)}` : '—', color: 'text-slate-300' },
+                      { label: 'SMA 50', value: indicators.sma?.sma_50 ? `$${indicators.sma.sma_50.toFixed(2)}` : '—', color: 'text-slate-300' },
+                      { label: 'EMA 12', value: indicators.ema?.ema_12 ? `$${indicators.ema.ema_12.toFixed(2)}` : '—', color: 'text-slate-300' },
+                      { label: 'MACD', value: indicators.macd?.macd !== undefined ? indicators.macd.macd.toFixed(2) : '—', color: indicators.macd?.macd !== undefined ? (indicators.macd.macd > 0 ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500' },
+                    ].map((row) => (
+                      <div key={row.label} className="flex justify-between">
+                        <span className="text-slate-400">{row.label}</span>
+                        <span className={cn('font-medium', row.color)}>{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
