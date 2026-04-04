@@ -119,7 +119,7 @@ def _render_brief_html(brief: dict, brief_type: str, subject: str) -> str:
             for agent in agents:
                 name = agent.get("name", agent.get("persona", "Agent"))
                 view = agent.get("view", agent.get("analysis", ""))
-                body_sections += f'<div style="margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:8px;">'
+                body_sections += '<div style="margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:8px;">'
                 body_sections += f'<strong style="color:#1e293b;">{name}</strong>'
                 body_sections += f'<p style="color:#475569;line-height:1.6;margin:4px 0 0;">{view}</p></div>'
         consensus = brief.get("consensus", brief.get("synthesis", ""))

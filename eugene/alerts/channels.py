@@ -10,7 +10,6 @@ Uses semantic dedup and escalating cooldowns to prevent alert fatigue.
 """
 
 import hashlib
-import json
 import logging
 import os
 import time
