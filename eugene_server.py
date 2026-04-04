@@ -448,6 +448,269 @@ def _build_mcp(include_rest: bool = False):
             stats = get_usage(key)
             return JSONResponse(stats)
 
+        # --- JWT user auth endpoints ---
+
+        @mcp.custom_route("/v1/auth/signup", methods=["POST"])
+        async def auth_signup(request: Request) -> JSONResponse:
+            """User signup. Accepts {email, password, name}."""
+            from eugene.endpoint_limiter import auth_limiter, get_client_ip
+            client_ip = get_client_ip(request)
+            if not auth_limiter.check_and_record(client_ip):
+                remaining = auth_limiter.reset_seconds(client_ip)
+                return JSONResponse(
+                    {"error": f"Too many attempts. Try again in {int(remaining)}s."},
+                    status_code=429,
+                    headers={"Retry-After": str(int(remaining))},
+                )
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                email = data.get("email", "").strip().lower()
+                password = data.get("password", "")
+                name = data.get("name", "").strip()
+
+                if not email or "@" not in email:
+                    return JSONResponse({"error": "Valid email is required"}, status_code=400)
+                if not password or len(password) < 8:
+                    return JSONResponse({"error": "Password must be at least 8 characters"}, status_code=400)
+                if not name:
+                    return JSONResponse({"error": "Name is required"}, status_code=400)
+
+                from eugene.user_auth import hash_password, create_token
+                password_hash = hash_password(password)
+                user = eugene.db.create_user(email, name, password_hash)
+                if user is None:
+                    return JSONResponse({"error": "Email already registered"}, status_code=409)
+
+                token = create_token(str(user["id"]), user["email"], user["name"])
+                return JSONResponse({
+                    "token": token,
+                    "user": {
+                        "id": str(user["id"]),
+                        "email": user["email"],
+                        "name": user["name"],
+                        "created_at": user.get("created_at", ""),
+                    }
+                })
+            except Exception:
+                logger.exception("Signup failed")
+                return JSONResponse({"error": "Failed to create account"}, status_code=500)
+
+        @mcp.custom_route("/v1/auth/login", methods=["POST"])
+        async def auth_login(request: Request) -> JSONResponse:
+            """User login. Accepts {email, password}."""
+            from eugene.endpoint_limiter import auth_limiter, get_client_ip
+            client_ip = get_client_ip(request)
+            if not auth_limiter.check_and_record(client_ip):
+                remaining = auth_limiter.reset_seconds(client_ip)
+                return JSONResponse(
+                    {"error": f"Too many attempts. Try again in {int(remaining)}s."},
+                    status_code=429,
+                    headers={"Retry-After": str(int(remaining))},
+                )
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                email = data.get("email", "").strip().lower()
+                password = data.get("password", "")
+
+                if not email or not password:
+                    return JSONResponse({"error": "Email and password required"}, status_code=400)
+
+                user = eugene.db.get_user_by_email(email)
+                if user is None:
+                    return JSONResponse({"error": "Invalid email or password"}, status_code=401)
+
+                from eugene.user_auth import verify_password, create_token
+                if not verify_password(password, user["password"]):
+                    return JSONResponse({"error": "Invalid email or password"}, status_code=401)
+
+                eugene.db.update_last_login(user["id"])
+                token = create_token(str(user["id"]), user["email"], user["name"])
+                return JSONResponse({
+                    "token": token,
+                    "user": {
+                        "id": str(user["id"]),
+                        "email": user["email"],
+                        "name": user["name"],
+                        "avatar_url": user.get("avatar_url"),
+                        "created_at": user.get("created_at", ""),
+                    }
+                })
+            except Exception:
+                logger.exception("Login failed")
+                return JSONResponse({"error": "Authentication failed"}, status_code=500)
+
+        @mcp.custom_route("/v1/auth/me", methods=["GET"])
+        async def auth_me(request: Request) -> JSONResponse:
+            """Get current user from JWT token."""
+            auth_header = request.headers.get("authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return JSONResponse({"error": "Missing or invalid authorization header"}, status_code=401)
+
+            token = auth_header[7:]
+            from eugene.user_auth import decode_token
+            payload = decode_token(token)
+            if payload is None:
+                return JSONResponse({"error": "Invalid or expired token"}, status_code=401)
+
+            user = eugene.db.get_user_by_id(int(payload["user_id"]))
+            if user is None:
+                return JSONResponse({"error": "User not found"}, status_code=404)
+
+            return JSONResponse({
+                "id": str(user["id"]),
+                "email": user["email"],
+                "name": user["name"],
+                "avatar_url": user.get("avatar_url"),
+                "created_at": user.get("created_at", ""),
+            })
+
+        @mcp.custom_route("/v1/auth/refresh", methods=["POST"])
+        async def auth_refresh(request: Request) -> JSONResponse:
+            """Refresh a JWT token."""
+            from eugene.endpoint_limiter import refresh_limiter, get_client_ip
+            client_ip = get_client_ip(request)
+            if not refresh_limiter.check_and_record(client_ip):
+                return JSONResponse({"error": "Too many refresh attempts"}, status_code=429)
+            auth_header = request.headers.get("authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return JSONResponse({"error": "Missing authorization header"}, status_code=401)
+
+            token = auth_header[7:]
+            from eugene.user_auth import decode_token, create_token
+            payload = decode_token(token)
+            if payload is None:
+                return JSONResponse({"error": "Invalid or expired token"}, status_code=401)
+
+            new_token = create_token(payload["user_id"], payload["email"], payload["name"])
+            return JSONResponse({"token": new_token})
+
+        # ── Helper: extract authenticated user_id from request ──────
+        def _get_user_id(request: Request) -> int | None:
+            """Extract user_id from Bearer token. Returns None if invalid."""
+            auth_header = request.headers.get("authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return None
+            from eugene.user_auth import decode_token
+            payload = decode_token(auth_header[7:])
+            return int(payload["user_id"]) if payload else None
+
+        # ── Watchlist endpoints ─────────────────────────────────────
+        @mcp.custom_route("/v1/watchlists", methods=["GET"])
+        async def get_watchlists(request: Request) -> JSONResponse:
+            """Get all watchlists for the authenticated user."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            watchlists = eugene.db.get_watchlists(user_id)
+            return JSONResponse({"watchlists": watchlists})
+
+        @mcp.custom_route("/v1/watchlists", methods=["POST"])
+        async def create_watchlist(request: Request) -> JSONResponse:
+            """Create a new watchlist."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            import json as _json
+            body = await request.body()
+            data = _json.loads(body)
+            name = data.get("name", "Untitled")
+            tickers = data.get("tickers", [])
+            result = eugene.db.create_watchlist(user_id, name, tickers)
+            return JSONResponse(result, status_code=201)
+
+        @mcp.custom_route("/v1/watchlists/{watchlist_id}", methods=["PUT"])
+        async def update_watchlist(request: Request) -> JSONResponse:
+            """Update a watchlist."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            import json as _json
+            wid = int(request.path_params["watchlist_id"])
+            body = await request.body()
+            data = _json.loads(body)
+            ok = eugene.db.update_watchlist(wid, user_id, name=data.get("name"), tickers=data.get("tickers"))
+            if not ok:
+                return JSONResponse({"error": "Not found"}, status_code=404)
+            return JSONResponse({"status": "updated"})
+
+        @mcp.custom_route("/v1/watchlists/{watchlist_id}", methods=["DELETE"])
+        async def delete_watchlist(request: Request) -> JSONResponse:
+            """Delete a watchlist."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            wid = int(request.path_params["watchlist_id"])
+            ok = eugene.db.delete_watchlist(wid, user_id)
+            if not ok:
+                return JSONResponse({"error": "Not found"}, status_code=404)
+            return JSONResponse({"status": "deleted"})
+
+        # ── User preferences endpoints ──────────────────────────────
+        @mcp.custom_route("/v1/preferences", methods=["GET"])
+        async def get_preferences(request: Request) -> JSONResponse:
+            """Get user preferences."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            prefs = eugene.db.get_preferences(user_id)
+            return JSONResponse(prefs)
+
+        @mcp.custom_route("/v1/preferences", methods=["PUT"])
+        async def save_preferences(request: Request) -> JSONResponse:
+            """Save user preferences."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            import json as _json
+            body = await request.body()
+            data = _json.loads(body)
+            result = eugene.db.save_preferences(user_id, **data)
+            return JSONResponse(result)
+
+        # ── Alerts endpoints ────────────────────────────────────────
+        @mcp.custom_route("/v1/alerts", methods=["GET"])
+        async def get_alerts(request: Request) -> JSONResponse:
+            """Get user's alerts."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            active_only = request.query_params.get("active", "true").lower() == "true"
+            alerts = eugene.db.get_alerts(user_id, active_only=active_only)
+            return JSONResponse({"alerts": alerts})
+
+        @mcp.custom_route("/v1/alerts", methods=["POST"])
+        async def create_alert(request: Request) -> JSONResponse:
+            """Create a price alert."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            import json as _json
+            body = await request.body()
+            data = _json.loads(body)
+            ticker = data.get("ticker", "")
+            condition = data.get("condition", "")  # above, below, crosses
+            value = float(data.get("value", 0))
+            if not ticker or not condition or not value:
+                return JSONResponse({"error": "ticker, condition, and value are required"}, status_code=400)
+            result = eugene.db.create_alert(user_id, ticker, condition, value)
+            return JSONResponse(result, status_code=201)
+
+        @mcp.custom_route("/v1/alerts/{alert_id}", methods=["DELETE"])
+        async def delete_alert(request: Request) -> JSONResponse:
+            """Delete an alert."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            aid = int(request.path_params["alert_id"])
+            ok = eugene.db.delete_alert(aid, user_id)
+            if not ok:
+                return JSONResponse({"error": "Not found"}, status_code=404)
+            return JSONResponse({"status": "deleted"})
+
         @mcp.custom_route("/v1/waitlist", methods=["POST"])
         async def waitlist(request: Request) -> JSONResponse:
             """Collect waitlist emails."""
@@ -1558,6 +1821,156 @@ def _build_mcp(include_rest: bool = False):
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
             )
 
+        @mcp.custom_route("/v1/stream/prices", methods=["GET"])
+        async def stream_prices(request: Request) -> StreamingResponse:
+            """Stream real-time price updates for given tickers via SSE.
+
+            Query params:
+              tickers: comma-separated list (e.g. AAPL,MSFT,NVDA)
+              interval: seconds between updates (default 5, min 3)
+            """
+            import json as _json
+
+            tickers_param = request.query_params.get("tickers", "AAPL,MSFT,NVDA")
+            interval = max(3, int(request.query_params.get("interval", "5")))
+            tickers = [t.strip().upper() for t in tickers_param.split(",") if t.strip()][:20]
+
+            async def event_generator():
+                while True:
+                    try:
+                        prices = {}
+                        for ticker in tickers:
+                            try:
+                                data = await asyncio.to_thread(get_price, ticker)
+                                if data:
+                                    prices[ticker] = data
+                            except Exception:
+                                pass
+
+                        if prices:
+                            yield f"data: {_json.dumps({'type': 'prices', 'data': prices, 'timestamp': __import__('datetime').datetime.utcnow().isoformat()})}\n\n"
+
+                        await asyncio.sleep(interval)
+                    except asyncio.CancelledError:
+                        break
+                    except Exception as e:
+                        yield f"data: {_json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                        await asyncio.sleep(interval)
+
+            return StreamingResponse(
+                event_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+        # ── WebSocket price streaming (bidirectional upgrade from SSE) ──────
+        @mcp.custom_route("/v1/ws/prices", methods=["GET"])
+        async def ws_prices_http(request: Request) -> JSONResponse:
+            """Upgrade hint — clients should connect via WebSocket, not HTTP GET."""
+            return JSONResponse({
+                "error": "This endpoint requires a WebSocket connection",
+                "hint": "Connect via ws:// or wss:// protocol",
+            }, status_code=426)
+
+    return mcp
+
+
+def _create_ws_app(mcp):
+    """Wrap the MCP Starlette app to add WebSocket routes."""
+    from starlette.websockets import WebSocket, WebSocketDisconnect
+    from starlette.routing import WebSocketRoute
+    import json as _json
+
+    async def ws_prices(websocket: WebSocket):
+        """Bidirectional WebSocket for price streaming.
+
+        Client sends JSON messages:
+          {"action": "subscribe", "tickers": ["AAPL", "MSFT"]}
+          {"action": "unsubscribe", "tickers": ["MSFT"]}
+          {"action": "set_interval", "interval": 3}
+
+        Server sends:
+          {"type": "prices", "data": {...}, "timestamp": "..."}
+          {"type": "subscribed", "tickers": [...]}
+        """
+        await websocket.accept()
+
+        tickers: set[str] = set()
+        interval = 5
+        running = True
+
+        async def send_prices():
+            """Background task that streams prices at the configured interval."""
+            nonlocal running
+            while running:
+                if tickers:
+                    prices = {}
+                    for ticker in list(tickers):
+                        try:
+                            data = await asyncio.to_thread(get_price, ticker)
+                            if data:
+                                prices[ticker] = data
+                        except Exception:
+                            pass
+                    if prices:
+                        try:
+                            await websocket.send_json({
+                                "type": "prices",
+                                "data": prices,
+                                "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+                            })
+                        except Exception:
+                            break
+                await asyncio.sleep(interval)
+
+        send_task = asyncio.create_task(send_prices())
+
+        try:
+            while True:
+                raw = await websocket.receive_text()
+                try:
+                    msg = _json.loads(raw)
+                except _json.JSONDecodeError:
+                    await websocket.send_json({"type": "error", "message": "Invalid JSON"})
+                    continue
+
+                action = msg.get("action", "")
+
+                if action == "subscribe":
+                    new_tickers = [t.strip().upper() for t in msg.get("tickers", []) if t.strip()]
+                    tickers.update(new_tickers[:20])
+                    await websocket.send_json({"type": "subscribed", "tickers": sorted(tickers)})
+
+                elif action == "unsubscribe":
+                    rm = {t.strip().upper() for t in msg.get("tickers", [])}
+                    tickers -= rm
+                    await websocket.send_json({"type": "subscribed", "tickers": sorted(tickers)})
+
+                elif action == "set_interval":
+                    interval = max(3, int(msg.get("interval", 5)))
+                    await websocket.send_json({"type": "interval_set", "interval": interval})
+
+                else:
+                    await websocket.send_json({"type": "error", "message": f"Unknown action: {action}"})
+
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            logger.exception("WebSocket error")
+        finally:
+            running = False
+            send_task.cancel()
+
+    ws_route = WebSocketRoute("/v1/ws/prices", ws_prices)
+
+    # Inject WebSocket route into the MCP app's routes
+    if hasattr(mcp, '_app') and mcp._app is not None:
+        mcp._app.routes.insert(0, ws_route)
+
     return mcp
 
 
@@ -1581,17 +1994,23 @@ def run_api():
     mcp.settings.port = port
     mcp.settings.host = "0.0.0.0"
 
-    # CORS — allow browser clients from any origin
+    # Add WebSocket routes
+    _create_ws_app(mcp)
+
+    # CORS — configurable origins for production
     from starlette.middleware.cors import CORSMiddleware
+    cors_origins_env = os.environ.get("CORS_ORIGINS", "*")
+    cors_origins = ["*"] if cors_origins_env == "*" else [o.strip() for o in cors_origins_env.split(",")]
     mcp._mcp_server  # ensure internal app exists
     if hasattr(mcp, '_app') and mcp._app is not None:
         mcp._app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=cors_origins,
+            allow_credentials=cors_origins_env != "*",
             allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["*"],
             expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining",
-                           "X-RateLimit-Reset", "X-Request-Count"],
+                           "X-RateLimit-Reset", "X-Request-Count", "Retry-After"],
         )
 
     # Warm up disk cache (evict expired entries on startup)

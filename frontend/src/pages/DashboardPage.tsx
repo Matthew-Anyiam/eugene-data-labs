@@ -1,13 +1,25 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   useDashboardSummary,
   useConvergenceAlerts,
   useCompositeRisk,
 } from '../hooks/useConvergence';
 import type { ConvergenceAlert, CompositeRiskEntity } from '../hooks/useConvergence';
+import { useScreener } from '../hooks/useScreener';
+import { useWorldNews } from '../hooks/useNewsSentiment';
+import { useEconomics } from '../hooks/useEconomics';
+import { useInsiders } from '../hooks/useInsiders';
+import { MarketTicker } from '../components/dashboard/MarketTicker';
+import { WorldFeed } from '../components/dashboard/WorldFeed';
+import { SourceHealth } from '../components/dashboard/SourceHealth';
+import { QuickActions } from '../components/dashboard/QuickActions';
+import { WatchlistPerformance } from '../components/dashboard/WatchlistPerformance';
+import { cn, formatPercent } from '../lib/utils';
 import {
   Activity, AlertTriangle, BarChart3, Loader2, Shield,
-  TrendingUp, Zap, Clock, Database, Layers,
+  TrendingUp, TrendingDown, Zap, Clock, Database, Layers,
+  Newspaper, DollarSign, UserCheck,
 } from 'lucide-react';
 
 const RISK_COLORS: Record<string, string> = {
@@ -55,6 +67,11 @@ export function DashboardPage() {
   const alerts = useConvergenceAlerts(timeWindow);
   const risk = useCompositeRisk(timeWindow);
 
+  // Dispatch a custom event to trigger the command palette from App.tsx
+  const openSearch = useCallback(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
+  }, []);
+
   const tabs = [
     { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
     { key: 'alerts' as const, label: 'Convergence Alerts', icon: AlertTriangle },
@@ -63,7 +80,10 @@ export function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      {/* Header */}
+      {/* Market Ticker Bar */}
+      <MarketTicker />
+
+      {/* Header + Quick Actions */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
@@ -90,6 +110,9 @@ export function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* Quick Actions */}
+      <QuickActions onSearch={openSearch} />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
@@ -129,6 +152,364 @@ export function DashboardPage() {
           isLoading={risk.isLoading}
           total={risk.data?.total ?? 0}
         />
+      )}
+
+      {/* Bottom widgets — Bloomberg LAUNCHPAD-style grid */}
+
+      {/* Row 1: Market Movers (wide) + Economic Pulse */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <MarketMoversWidget />
+        </div>
+        <div className="lg:col-span-2">
+          <EconomicPulseWidget />
+        </div>
+      </div>
+
+      {/* Row 2: Watchlist + Headlines + World Feed */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <WatchlistPerformance />
+        <LatestHeadlinesWidget />
+        <WorldFeed />
+      </div>
+
+      {/* Row 3: Insider Signal + Source Health */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <InsiderSignalWidget />
+        <SourceHealth />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Market Movers Widget
+// ---------------------------------------------------------------------------
+
+function MarketMoversWidget() {
+  const { data: allData, isLoading } = useScreener({ limit: 100 });
+
+  const gainers = useMemo(() => {
+    if (!allData?.results) return [];
+    return [...allData.results]
+      .filter((s: any) => (s.changePercent ?? s.change_percent ?? 0) > 0)
+      .sort((a: any, b: any) => {
+        const av = a.changePercent ?? a.change_percent ?? 0;
+        const bv = b.changePercent ?? b.change_percent ?? 0;
+        return bv - av;
+      })
+      .slice(0, 5);
+  }, [allData]);
+
+  const losers = useMemo(() => {
+    if (!allData?.results) return [];
+    return [...allData.results]
+      .filter((s: any) => (s.changePercent ?? s.change_percent ?? 0) < 0)
+      .sort((a: any, b: any) => {
+        const av = a.changePercent ?? a.change_percent ?? 0;
+        const bv = b.changePercent ?? b.change_percent ?? 0;
+        return av - bv;
+      })
+      .slice(0, 5);
+  }, [allData]);
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <Activity className="h-4 w-4 text-violet-500" />
+        Market Movers
+      </h3>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
+        </div>
+      ) : gainers.length === 0 && losers.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">No mover data available</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {/* Gainers */}
+          <div>
+            <div className="mb-2 flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400">
+              <TrendingUp className="h-3.5 w-3.5" /> Top Gainers
+            </div>
+            <div className="space-y-1">
+              {gainers.map((s: any) => {
+                const pct = s.changePercent ?? s.change_percent ?? 0;
+                return (
+                  <div key={s.ticker} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <div className="min-w-0 flex-1">
+                      <Link to={`/company/${s.ticker}`} className="font-semibold text-slate-800 hover:text-violet-600 dark:text-slate-200 dark:hover:text-violet-400">
+                        {s.ticker}
+                      </Link>
+                      <span className="ml-1.5 truncate text-xs text-slate-400">{s.name?.slice(0, 18)}</span>
+                    </div>
+                    <span className="ml-2 whitespace-nowrap font-mono text-xs font-semibold text-green-600 dark:text-green-400">
+                      {formatPercent(pct)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* Losers */}
+          <div>
+            <div className="mb-2 flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400">
+              <TrendingDown className="h-3.5 w-3.5" /> Top Losers
+            </div>
+            <div className="space-y-1">
+              {losers.map((s: any) => {
+                const pct = s.changePercent ?? s.change_percent ?? 0;
+                return (
+                  <div key={s.ticker} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <div className="min-w-0 flex-1">
+                      <Link to={`/company/${s.ticker}`} className="font-semibold text-slate-800 hover:text-violet-600 dark:text-slate-200 dark:hover:text-violet-400">
+                        {s.ticker}
+                      </Link>
+                      <span className="ml-1.5 truncate text-xs text-slate-400">{s.name?.slice(0, 18)}</span>
+                    </div>
+                    <span className="ml-2 whitespace-nowrap font-mono text-xs font-semibold text-red-600 dark:text-red-400">
+                      {formatPercent(pct)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Latest Headlines Widget
+// ---------------------------------------------------------------------------
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function LatestHeadlinesWidget() {
+  const { data, isLoading } = useWorldNews('market finance economy', undefined, '24h', 8);
+  const articles = data?.articles ?? [];
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <Newspaper className="h-4 w-4 text-blue-500" />
+        Latest Headlines
+      </h3>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
+        </div>
+      ) : articles.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">No recent headlines</p>
+      ) : (
+        <div className="space-y-1.5">
+          {articles.slice(0, 8).map((a, i) => {
+            const sentColor =
+              a.sentiment_score > 0.2
+                ? 'bg-green-500'
+                : a.sentiment_score < -0.2
+                  ? 'bg-red-500'
+                  : 'bg-slate-400';
+            return (
+              <div key={i} className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800">
+                <span className={cn('mt-1.5 h-2 w-2 flex-shrink-0 rounded-full', sentColor)} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-300" title={a.title}>
+                    {a.title}
+                  </p>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                    <span>{a.source}</span>
+                    <span>{timeAgo(a.date)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Economic Pulse Widget
+// ---------------------------------------------------------------------------
+
+function EconomicPulseWidget() {
+  const { data: inflationData, isLoading: inflLoading } = useEconomics('inflation');
+  const { data: ratesData, isLoading: ratesLoading } = useEconomics('interest_rates');
+
+  const isLoading = inflLoading || ratesLoading;
+
+  // Collect key indicators from both categories
+  const indicators = useMemo(() => {
+    const items: { name: string; value: number; date: string; id: string }[] = [];
+    if (inflationData?.series) {
+      for (const s of inflationData.series) {
+        items.push({ name: s.title, value: Number(s.value), date: s.date, id: s.id });
+      }
+    }
+    if (ratesData?.series) {
+      for (const s of ratesData.series) {
+        items.push({ name: s.title, value: Number(s.value), date: s.date, id: s.id });
+      }
+    }
+    return items.slice(0, 6);
+  }, [inflationData, ratesData]);
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <DollarSign className="h-4 w-4 text-amber-500" />
+        Economic Pulse
+      </h3>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
+        </div>
+      ) : indicators.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">No economic data available</p>
+      ) : (
+        <div className="space-y-2">
+          {indicators.map((ind) => (
+            <div key={ind.id} className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-slate-700 dark:text-slate-300" title={ind.name}>
+                  {ind.name}
+                </p>
+                <p className="text-[11px] text-slate-400">{ind.date}</p>
+              </div>
+              <span className="ml-2 font-mono text-sm font-semibold text-slate-800 dark:text-slate-200">
+                {typeof ind.value === 'number' ? ind.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : ind.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Insider Signal Widget
+// ---------------------------------------------------------------------------
+
+function InsiderSignalWidget() {
+  const { data: aaplData, isLoading: aaplLoading } = useInsiders('AAPL');
+  const { data: nvdaData, isLoading: nvdaLoading } = useInsiders('NVDA');
+  const { data: tslaData, isLoading: tslaLoading } = useInsiders('TSLA');
+
+  const isLoading = aaplLoading || nvdaLoading || tslaLoading;
+
+  // Flatten filings across tickers, pick the first transactions, limit to 6 rows
+  const rows = useMemo(() => {
+    const all: {
+      ticker: string;
+      name: string;
+      direction: string;
+      value: number | null;
+      date: string;
+    }[] = [];
+
+    function addFilings(ticker: string, data: typeof aaplData) {
+      if (!data?.data?.insider_filings) return;
+      for (const f of data.data.insider_filings) {
+        for (const tx of f.transactions.slice(0, 1)) {
+          const val = tx.shares && tx.price_per_share ? tx.shares * tx.price_per_share : null;
+          all.push({
+            ticker,
+            name: f.owner.name,
+            direction: tx.direction?.toLowerCase().includes('purchase') || tx.direction?.toLowerCase().includes('buy') || tx.transaction_type?.toLowerCase().includes('purchase')
+              ? 'buy'
+              : 'sell',
+            value: val,
+            date: tx.date || f.filed_date,
+          });
+        }
+      }
+    }
+
+    addFilings('AAPL', aaplData);
+    addFilings('NVDA', nvdaData);
+    addFilings('TSLA', tslaData);
+
+    // Sort by date desc, take 6
+    all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return all.slice(0, 6);
+  }, [aaplData, nvdaData, tslaData]);
+
+  function fmtValue(v: number | null): string {
+    if (v === null || v === 0) return '--';
+    const abs = Math.abs(v);
+    if (abs >= 1_000_000) return '$' + (abs / 1_000_000).toFixed(1) + 'M';
+    if (abs >= 1_000) return '$' + (abs / 1_000).toFixed(0) + 'K';
+    return '$' + abs.toFixed(0);
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <UserCheck className="h-4 w-4 text-emerald-500" />
+        Insider Signal
+      </h3>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">No insider activity found</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className="pb-2 text-left text-xs font-medium text-slate-500">Insider</th>
+                <th className="pb-2 text-left text-xs font-medium text-slate-500">Ticker</th>
+                <th className="pb-2 text-center text-xs font-medium text-slate-500">Type</th>
+                <th className="pb-2 text-right text-xs font-medium text-slate-500">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                  <td className="py-1.5 pr-2">
+                    <span className="truncate text-slate-700 dark:text-slate-300">{r.name.split(' ').slice(0, 2).join(' ')}</span>
+                  </td>
+                  <td className="py-1.5">
+                    <Link to={`/company/${r.ticker}`} className="font-semibold text-slate-800 hover:text-violet-600 dark:text-slate-200 dark:hover:text-violet-400">
+                      {r.ticker}
+                    </Link>
+                  </td>
+                  <td className="py-1.5 text-center">
+                    <span className={cn(
+                      'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                      r.direction === 'buy'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                    )}>
+                      {r.direction === 'buy' ? 'BUY' : 'SELL'}
+                    </span>
+                  </td>
+                  <td className="py-1.5 text-right font-mono text-xs text-slate-600 dark:text-slate-400">
+                    {fmtValue(r.value)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { WaitlistForm } from '../components/landing/Hero';
+import { WaitlistForm } from '../components/ui/WaitlistForm';
 
 const tiers = [
   {

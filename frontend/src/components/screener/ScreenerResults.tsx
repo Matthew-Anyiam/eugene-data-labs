@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import type { ScreenerResult } from '../../lib/types';
 import { formatCurrency, cn } from '../../lib/utils';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, GitCompareArrows, Star, Download } from 'lucide-react';
+import { useWatchlist } from '../../hooks/useWatchlist';
+import { downloadCSV } from '../../lib/export';
 
 interface ScreenerResultsProps {
   results: ScreenerResult[];
@@ -35,6 +37,9 @@ function compareValues(a: any, b: any, dir: SortDir): number {
 export function ScreenerResults({ results }: ScreenerResultsProps) {
   const [sortKey, setSortKey] = useState<SortKey>('market_cap');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
+  const { hasTicker, addTicker } = useWatchlist();
 
   const sorted = useMemo(() => {
     return [...results].sort((a, b) => compareValues(a[sortKey], b[sortKey], sortDir));
@@ -49,6 +54,54 @@ export function ScreenerResults({ results }: ScreenerResultsProps) {
     }
   }
 
+  function toggleSelect(ticker: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticker)) {
+        next.delete(ticker);
+      } else if (next.size < 4) {
+        next.add(ticker);
+      }
+      return next;
+    });
+  }
+
+  function compareSelected() {
+    if (selected.size >= 2) {
+      navigate(`/compare?tickers=${Array.from(selected).join(',')}`);
+    }
+  }
+
+  const exportCSV = useCallback(() => {
+    downloadCSV(
+      sorted.map((r) => ({
+        ticker: r.ticker,
+        company: r.name,
+        sector: r.sector,
+        industry: r.industry,
+        price: r.price,
+        market_cap: r.market_cap,
+        volume: r.volume,
+        beta: r.beta,
+        exchange: r.exchange,
+        country: r.country,
+      })),
+      `eugene-screener-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        { key: 'ticker', label: 'Ticker' },
+        { key: 'company', label: 'Company' },
+        { key: 'sector', label: 'Sector' },
+        { key: 'industry', label: 'Industry' },
+        { key: 'price', label: 'Price' },
+        { key: 'market_cap', label: 'Market Cap' },
+        { key: 'volume', label: 'Volume' },
+        { key: 'beta', label: 'Beta' },
+        { key: 'exchange', label: 'Exchange' },
+        { key: 'country', label: 'Country' },
+      ],
+    );
+  }, [sorted]);
+
   if (results.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 px-6 py-16 text-center dark:border-slate-800">
@@ -62,13 +115,49 @@ export function ScreenerResults({ results }: ScreenerResultsProps) {
 
   return (
     <div>
-      <p className="mb-3 text-xs text-slate-400">
-        Showing {results.length} result{results.length !== 1 ? 's' : ''}
-      </p>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-slate-400">
+            Showing {results.length} result{results.length !== 1 ? 's' : ''}
+          </p>
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          >
+            <Download className="h-3 w-3" />
+            CSV
+          </button>
+        </div>
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">
+              {selected.size} selected
+            </span>
+            <button
+              onClick={compareSelected}
+              disabled={selected.size < 2}
+              className="flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+            >
+              <GitCompareArrows className="h-3 w-3" />
+              Compare
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
       <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
+              {/* Checkbox column */}
+              <th className="w-8 px-3 py-3">
+                <span className="sr-only">Select</span>
+              </th>
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
@@ -88,38 +177,74 @@ export function ScreenerResults({ results }: ScreenerResultsProps) {
                   </span>
                 </th>
               ))}
+              {/* Actions column */}
+              <th className="w-8 px-3 py-3">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((r) => (
-              <tr
-                key={r.ticker}
-                className="border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-slate-800/50 dark:hover:bg-slate-900/30"
-              >
-                <td className="px-4 py-3 font-medium">
-                  <Link
-                    to={`/company/${r.ticker}`}
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    {r.ticker}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 max-w-[200px] truncate">{r.name}</td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{r.sector}</td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  ${r.price?.toFixed(2) ?? '\u2014'}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  {formatCurrency(r.market_cap)}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  {r.volume?.toLocaleString() ?? '\u2014'}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  {r.beta != null ? r.beta.toFixed(2) : '\u2014'}
-                </td>
-              </tr>
-            ))}
+            {sorted.map((r) => {
+              const isSelected = selected.has(r.ticker);
+              const isWatched = hasTicker(r.ticker);
+              return (
+                <tr
+                  key={r.ticker}
+                  className={cn(
+                    'border-b border-slate-100 transition-colors dark:border-slate-800/50',
+                    isSelected
+                      ? 'bg-indigo-50/50 dark:bg-indigo-900/10'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/30'
+                  )}
+                >
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(r.ticker)}
+                      disabled={!isSelected && selected.size >= 4}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600"
+                    />
+                  </td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link
+                      to={`/company/${r.ticker}`}
+                      className="text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                      {r.ticker}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 max-w-[200px] truncate">{r.name}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{r.sector}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    ${r.price?.toFixed(2) ?? '\u2014'}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatCurrency(r.market_cap)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {r.volume?.toLocaleString() ?? '\u2014'}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {r.beta != null ? r.beta.toFixed(2) : '\u2014'}
+                  </td>
+                  <td className="px-3 py-3">
+                    {!isWatched && (
+                      <button
+                        onClick={() => addTicker(r.ticker)}
+                        className="rounded p-1 text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
+                        title="Add to watchlist"
+                      >
+                        <Star className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {isWatched && (
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

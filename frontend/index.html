@@ -2,12 +2,47 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Eugene Intelligence — Financial Data Platform</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Eugene" />
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+
+    <!-- SEO -->
+    <meta name="description" content="Eugene Intelligence — Financial Knowledge Workspace. Deep intelligence. Real-time data. Composable workspace." />
+    <meta name="keywords" content="financial intelligence, SEC EDGAR, market analytics, Bloomberg alternative, stock screener, earnings analysis" />
+    <meta name="author" content="Eugene Intelligence" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Eugene Intelligence — Financial Knowledge Workspace" />
+    <meta property="og:description" content="Deep intelligence. Real-time data. Composable workspace. Where financial professionals think." />
+    <meta property="og:url" content="https://eugene.ai" />
+    <meta property="og:image" content="/icons/icon.svg" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Eugene Intelligence" />
+    <meta name="twitter:description" content="Financial Knowledge Workspace — Deep intelligence. Real-time data. Composable workspace." />
+
+    <title>Eugene Intelligence</title>
   </head>
   <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

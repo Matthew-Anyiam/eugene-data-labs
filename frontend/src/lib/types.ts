@@ -68,18 +68,23 @@ export interface FinancialsData {
 }
 
 // Metrics
+export interface MetricCategories {
+  profitability?: Record<string, number>;
+  liquidity?: Record<string, number>;
+  leverage?: Record<string, number>;
+  efficiency?: Record<string, number>;
+  valuation?: Record<string, number>;
+  growth?: Record<string, number>;
+  per_share?: Record<string, number>;
+}
+
 export interface MetricsData {
   periods: {
     period_end: string;
-    metrics: {
-      profitability?: Record<string, number>;
-      liquidity?: Record<string, number>;
-      leverage?: Record<string, number>;
-      efficiency?: Record<string, number>;
-      valuation?: Record<string, number>;
-      growth?: Record<string, number>;
-      per_share?: Record<string, number>;
-    };
+    period_type?: string;
+    fiscal_year?: number;
+    metrics?: MetricCategories;
+    ratios?: MetricCategories;
   }[];
 }
 
@@ -225,4 +230,35 @@ export interface SectionsData {
     accession: string;
   };
   sections: Record<string, SectionData>;
+}
+
+// Crypto
+export interface CryptoQuote {
+  symbol: string;
+  price: number;
+  change: number;
+  change_percent: number;
+  volume: number;
+  market_cap: number;
+  day_high: number;
+  day_low: number;
+  source: string;
+  error?: string;
+}
+
+export interface CryptoBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface CryptoBarsData {
+  symbol: string;
+  interval: string;
+  bars: CryptoBar[];
+  count: number;
+  error?: string;
 }
