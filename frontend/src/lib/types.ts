@@ -68,18 +68,23 @@ export interface FinancialsData {
 }
 
 // Metrics
+export interface MetricCategories {
+  profitability?: Record<string, number>;
+  liquidity?: Record<string, number>;
+  leverage?: Record<string, number>;
+  efficiency?: Record<string, number>;
+  valuation?: Record<string, number>;
+  growth?: Record<string, number>;
+  per_share?: Record<string, number>;
+}
+
 export interface MetricsData {
   periods: {
     period_end: string;
-    metrics: {
-      profitability?: Record<string, number>;
-      liquidity?: Record<string, number>;
-      leverage?: Record<string, number>;
-      efficiency?: Record<string, number>;
-      valuation?: Record<string, number>;
-      growth?: Record<string, number>;
-      per_share?: Record<string, number>;
-    };
+    period_type?: string;
+    fiscal_year?: number;
+    metrics?: MetricCategories;
+    ratios?: MetricCategories;
   }[];
 }
 

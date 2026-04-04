@@ -1,13 +1,20 @@
 import { useEffect, useState, useCallback, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Link, Outlet } from 'react-router-dom';
 import { Menu, Bell } from 'lucide-react';
 import { Sidebar } from './components/workspace/Sidebar';
 import { CommandPalette } from './components/workspace/CommandPalette';
 import { ActivityPanel } from './components/workspace/ActivityPanel';
+import { ShortcutsHelp } from './components/workspace/ShortcutsHelp';
+import { Onboarding } from './components/workspace/Onboarding';
 import { FeedbackWidget } from './components/ui/FeedbackWidget';
+import { LoadingBar } from './components/ui/LoadingBar';
 import { ToastContainer } from './components/workspace/ToastContainer';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { SkeletonPage } from './components/ui/Skeleton';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAlerts } from './hooks/useAlerts';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const CompanyPage = lazy(() => import('./pages/CompanyPage').then(m => ({ default: m.CompanyPage })));
 const ScreenerPage = lazy(() => import('./pages/ScreenerPage').then(m => ({ default: m.ScreenerPage })));
@@ -91,6 +98,9 @@ const MoneyFlowPage = lazy(() => import('./pages/MoneyFlowPage').then(m => ({ de
 const EarningsRevisionsPage = lazy(() => import('./pages/EarningsRevisionsPage').then(m => ({ default: m.EarningsRevisionsPage })));
 const MarketRegimePage = lazy(() => import('./pages/MarketRegimePage').then(m => ({ default: m.MarketRegimePage })));
 const TaxLotPage = lazy(() => import('./pages/TaxLotPage').then(m => ({ default: m.TaxLotPage })));
+const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import('./pages/SignupPage').then(m => ({ default: m.SignupPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PAGE_TITLES: Record<string, string> = {
@@ -202,6 +212,38 @@ function LoadingSpinner() {
   );
 }
 
+const RECENT_TICKERS_KEY = 'eugene_recent_tickers';
+const MAX_RECENT_TICKERS = 5;
+
+function getRecentTickers(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_TICKERS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* noop */ }
+  return [];
+}
+
+function addRecentTicker(ticker: string): void {
+  try {
+    const current = getRecentTickers().filter((t) => t !== ticker);
+    current.unshift(ticker);
+    localStorage.setItem(RECENT_TICKERS_KEY, JSON.stringify(current.slice(0, MAX_RECENT_TICKERS)));
+  } catch { /* noop */ }
+}
+
+function RecentTickerTracker() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (pathname.startsWith('/company/')) {
+      const ticker = pathname.split('/')[2]?.toUpperCase();
+      if (ticker) addRecentTicker(ticker);
+    }
+  }, [pathname]);
+
+  return null;
+}
+
 function WorkspaceLayout() {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -213,6 +255,7 @@ function WorkspaceLayout() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(() => {
     try {
       return localStorage.getItem('eugene_activity') === 'open';
@@ -268,8 +311,21 @@ function WorkspaceLayout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Listen for shortcuts help event from useKeyboardShortcuts
+  useEffect(() => {
+    function handleShowShortcuts() {
+      setShortcutsOpen(true);
+    }
+    window.addEventListener('eugene:show-shortcuts', handleShowShortcuts);
+    return () => window.removeEventListener('eugene:show-shortcuts', handleShowShortcuts);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-slate-950">
+      <LoadingBar />
+      <RecentTickerTracker />
+      <Onboarding onComplete={() => {}} />
+
       {/* Desktop sidebar */}
       <div className="hidden md:block">
         <Sidebar
@@ -296,6 +352,15 @@ function WorkspaceLayout() {
         </>
       )}
 
+      {/* Touch-friendly swipe gesture area on left edge (mobile only) */}
+      {!mobileMenuOpen && (
+        <div
+          className="fixed inset-y-0 left-0 z-30 w-3 md:hidden"
+          onTouchStart={() => setMobileMenuOpen(true)}
+          aria-hidden="true"
+        />
+      )}
+
       <main className="flex-1 overflow-y-auto">
         <PageHeader
           onToggleActivity={toggleActivity}
@@ -304,94 +369,11 @@ function WorkspaceLayout() {
         />
 
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
-          <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-              <Route path="/" element={<DashboardRedirect />} />
-              <Route path="/company/:ticker" element={<CompanyPage />} />
-              <Route path="/entity/:entityId" element={<EntityPage />} />
-              <Route path="/screener" element={<ScreenerPage />} />
-              <Route path="/economics" element={<EconomicsPage />} />
-              <Route path="/predictions" element={<PredictionsPage />} />
-              <Route path="/ontology" element={<OntologyPage />} />
-              <Route path="/world" element={<WorldPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/docs" element={<DocsPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/crypto" element={<CryptoPage />} />
-              <Route path="/compare" element={<ComparePage />} />
-              <Route path="/agents" element={<AgentsPage />} />
-              <Route path="/portfolio" element={<PortfolioPage />} />
-              <Route path="/alerts" element={<AlertsPage />} />
-              <Route path="/news" element={<NewsPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/heatmap" element={<HeatmapPage />} />
-              <Route path="/backtest" element={<BacktestPage />} />
-              <Route path="/insiders" element={<InsidersPage />} />
-              <Route path="/earnings" element={<EarningsPage />} />
-              <Route path="/ipo" element={<IPOPage />} />
-              <Route path="/dividends" element={<DividendsPage />} />
-              <Route path="/technical" element={<TechnicalPage />} />
-              <Route path="/etf" element={<ETFPage />} />
-              <Route path="/forex" element={<ForexPage />} />
-              <Route path="/commodities" element={<CommoditiesPage />} />
-              <Route path="/watchlist" element={<WatchlistPage />} />
-              <Route path="/movers" element={<MoversPage />} />
-              <Route path="/sectors" element={<SectorsPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/options" element={<OptionsPage />} />
-              <Route path="/risk" element={<RiskPage />} />
-              <Route path="/bonds" element={<BondsPage />} />
-              <Route path="/sentiment" element={<SentimentPage />} />
-              <Route path="/funds" element={<FundsPage />} />
-              <Route path="/econ-calendar" element={<EconCalendarPage />} />
-              <Route path="/dark-pool" element={<DarkPoolPage />} />
-              <Route path="/correlation" element={<CorrelationPage />} />
-              <Route path="/short-interest" element={<ShortInterestPage />} />
-              <Route path="/analyst-ratings" element={<AnalystRatingsPage />} />
-              <Route path="/filings" element={<FilingsPage />} />
-              <Route path="/trending" element={<TrendingPage />} />
-              <Route path="/trade-journal" element={<TradeJournalPage />} />
-              <Route path="/macro" element={<MacroPage />} />
-              <Route path="/position-sizer" element={<PositionSizerPage />} />
-              <Route path="/screener-builder" element={<ScreenerBuilderPage />} />
-              <Route path="/estimates" element={<EstimatesPage />} />
-              <Route path="/institutional" element={<InstitutionalPage />} />
-              <Route path="/ownership" element={<OwnershipPage />} />
-              <Route path="/breadth" element={<BreadthPage />} />
-              <Route path="/volatility" element={<VolatilityPage />} />
-              <Route path="/premarket" element={<PremarketPage />} />
-              <Route path="/options-flow" element={<OptionsFlowPage />} />
-              <Route path="/seasonality" element={<SeasonalityPage />} />
-              <Route path="/valuation" element={<ValuationPage />} />
-              <Route path="/supply-chain" element={<SupplyChainPage />} />
-              <Route path="/debt-monitor" element={<DebtMonitorPage />} />
-              <Route path="/currency-converter" element={<CurrencyConverterPage />} />
-              <Route path="/margin-calculator" element={<MarginCalculatorPage />} />
-              <Route path="/earnings-surprises" element={<EarningsSurprisesPage />} />
-              <Route path="/insider-sentiment" element={<InsiderSentimentPage />} />
-              <Route path="/market-profile" element={<MarketProfilePage />} />
-              <Route path="/peer-analysis" element={<PeerAnalysisPage />} />
-              <Route path="/dividend-tracker" element={<DividendTrackerPage />} />
-              <Route path="/revenue-segments" element={<RevenueSegmentsPage />} />
-              <Route path="/earnings-pro" element={<EarningsCalendarProPage />} />
-              <Route path="/fund-flows" element={<FundFlowsPage />} />
-              <Route path="/social-sentiment" element={<SocialSentimentPage />} />
-              <Route path="/factor-exposure" element={<FactorExposurePage />} />
-              <Route path="/earnings-transcript" element={<EarningsTranscriptPage />} />
-              <Route path="/ipo-analysis" element={<IPOAnalysisPage />} />
-              <Route path="/relative-strength" element={<RelativeStrengthPage />} />
-              <Route path="/insider-tracker" element={<InsiderTrackerPage />} />
-              <Route path="/sector-rotation" element={<SectorRotationPage />} />
-              <Route path="/yield-curve" element={<YieldCurvePage />} />
-              <Route path="/gap-scanner" element={<GapScannerPage />} />
-              <Route path="/money-flow" element={<MoneyFlowPage />} />
-              <Route path="/earnings-revisions" element={<EarningsRevisionsPage />} />
-              <Route path="/market-regime" element={<MarketRegimePage />} />
-              <Route path="/tax-lots" element={<TaxLotPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<SkeletonPage />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
 
@@ -401,18 +383,10 @@ function WorkspaceLayout() {
       </div>
 
       <CommandPalette open={commandOpen} onClose={closeCommand} />
+      <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <ToastContainer />
       <FeedbackWidget />
     </div>
-  );
-}
-
-function DashboardRedirect() {
-  const DashboardPageLazy = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <DashboardPageLazy />
-    </Suspense>
   );
 }
 
@@ -426,6 +400,14 @@ function PageHeader({
   onMobileMenu: () => void;
 }) {
   const { pathname } = useLocation();
+  const [recentTickers, setRecentTickers] = useState<string[]>(getRecentTickers);
+
+  // Refresh recents on route change
+  useEffect(() => {
+    setRecentTickers(getRecentTickers());
+  }, [pathname]);
+
+  const isCompanyPage = pathname.startsWith('/company/');
 
   const parts = pathname.split('/').filter(Boolean);
   if (parts.length === 0) parts.push('dashboard');
@@ -536,6 +518,21 @@ function PageHeader({
             </span>
           ))}
         </div>
+
+        {/* Recent tickers pills — shown on non-company pages */}
+        {!isCompanyPage && recentTickers.length > 0 && (
+          <div className="ml-3 hidden items-center gap-1 border-l border-slate-200 pl-3 dark:border-slate-700/50 sm:flex">
+            {recentTickers.slice(0, 5).map((ticker) => (
+              <Link
+                key={ticker}
+                to={`/company/${ticker}`}
+                className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 transition-colors hover:bg-indigo-100 hover:text-indigo-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400"
+              >
+                {ticker}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <NotificationBell />
@@ -580,9 +577,105 @@ function NotificationBell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <TitleUpdater />
-      <WorkspaceLayout />
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <TitleUpdater />
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            {/* Public routes — outside workspace layout */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+
+            {/* Protected workspace routes */}
+            <Route element={<ProtectedRoute><WorkspaceLayout /></ProtectedRoute>}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/company/:ticker" element={<CompanyPage />} />
+            <Route path="/entity/:entityId" element={<EntityPage />} />
+            <Route path="/screener" element={<ScreenerPage />} />
+            <Route path="/economics" element={<EconomicsPage />} />
+            <Route path="/predictions" element={<PredictionsPage />} />
+            <Route path="/ontology" element={<OntologyPage />} />
+            <Route path="/world" element={<WorldPage />} />
+            <Route path="/docs" element={<DocsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/crypto" element={<CryptoPage />} />
+            <Route path="/compare" element={<ComparePage />} />
+            <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/news" element={<NewsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/heatmap" element={<HeatmapPage />} />
+            <Route path="/backtest" element={<BacktestPage />} />
+            <Route path="/insiders" element={<InsidersPage />} />
+            <Route path="/earnings" element={<EarningsPage />} />
+            <Route path="/ipo" element={<IPOPage />} />
+            <Route path="/dividends" element={<DividendsPage />} />
+            <Route path="/technical" element={<TechnicalPage />} />
+            <Route path="/etf" element={<ETFPage />} />
+            <Route path="/forex" element={<ForexPage />} />
+            <Route path="/commodities" element={<CommoditiesPage />} />
+            <Route path="/watchlist" element={<WatchlistPage />} />
+            <Route path="/movers" element={<MoversPage />} />
+            <Route path="/sectors" element={<SectorsPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/options" element={<OptionsPage />} />
+            <Route path="/risk" element={<RiskPage />} />
+            <Route path="/bonds" element={<BondsPage />} />
+            <Route path="/sentiment" element={<SentimentPage />} />
+            <Route path="/funds" element={<FundsPage />} />
+            <Route path="/econ-calendar" element={<EconCalendarPage />} />
+            <Route path="/dark-pool" element={<DarkPoolPage />} />
+            <Route path="/correlation" element={<CorrelationPage />} />
+            <Route path="/short-interest" element={<ShortInterestPage />} />
+            <Route path="/analyst-ratings" element={<AnalystRatingsPage />} />
+            <Route path="/filings" element={<FilingsPage />} />
+            <Route path="/trending" element={<TrendingPage />} />
+            <Route path="/trade-journal" element={<TradeJournalPage />} />
+            <Route path="/macro" element={<MacroPage />} />
+            <Route path="/position-sizer" element={<PositionSizerPage />} />
+            <Route path="/screener-builder" element={<ScreenerBuilderPage />} />
+            <Route path="/estimates" element={<EstimatesPage />} />
+            <Route path="/institutional" element={<InstitutionalPage />} />
+            <Route path="/ownership" element={<OwnershipPage />} />
+            <Route path="/breadth" element={<BreadthPage />} />
+            <Route path="/volatility" element={<VolatilityPage />} />
+            <Route path="/premarket" element={<PremarketPage />} />
+            <Route path="/options-flow" element={<OptionsFlowPage />} />
+            <Route path="/seasonality" element={<SeasonalityPage />} />
+            <Route path="/valuation" element={<ValuationPage />} />
+            <Route path="/supply-chain" element={<SupplyChainPage />} />
+            <Route path="/debt-monitor" element={<DebtMonitorPage />} />
+            <Route path="/currency-converter" element={<CurrencyConverterPage />} />
+            <Route path="/margin-calculator" element={<MarginCalculatorPage />} />
+            <Route path="/earnings-surprises" element={<EarningsSurprisesPage />} />
+            <Route path="/insider-sentiment" element={<InsiderSentimentPage />} />
+            <Route path="/market-profile" element={<MarketProfilePage />} />
+            <Route path="/peer-analysis" element={<PeerAnalysisPage />} />
+            <Route path="/dividend-tracker" element={<DividendTrackerPage />} />
+            <Route path="/revenue-segments" element={<RevenueSegmentsPage />} />
+            <Route path="/earnings-pro" element={<EarningsCalendarProPage />} />
+            <Route path="/fund-flows" element={<FundFlowsPage />} />
+            <Route path="/social-sentiment" element={<SocialSentimentPage />} />
+            <Route path="/factor-exposure" element={<FactorExposurePage />} />
+            <Route path="/earnings-transcript" element={<EarningsTranscriptPage />} />
+            <Route path="/ipo-analysis" element={<IPOAnalysisPage />} />
+            <Route path="/relative-strength" element={<RelativeStrengthPage />} />
+            <Route path="/insider-tracker" element={<InsiderTrackerPage />} />
+            <Route path="/sector-rotation" element={<SectorRotationPage />} />
+            <Route path="/yield-curve" element={<YieldCurvePage />} />
+            <Route path="/gap-scanner" element={<GapScannerPage />} />
+            <Route path="/money-flow" element={<MoneyFlowPage />} />
+            <Route path="/earnings-revisions" element={<EarningsRevisionsPage />} />
+            <Route path="/market-regime" element={<MarketRegimePage />} />
+            <Route path="/tax-lots" element={<TaxLotPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

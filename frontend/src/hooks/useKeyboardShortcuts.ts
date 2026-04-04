@@ -57,7 +57,7 @@ export function useKeyboardShortcuts() {
           c: '/crypto',
           a: '/agents',
           f: '/portfolio',
-          n: '/alerts',
+          n: '/news',
           r: '/reports',
           h: '/heatmap',
           b: '/backtest',
@@ -85,6 +85,11 @@ export function useKeyboardShortcuts() {
         // Focus search — trigger command palette
         e.preventDefault();
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
+      }
+
+      if (e.key === '?') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('eugene:show-shortcuts'));
       }
     }
 
