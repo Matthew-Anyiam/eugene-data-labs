@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getStoredToken } from '../lib/auth';
 
 export interface RealtimePrice {
   ticker: string;
@@ -35,9 +36,19 @@ function parsePrice(ticker: string, data: any, timestamp?: string): RealtimePric
   };
 }
 
+/** Exponential backoff: 2s, 4s, 8s, 16s, 30s max. Resets on successful connection. */
+const BASE_DELAY = 2000;
+const MAX_DELAY = 30_000;
+const MAX_RETRIES = 10;
+
+function getBackoffDelay(attempt: number): number {
+  return Math.min(BASE_DELAY * 2 ** attempt, MAX_DELAY);
+}
+
 /**
  * Real-time price streaming hook.
  * Tries WebSocket first (bidirectional, lower latency), falls back to SSE.
+ * Uses exponential backoff for reconnection with max retry limit.
  */
 export function useRealtimePrices(tickers: string[], enabled = true, interval = 5) {
   const [prices, setPrices] = useState<Record<string, RealtimePrice>>({});
@@ -47,6 +58,8 @@ export function useRealtimePrices(tickers: string[], enabled = true, interval = 
   const esRef = useRef<EventSource | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const transportRef = useRef<'ws' | 'sse' | null>(null);
+  const wsRetriesRef = useRef(0);
+  const sseRetriesRef = useRef(0);
 
   const tickerKey = tickers.join(',');
 
@@ -64,7 +77,7 @@ export function useRealtimePrices(tickers: string[], enabled = true, interval = 
     }
   }, []);
 
-  /** Try connecting via WebSocket */
+  /** Try connecting via WebSocket with auth token */
   const connectWS = useCallback(() => {
     if (!tickers.length || !enabled) return;
 
@@ -72,7 +85,11 @@ export function useRealtimePrices(tickers: string[], enabled = true, interval = 
     const host = import.meta.env.VITE_API_URL
       ? new URL(import.meta.env.VITE_API_URL).host
       : window.location.host;
-    const url = `${protocol}//${host}/v1/ws/prices`;
+
+    // Pass auth token as query param (WebSocket doesn't support custom headers)
+    const token = getStoredToken();
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const url = `${protocol}//${host}/v1/ws/prices${tokenParam}`;
 
     try {
       const ws = new WebSocket(url);
@@ -80,9 +97,9 @@ export function useRealtimePrices(tickers: string[], enabled = true, interval = 
 
       ws.onopen = () => {
         transportRef.current = 'ws';
+        wsRetriesRef.current = 0; // Reset on successful connection
         setConnected(true);
         setError(null);
-        // Subscribe to tickers
         ws.send(JSON.stringify({ action: 'subscribe', tickers }));
         if (interval !== 5) {
           ws.send(JSON.stringify({ action: 'set_interval', interval }));
@@ -99,20 +116,30 @@ export function useRealtimePrices(tickers: string[], enabled = true, interval = 
       };
 
       ws.onerror = () => {
-        // WebSocket failed — fall back to SSE
         ws.close();
         wsRef.current = null;
-        connectSSE();
+        connectSSE(); // Fall back to SSE
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        if (event.code === 4001) {
+          // Auth rejected — don't retry
+          setError('Authentication required for price streaming');
+          setConnected(false);
+          return;
+        }
         if (transportRef.current === 'ws') {
           setConnected(false);
-          reconnectRef.current = setTimeout(connectWS, 5000);
+          if (wsRetriesRef.current < MAX_RETRIES) {
+            const delay = getBackoffDelay(wsRetriesRef.current);
+            wsRetriesRef.current++;
+            reconnectRef.current = setTimeout(connectWS, delay);
+          } else {
+            setError('Connection lost. Refresh to reconnect.');
+          }
         }
       };
     } catch {
-      // WebSocket constructor failed — fall back to SSE
       connectSSE();
     }
   }, [tickerKey, enabled, interval, handlePriceData]);
@@ -130,6 +157,7 @@ export function useRealtimePrices(tickers: string[], enabled = true, interval = 
     transportRef.current = 'sse';
 
     es.onopen = () => {
+      sseRetriesRef.current = 0; // Reset on successful connection
       setConnected(true);
       setError(null);
     };
@@ -146,12 +174,18 @@ export function useRealtimePrices(tickers: string[], enabled = true, interval = 
     es.onerror = () => {
       setConnected(false);
       es.close();
-      reconnectRef.current = setTimeout(connectSSE, 5000);
+      if (sseRetriesRef.current < MAX_RETRIES) {
+        const delay = getBackoffDelay(sseRetriesRef.current);
+        sseRetriesRef.current++;
+        reconnectRef.current = setTimeout(connectSSE, delay);
+      } else {
+        setError('Connection lost. Refresh to reconnect.');
+      }
     };
   }, [tickerKey, enabled, interval, handlePriceData]);
 
   useEffect(() => {
-    connectWS(); // Start with WebSocket, auto-fallback to SSE
+    connectWS();
 
     return () => {
       if (wsRef.current) {
