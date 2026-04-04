@@ -81,28 +81,28 @@ export function TechnicalPage() {
     const ind = tech.indicators;
     const price = prices?.price ?? 0;
 
-    const rsi = ind.rsi;
+    const rsi = ind.rsi_14 ?? 50;
     const rsiSig = rsiSignal(rsi);
 
-    const macdHist = ind.macd.histogram;
+    const macdHist = ind.macd?.histogram ?? 0;
     const macdSig = macdSignal(macdHist);
 
-    const sma20 = ind.sma.sma_20;
-    const sma50 = ind.sma.sma_50;
-    const sma200 = ind.sma.sma_200;
-    const ema12 = ind.ema.ema_12;
-    const ema26 = ind.ema.ema_26;
+    const sma20 = ind.sma_20 ?? 0;
+    const sma50 = ind.sma_50 ?? 0;
+    const sma200 = ind.sma_200 ?? 0;
+    const ema12 = ind.ema_12 ?? 0;
+    const ema26 = ind.ema_26 ?? 0;
 
     const smaBullish = [price > sma20, price > sma50, price > sma200].filter(Boolean).length;
     const maSig: Signal = smaBullish >= 2 ? 'buy' : smaBullish === 0 ? 'sell' : 'neutral';
 
     const bb = ind.bollinger_bands;
-    const bbSig: Signal = price > bb.upper ? 'sell' : price < bb.lower ? 'buy' : 'neutral';
+    const bbSig: Signal = bb ? (price > bb.upper ? 'sell' : price < bb.lower ? 'buy' : 'neutral') : 'neutral';
 
-    const atr = ind.atr;
+    const atr = ind.atr_14 ?? 0;
     const atrPct = price > 0 ? atr / price : 0;
 
-    return [
+    const result: { name: string; value: string; detail: string; signal: Signal; valueClass: string }[] = [
       {
         name: 'RSI (14)',
         value: rsi.toFixed(1),
@@ -110,27 +110,37 @@ export function TechnicalPage() {
         signal: rsiSig,
         valueClass: rsiColor(rsi),
       },
-      {
+    ];
+
+    if (ind.macd) {
+      result.push({
         name: 'MACD',
-        value: ind.macd.macd.toFixed(3),
+        value: ind.macd.macd_line.toFixed(3),
         detail: `Signal: ${ind.macd.signal.toFixed(3)} | Histogram: ${macdHist >= 0 ? '+' : ''}${macdHist.toFixed(3)}`,
         signal: macdSig,
         valueClass: macdHist > 0 ? 'text-emerald-400' : 'text-red-400',
-      },
-      {
-        name: 'Moving Averages',
-        value: `SMA 50: ${formatPrice(sma50)}`,
-        detail: `SMA 20: ${formatPrice(sma20)} | SMA 200: ${formatPrice(sma200)} | EMA 12: ${formatPrice(ema12)} | EMA 26: ${formatPrice(ema26)}`,
-        signal: maSig,
-        valueClass: 'text-white',
-      },
-      {
+      });
+    }
+
+    result.push({
+      name: 'Moving Averages',
+      value: `SMA 50: ${formatPrice(sma50)}`,
+      detail: `SMA 20: ${formatPrice(sma20)} | SMA 200: ${formatPrice(sma200)} | EMA 12: ${formatPrice(ema12)} | EMA 26: ${formatPrice(ema26)}`,
+      signal: maSig,
+      valueClass: 'text-white',
+    });
+
+    if (bb) {
+      result.push({
         name: 'Bollinger Bands',
         value: `${formatPrice(bb.lower)} – ${formatPrice(bb.upper)}`,
         detail: `Middle (SMA 20): ${formatPrice(bb.middle)} | Price ${price > bb.upper ? 'above upper band' : price < bb.lower ? 'below lower band' : 'inside bands'}`,
         signal: bbSig,
         valueClass: 'text-white',
-      },
+      });
+    }
+
+    result.push(
       {
         name: 'ATR (14)',
         value: formatPrice(atr),
@@ -140,9 +150,9 @@ export function TechnicalPage() {
       },
       {
         name: 'VWAP',
-        value: formatPrice(ind.vwap),
-        detail: price > 0 ? (price > ind.vwap ? 'Price trading above VWAP — bullish intraday' : 'Price trading below VWAP — bearish intraday') : '—',
-        signal: (price > 0 ? (price > ind.vwap ? 'buy' : 'sell') : 'neutral') as Signal,
+        value: formatPrice(ind.vwap_20),
+        detail: price > 0 ? (price > (ind.vwap_20 ?? 0) ? 'Price trading above VWAP — bullish intraday' : 'Price trading below VWAP — bearish intraday') : '—',
+        signal: (price > 0 ? (price > (ind.vwap_20 ?? 0) ? 'buy' : 'sell') : 'neutral') as Signal,
         valueClass: 'text-white',
       },
       {
@@ -152,7 +162,9 @@ export function TechnicalPage() {
         signal: (ema12 > ema26 ? 'buy' : 'sell') as Signal,
         valueClass: ema12 > ema26 ? 'text-emerald-400' : 'text-red-400',
       },
-    ];
+    );
+
+    return result;
   })() : [];
 
   const buys = indicators.filter(i => i.signal === 'buy').length;
@@ -306,11 +318,11 @@ export function TechnicalPage() {
             <p className="mb-3 text-sm font-semibold text-white">Moving Averages Detail</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {[
-                { label: 'SMA 20', value: tech.indicators.sma.sma_20 },
-                { label: 'SMA 50', value: tech.indicators.sma.sma_50 },
-                { label: 'SMA 200', value: tech.indicators.sma.sma_200 },
-                { label: 'EMA 12', value: tech.indicators.ema.ema_12 },
-                { label: 'EMA 26', value: tech.indicators.ema.ema_26 },
+                { label: 'SMA 20', value: tech.indicators.sma_20 ?? 0 },
+                { label: 'SMA 50', value: tech.indicators.sma_50 ?? 0 },
+                { label: 'SMA 200', value: tech.indicators.sma_200 ?? 0 },
+                { label: 'EMA 12', value: tech.indicators.ema_12 ?? 0 },
+                { label: 'EMA 26', value: tech.indicators.ema_26 ?? 0 },
               ].map(ma => {
                 const price = prices?.price ?? 0;
                 const above = price > 0 && price > ma.value;
@@ -331,6 +343,7 @@ export function TechnicalPage() {
 
           {/* Bollinger Bands + MACD detail */}
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
+            {tech.indicators.bollinger_bands && (
             <div className="rounded-lg border border-slate-700 bg-slate-800 p-4">
               <p className="mb-3 text-sm font-semibold text-white">Bollinger Bands</p>
               <div className="space-y-2">
@@ -352,12 +365,14 @@ export function TechnicalPage() {
                 )}
               </div>
             </div>
+            )}
 
+            {tech.indicators.macd && (
             <div className="rounded-lg border border-slate-700 bg-slate-800 p-4">
               <p className="mb-3 text-sm font-semibold text-white">MACD</p>
               <div className="space-y-2">
                 {[
-                  { label: 'MACD Line', value: tech.indicators.macd.macd.toFixed(4) },
+                  { label: 'MACD Line', value: tech.indicators.macd.macd_line.toFixed(4) },
                   { label: 'Signal Line', value: tech.indicators.macd.signal.toFixed(4) },
                 ].map(m => (
                   <div key={m.label} className="flex items-center justify-between text-sm">
@@ -376,6 +391,7 @@ export function TechnicalPage() {
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           {/* Support & Resistance */}

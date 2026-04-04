@@ -383,7 +383,7 @@ export function MarketProfilePage() {
                       { label: 'SMA 20', value: indicators.sma?.sma_20 ? `$${indicators.sma.sma_20.toFixed(2)}` : '—', color: 'text-slate-300' },
                       { label: 'SMA 50', value: indicators.sma?.sma_50 ? `$${indicators.sma.sma_50.toFixed(2)}` : '—', color: 'text-slate-300' },
                       { label: 'EMA 12', value: indicators.ema?.ema_12 ? `$${indicators.ema.ema_12.toFixed(2)}` : '—', color: 'text-slate-300' },
-                      { label: 'MACD', value: indicators.macd?.macd !== undefined ? indicators.macd.macd.toFixed(2) : '—', color: indicators.macd?.macd !== undefined ? (indicators.macd.macd > 0 ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500' },
+                      { label: 'MACD', value: indicators.macd?.macd_line !== undefined ? indicators.macd.macd_line.toFixed(2) : '—', color: indicators.macd?.macd_line !== undefined ? (indicators.macd.macd_line > 0 ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500' },
                     ].map((row) => (
                       <div key={row.label} className="flex justify-between">
                         <span className="text-slate-400">{row.label}</span>

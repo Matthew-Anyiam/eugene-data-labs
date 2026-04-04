@@ -65,10 +65,10 @@ function SentimentGauge({ score }: { score: number }) {
       <path d="M 16 56 A 44 44 0 0 1 104 56" fill="none" stroke="#334155" strokeWidth="8" strokeLinecap="round" />
       {/* Colored fill arc */}
       {clamped !== 0 && (() => {
-        const startAngle = 0; // right = 0deg in standard, but we need 180 (left) to start
+        void 0; // startAngle and needleRad unused — kept for reference
         // We'll draw from neutral (top = 90deg) to needle position
         const neutralRad = Math.PI / 2; // 90deg
-        const needleRad = rad;
+        void rad;
         // Determine sweep
         const large = Math.abs(clamped) > 50 ? 1 : 0;
         const sweep = clamped > 0 ? 1 : 0; // clockwise = towards right = bullish

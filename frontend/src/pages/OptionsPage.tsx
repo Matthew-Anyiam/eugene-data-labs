@@ -208,7 +208,7 @@ export function OptionsPage() {
               </div>
 
               {/* Bollinger Bands */}
-              <div>
+              {tech.bollinger_bands && <div>
                 <p className="mb-2 text-xs font-medium text-slate-400">Bollinger Bands (20, 2σ)</p>
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between">
@@ -262,11 +262,11 @@ export function OptionsPage() {
                     })()}
                   </div>
                 )}
-              </div>
+              </div>}
 
               {/* Band width as vol proxy */}
-              {price && (() => {
-                const bw = ((tech.bollinger_bands.upper - tech.bollinger_bands.lower) / tech.bollinger_bands.middle) * 100;
+              {price && tech.bollinger_bands && (() => {
+                const bw = ((tech.bollinger_bands!.upper - tech.bollinger_bands!.lower) / tech.bollinger_bands!.middle) * 100;
                 return (
                   <div className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2">
                     <div className="flex items-center justify-between text-xs">

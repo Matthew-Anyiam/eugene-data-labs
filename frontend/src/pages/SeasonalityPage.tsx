@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { CalendarDays, Search, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { cn } from '../../lib/utils';
-import { eugeneApi } from '../../lib/api';
+import { cn } from '../lib/utils';
+import { eugeneApi } from '../lib/api';
 
 const DEFAULT_TICKERS = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

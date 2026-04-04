@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { Activity, TrendingUp, TrendingDown, Shield, Loader2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useEconomics } from '../../hooks/useEconomics';
-import { useNewsSentiment } from '../../hooks/useNewsSentiment';
+import { cn } from '../lib/utils';
+import { useEconomics } from '../hooks/useEconomics';
+import { useNewsSentiment } from '../hooks/useNewsSentiment';
 
 interface FredSeries {
   id: string;

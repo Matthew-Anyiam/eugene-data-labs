@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calculator, Plus, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { Calculator, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { eugeneApi } from '../lib/api';
 import { cn } from '../lib/utils';

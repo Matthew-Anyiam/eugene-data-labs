@@ -362,7 +362,7 @@ export function VolatilityPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
-                    {[...dailyReturns].reverse().slice(0, 20).map((r, idx, arr) => {
+                    {[...dailyReturns].reverse().slice(0, 20).map((r, idx, _arr) => {
                       const barIdx = bars.length - 1 - idx;
                       const hv20row =
                         barIdx >= 20 ? computeHistoricalVol(bars.slice(0, barIdx + 1), 20) : null;

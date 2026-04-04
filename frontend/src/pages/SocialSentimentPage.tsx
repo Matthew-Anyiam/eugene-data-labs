@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MessageCircle, TrendingUp, TrendingDown, Search, Loader2, ExternalLink } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useNewsSentiment, useWorldNews } from '../../hooks/useNewsSentiment';
+import { cn } from '../lib/utils';
+import { useNewsSentiment, useWorldNews } from '../hooks/useNewsSentiment';
 
 interface SentimentResult {
   sentiment_score: number;
@@ -48,11 +48,6 @@ function SentimentGauge({ score }: { score: number }) {
     const rad = ((angleDeg - 180) * Math.PI) / 180;
     return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
   }
-
-  const start = polarToCart(0); // left
-  const bearishEnd = polarToCart(60);
-  const neutralEnd = polarToCart(120);
-  const end = polarToCart(180); // right
 
   const needle = polarToCart(deg);
 

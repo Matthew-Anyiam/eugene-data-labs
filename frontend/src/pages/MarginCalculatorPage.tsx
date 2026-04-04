@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calculator, AlertTriangle, DollarSign } from 'lucide-react';
+import { Calculator, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const MARGIN_RATES = [
@@ -32,7 +32,6 @@ export function MarginCalculatorPage() {
   const positionValue = stockPrice * shares;
   const selectedMargin = MARGIN_RATES[marginType];
   const initialMarginReq = positionValue * (selectedMargin.initial / 100);
-  const maintenanceMarginReq = positionValue * (selectedMargin.maintenance / 100);
   const borrowedAmount = Math.max(0, positionValue - accountValue);
   const buyingPower = accountValue / (selectedMargin.initial / 100);
   const leverageRatio = positionValue / accountValue;

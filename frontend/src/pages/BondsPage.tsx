@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Banknote, TrendingUp, TrendingDown, AlertTriangle, Loader2 } from 'lucide-react';
+import { Banknote, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useEconomics } from '../hooks/useEconomics';
 import type { FredSeries } from '../lib/types';
@@ -48,17 +48,7 @@ function parseNum(s: FredSeries | null | undefined): number | null {
   return isNaN(num) ? null : num;
 }
 
-function ChangeIndicator({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-slate-600">—</span>;
-  if (value === 0) return <span className="text-slate-400">0</span>;
-  const pos = value > 0;
-  return (
-    <span className={cn('inline-flex items-center gap-0.5', pos ? 'text-red-400' : 'text-emerald-400')}>
-      {pos ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-      {pos ? '+' : ''}{value.toFixed(3)}
-    </span>
-  );
-}
+/* ChangeIndicator reserved for future use */
 
 function SpreadValue({ bps, signal }: { bps: number | null; signal: 'normal' | 'warning' | 'inverted' }) {
   if (bps === null) return <span className="text-slate-600">N/A</span>;

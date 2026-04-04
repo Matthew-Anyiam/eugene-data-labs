@@ -448,6 +448,124 @@ def _build_mcp(include_rest: bool = False):
             stats = get_usage(key)
             return JSONResponse(stats)
 
+        # --- JWT user auth endpoints ---
+
+        @mcp.custom_route("/v1/auth/signup", methods=["POST"])
+        async def auth_signup(request: Request) -> JSONResponse:
+            """User signup. Accepts {email, password, name}."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                email = data.get("email", "").strip().lower()
+                password = data.get("password", "")
+                name = data.get("name", "").strip()
+
+                if not email or "@" not in email:
+                    return JSONResponse({"error": "Valid email is required"}, status_code=400)
+                if not password or len(password) < 8:
+                    return JSONResponse({"error": "Password must be at least 8 characters"}, status_code=400)
+                if not name:
+                    return JSONResponse({"error": "Name is required"}, status_code=400)
+
+                from eugene.user_auth import hash_password, create_token
+                password_hash = hash_password(password)
+                user = eugene.db.create_user(email, name, password_hash)
+                if user is None:
+                    return JSONResponse({"error": "Email already registered"}, status_code=409)
+
+                token = create_token(str(user["id"]), user["email"], user["name"])
+                return JSONResponse({
+                    "token": token,
+                    "user": {
+                        "id": str(user["id"]),
+                        "email": user["email"],
+                        "name": user["name"],
+                        "created_at": user.get("created_at", ""),
+                    }
+                })
+            except Exception:
+                logger.exception("Signup failed")
+                return JSONResponse({"error": "Failed to create account"}, status_code=500)
+
+        @mcp.custom_route("/v1/auth/login", methods=["POST"])
+        async def auth_login(request: Request) -> JSONResponse:
+            """User login. Accepts {email, password}."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                email = data.get("email", "").strip().lower()
+                password = data.get("password", "")
+
+                if not email or not password:
+                    return JSONResponse({"error": "Email and password required"}, status_code=400)
+
+                user = eugene.db.get_user_by_email(email)
+                if user is None:
+                    return JSONResponse({"error": "Invalid email or password"}, status_code=401)
+
+                from eugene.user_auth import verify_password, create_token
+                if not verify_password(password, user["password"]):
+                    return JSONResponse({"error": "Invalid email or password"}, status_code=401)
+
+                eugene.db.update_last_login(user["id"])
+                token = create_token(str(user["id"]), user["email"], user["name"])
+                return JSONResponse({
+                    "token": token,
+                    "user": {
+                        "id": str(user["id"]),
+                        "email": user["email"],
+                        "name": user["name"],
+                        "avatar_url": user.get("avatar_url"),
+                        "created_at": user.get("created_at", ""),
+                    }
+                })
+            except Exception:
+                logger.exception("Login failed")
+                return JSONResponse({"error": "Authentication failed"}, status_code=500)
+
+        @mcp.custom_route("/v1/auth/me", methods=["GET"])
+        async def auth_me(request: Request) -> JSONResponse:
+            """Get current user from JWT token."""
+            auth_header = request.headers.get("authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return JSONResponse({"error": "Missing or invalid authorization header"}, status_code=401)
+
+            token = auth_header[7:]
+            from eugene.user_auth import decode_token
+            payload = decode_token(token)
+            if payload is None:
+                return JSONResponse({"error": "Invalid or expired token"}, status_code=401)
+
+            user = eugene.db.get_user_by_id(int(payload["user_id"]))
+            if user is None:
+                return JSONResponse({"error": "User not found"}, status_code=404)
+
+            return JSONResponse({
+                "id": str(user["id"]),
+                "email": user["email"],
+                "name": user["name"],
+                "avatar_url": user.get("avatar_url"),
+                "created_at": user.get("created_at", ""),
+            })
+
+        @mcp.custom_route("/v1/auth/refresh", methods=["POST"])
+        async def auth_refresh(request: Request) -> JSONResponse:
+            """Refresh a JWT token."""
+            auth_header = request.headers.get("authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return JSONResponse({"error": "Missing authorization header"}, status_code=401)
+
+            token = auth_header[7:]
+            from eugene.user_auth import decode_token, create_token
+            payload = decode_token(token)
+            if payload is None:
+                return JSONResponse({"error": "Invalid or expired token"}, status_code=401)
+
+            new_token = create_token(payload["user_id"], payload["email"], payload["name"])
+            return JSONResponse({"token": new_token})
+
         @mcp.custom_route("/v1/waitlist", methods=["POST"])
         async def waitlist(request: Request) -> JSONResponse:
             """Collect waitlist emails."""
@@ -1556,6 +1674,52 @@ def _build_mcp(include_rest: bool = False):
                 event_generator(),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+            )
+
+        @mcp.custom_route("/v1/stream/prices", methods=["GET"])
+        async def stream_prices(request: Request) -> StreamingResponse:
+            """Stream real-time price updates for given tickers via SSE.
+
+            Query params:
+              tickers: comma-separated list (e.g. AAPL,MSFT,NVDA)
+              interval: seconds between updates (default 5, min 3)
+            """
+            import json as _json
+
+            tickers_param = request.query_params.get("tickers", "AAPL,MSFT,NVDA")
+            interval = max(3, int(request.query_params.get("interval", "5")))
+            tickers = [t.strip().upper() for t in tickers_param.split(",") if t.strip()][:20]
+
+            async def event_generator():
+                while True:
+                    try:
+                        prices = {}
+                        for ticker in tickers:
+                            try:
+                                data = await asyncio.to_thread(get_price, ticker)
+                                if data:
+                                    prices[ticker] = data
+                            except Exception:
+                                pass
+
+                        if prices:
+                            yield f"data: {_json.dumps({'type': 'prices', 'data': prices, 'timestamp': __import__('datetime').datetime.utcnow().isoformat()})}\n\n"
+
+                        await asyncio.sleep(interval)
+                    except asyncio.CancelledError:
+                        break
+                    except Exception as e:
+                        yield f"data: {_json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                        await asyncio.sleep(interval)
+
+            return StreamingResponse(
+                event_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
             )
 
     return mcp

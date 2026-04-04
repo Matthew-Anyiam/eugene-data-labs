@@ -269,6 +269,19 @@ def init_db():
 
             CREATE INDEX IF NOT EXISTS idx_api_keys_key
                 ON api_keys (key);
+
+            CREATE TABLE IF NOT EXISTS users (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                email       TEXT UNIQUE NOT NULL,
+                name        TEXT NOT NULL,
+                password    TEXT NOT NULL,
+                avatar_url  TEXT,
+                tier        TEXT DEFAULT 'free',
+                created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                last_login  TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
         """)
 
     db_type = "PostgreSQL" if _is_postgres() else "SQLite"
@@ -379,6 +392,82 @@ def get_research_remaining(client_ip: str, daily_limit: int = 3) -> int:
         ).fetchone()
         used = row[0]
     return max(0, daily_limit - used)
+
+
+# ---------------------------------------------------------------------------
+# Users
+# ---------------------------------------------------------------------------
+
+def create_user(email: str, name: str, password_hash: str) -> dict | None:
+    """Create a user. Returns {id, email, name, created_at} or None if email exists."""
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                "INSERT INTO users (email, name, password) VALUES (?, ?, ?)",
+                (email, name, password_hash),
+            )
+            row = conn.execute(
+                "SELECT id, email, name, created_at FROM users WHERE email = ?",
+                (email,),
+            ).fetchone()
+            if row is None:
+                return None
+            return {"id": row["id"], "email": row["email"], "name": row["name"], "created_at": row["created_at"]}
+    except Exception:
+        logger.debug("create_user failed (likely duplicate email: %s)", email)
+        return None
+
+
+def get_user_by_email(email: str) -> dict | None:
+    """Get user by email, returns full row including password hash."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, email, name, password, avatar_url, tier, created_at, last_login "
+            "FROM users WHERE email = ?",
+            (email,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row["id"],
+            "email": row["email"],
+            "name": row["name"],
+            "password": row["password"],
+            "avatar_url": row["avatar_url"],
+            "tier": row["tier"],
+            "created_at": row["created_at"],
+            "last_login": row["last_login"],
+        }
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    """Get user by ID, excludes password hash."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, email, name, avatar_url, tier, created_at, last_login "
+            "FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row["id"],
+            "email": row["email"],
+            "name": row["name"],
+            "avatar_url": row["avatar_url"],
+            "tier": row["tier"],
+            "created_at": row["created_at"],
+            "last_login": row["last_login"],
+        }
+
+
+def update_last_login(user_id: int):
+    """Update last_login timestamp."""
+    with _get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET last_login = datetime('now') WHERE id = ?",
+            (user_id,),
+        )
 
 
 # ---------------------------------------------------------------------------

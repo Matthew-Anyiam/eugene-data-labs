@@ -70,10 +70,7 @@ function useTickerOHLCV(ticker: string) {
   });
 }
 
-function TickerLoader({ ticker }: { ticker: string }) {
-  useTickerOHLCV(ticker);
-  return null;
-}
+// TickerLoader removed — data fetching handled via queryResults
 
 // ─── Main page ────────────────────────────────────────────────────────
 
@@ -108,7 +105,7 @@ export function CorrelationPage() {
     return map;
   }, [tickers, q0.data, q1.data, q2.data, q3.data, q4.data, q5.data, q6.data, q7.data, q8.data, q9.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadingTickers = tickers.filter((t, i) => queryResults[i]?.isLoading);
+  const loadingTickers = tickers.filter((_t, i) => queryResults[i]?.isLoading);
   const readyTickers = tickers.filter((t) => !!returnsMap[t]);
 
   const matrix = useMemo(() => {

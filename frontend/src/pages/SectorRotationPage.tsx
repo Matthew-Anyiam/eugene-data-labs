@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { RefreshCw, TrendingUp, TrendingDown, ArrowRight, Loader2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useScreener } from '../../hooks/useScreener';
+import { RefreshCw, ArrowRight, Loader2 } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { useScreener } from '../hooks/useScreener';
 
 interface ScreenerResult {
   ticker: string;

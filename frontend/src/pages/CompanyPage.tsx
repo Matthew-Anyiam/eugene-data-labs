@@ -24,6 +24,8 @@ import { useEstimates, useEarnings } from '../hooks/useEstimates';
 import { usePeers } from '../hooks/usePeers';
 import { useOwnership } from '../hooks/useOwnership';
 import { CompanyHeader } from '../components/company/CompanyHeader';
+import { ConvergencePanel } from '../components/company/ConvergencePanel';
+import { AIResearchPanel } from '../components/company/AIResearchPanel';
 import { PriceChart } from '../components/charts/PriceChart';
 import { FinancialStatements } from '../components/company/FinancialStatements';
 import { MetricsGrid } from '../components/company/MetricsGrid';
@@ -156,6 +158,12 @@ export function CompanyPage() {
               {profile.data?.data && (
                 <CompanyInfoCard profile={profile.data.data} />
               )}
+
+              {/* Convergence Intelligence */}
+              <ConvergencePanel ticker={ticker} />
+
+              {/* AI Research */}
+              <AIResearchPanel ticker={ticker} />
             </>
           )}
         </div>

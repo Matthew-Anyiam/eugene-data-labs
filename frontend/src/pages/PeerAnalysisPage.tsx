@@ -9,7 +9,6 @@ import { useMetrics } from '../hooks/useMetrics';
 const QUICK_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META', 'TSLA', 'JPM', 'AMZN'];
 
 const COLORS = ['text-blue-400', 'text-emerald-400', 'text-amber-400', 'text-purple-400', 'text-pink-400'];
-const BG_COLORS = ['bg-blue-500/10 border-blue-500/20', 'bg-emerald-500/10 border-emerald-500/20', 'bg-amber-500/10 border-amber-500/20', 'bg-purple-500/10 border-purple-500/20', 'bg-pink-500/10 border-pink-500/20'];
 
 // Metric keys to display from peers data
 const PEER_METRIC_KEYS = [
@@ -35,66 +34,7 @@ function fmtVal(val: number | undefined, format: string): string {
   return val.toFixed(2);
 }
 
-// A sub-component to load a single ticker's peer card data
-function PeerCard({
-  ticker,
-  colorIdx,
-  onRemove,
-  canRemove,
-}: {
-  ticker: string;
-  colorIdx: number;
-  onRemove: () => void;
-  canRemove: boolean;
-}) {
-  const { data: prices, isLoading: pricesLoading } = usePrices(ticker);
-  const { data: metricsResult, isLoading: metricsLoading } = useMetrics(ticker);
-  const latestMetrics = metricsResult?.data?.periods?.[0]?.metrics;
-
-  return (
-    <div className={cn('rounded-xl border p-3', BG_COLORS[colorIdx % BG_COLORS.length])}>
-      <div className="flex items-start justify-between">
-        <div>
-          <Link to={`/company/${ticker}`} className={cn('font-mono text-sm font-bold hover:underline', COLORS[colorIdx % COLORS.length])}>
-            {ticker}
-          </Link>
-          {prices && (
-            <div className="mt-0.5 text-xs text-white font-medium">{formatPrice(prices.price)}</div>
-          )}
-          {prices && (
-            <div className={cn('text-[10px]', prices.change >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-              {prices.change >= 0 ? '+' : ''}{formatPercent(prices.change_percent)}
-            </div>
-          )}
-        </div>
-        {canRemove && (
-          <button onClick={onRemove} className="text-slate-500 hover:text-white">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-      {(pricesLoading || metricsLoading) && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-slate-500">
-          <Loader2 className="h-2.5 w-2.5 animate-spin" /> Loading...
-        </div>
-      )}
-      {latestMetrics && (
-        <div className="mt-2 space-y-0.5">
-          {[
-            { label: 'P/E', val: latestMetrics.valuation?.['pe_ratio'], fmt: 'x' },
-            { label: 'P/S', val: latestMetrics.valuation?.['ps_ratio'], fmt: 'x' },
-            { label: 'Gross Margin', val: latestMetrics.profitability?.['gross_margin'], fmt: '%' },
-          ].map(m => (
-            <div key={m.label} className="flex justify-between text-[10px]">
-              <span className="text-slate-500">{m.label}</span>
-              <span className="text-slate-300">{fmtVal(m.val, m.fmt)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// PeerCard component removed — currently unused, can be restored if needed
 
 // Sub-component: a single row in the peer table
 function PeerMetricRow({
@@ -112,6 +52,7 @@ function PeerMetricRow({
   peers: Array<{ ticker: string; metrics: Record<string, { value: number; percentile: number }> }>;
   primaryTicker: string;
 }) {
+  void primaryTicker; // used for future highlighting
   const values = peers.map(p => p.metrics[metricKey]?.value);
   const validValues = values.filter((v): v is number => v != null && isFinite(v));
   const best = validValues.length > 0
@@ -121,7 +62,7 @@ function PeerMetricRow({
   return (
     <tr className="border-b border-slate-700/50 bg-slate-800 hover:bg-slate-750">
       <td className="px-3 py-2 text-xs font-medium text-slate-400 w-36">{label}</td>
-      {peers.map((peer, i) => {
+      {peers.map((peer, _i) => {
         const metric = peer.metrics[metricKey];
         const val = metric?.value;
         const pct = metric?.percentile;
@@ -312,7 +253,7 @@ export function PeerAnalysisPage() {
                 <p className="text-[10px] text-slate-600">Click to add/remove from comparison table below</p>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {peersData.peers.map((peer, i) => {
+                {peersData.peers.map((peer) => {
                   const isSelected = effectivePeers.includes(peer.ticker);
                   return (
                     <button

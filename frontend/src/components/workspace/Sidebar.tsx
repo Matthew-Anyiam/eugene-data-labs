@@ -8,7 +8,7 @@ import {
   GitBranch, Landmark, AlertTriangle, Snowflake, EyeOff, TrendingDown, Shield,
   GitCompareArrows, Bot, LineChart, Bell, FileBarChart, BookOpen, Rewind, SlidersHorizontal,
   Calculator, Receipt, Network, Search, ChevronDown, ChevronRight, Moon, Plus, CreditCard,
-  X, Settings, LogOut, User,
+  X, LogOut, User,
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useWatchlist } from '../../hooks/useWatchlist';

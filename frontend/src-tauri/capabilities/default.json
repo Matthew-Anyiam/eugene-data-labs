@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nickelpack/npl/main/schemas/tauri/2.0.0/capability.schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "window-state:allow-restore-state",
+    "window-state:allow-save-window-state"
+  ]
+}

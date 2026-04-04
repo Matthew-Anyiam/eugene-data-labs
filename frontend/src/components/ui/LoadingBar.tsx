@@ -6,8 +6,8 @@ export function LoadingBar() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [visible, setVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   useEffect(() => {
     // Start loading on route change

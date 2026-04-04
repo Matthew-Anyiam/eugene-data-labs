@@ -7,6 +7,7 @@ import { ActivityPanel } from './components/workspace/ActivityPanel';
 import { ShortcutsHelp } from './components/workspace/ShortcutsHelp';
 import { Onboarding } from './components/workspace/Onboarding';
 import { FeedbackWidget } from './components/ui/FeedbackWidget';
+import { LiveTicker } from './components/workspace/LiveTicker';
 import { LoadingBar } from './components/ui/LoadingBar';
 import { ToastContainer } from './components/workspace/ToastContainer';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
@@ -362,6 +363,7 @@ function WorkspaceLayout() {
       )}
 
       <main className="flex-1 overflow-y-auto">
+        <LiveTicker />
         <PageHeader
           onToggleActivity={toggleActivity}
           activityOpen={activityOpen}

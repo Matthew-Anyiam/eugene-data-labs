@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { SlidersHorizontal, Plus, X, Save, Trash2, Download, Loader2 } from 'lucide-react';
+import { SlidersHorizontal, Plus, X, Save, Download, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useScreener } from '../hooks/useScreener';
 import type { ScreenerFilters } from '../hooks/useScreener';
@@ -80,10 +80,6 @@ function formToFilters(f: FormState): ScreenerFilters {
     betaMax: f.betaMax ? Number(f.betaMax) : undefined,
     limit: 100,
   };
-}
-
-function isFormEmpty(f: FormState): boolean {
-  return Object.values(f).every((v) => v === '');
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

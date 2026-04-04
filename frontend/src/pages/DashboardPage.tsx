@@ -16,11 +16,10 @@ import { SourceHealth } from '../components/dashboard/SourceHealth';
 import { QuickActions } from '../components/dashboard/QuickActions';
 import { WatchlistPerformance } from '../components/dashboard/WatchlistPerformance';
 import { cn, formatPercent } from '../lib/utils';
-import type { ScreenerResult } from '../lib/types';
 import {
   Activity, AlertTriangle, BarChart3, Loader2, Shield,
   TrendingUp, TrendingDown, Zap, Clock, Database, Layers,
-  Newspaper, DollarSign, UserCheck, ArrowUp, ArrowDown,
+  Newspaper, DollarSign, UserCheck,
 } from 'lucide-react';
 
 const RISK_COLORS: Record<string, string> = {
@@ -359,12 +358,12 @@ function EconomicPulseWidget() {
     const items: { name: string; value: number; date: string; id: string }[] = [];
     if (inflationData?.series) {
       for (const s of inflationData.series) {
-        items.push({ name: s.title, value: s.value, date: s.date, id: s.id });
+        items.push({ name: s.title, value: Number(s.value), date: s.date, id: s.id });
       }
     }
     if (ratesData?.series) {
       for (const s of ratesData.series) {
-        items.push({ name: s.title, value: s.value, date: s.date, id: s.id });
+        items.push({ name: s.title, value: Number(s.value), date: s.date, id: s.id });
       }
     }
     return items.slice(0, 6);

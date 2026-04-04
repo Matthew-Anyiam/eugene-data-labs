@@ -1,9 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
   CircleDollarSign,
-  TrendingUp,
-  Calendar,
-  Filter,
   Search,
   Loader2,
   AlertCircle,
@@ -19,7 +16,6 @@ const DEFAULT_TICKERS = [
   'WMT', 'COST', 'ABT', 'LMT',
 ];
 
-type SortKey = 'date' | 'value';
 
 /* ── Per-ticker dividend panel ─────────────────────── */
 function TickerDividendPanel({ ticker }: { ticker: string }) {

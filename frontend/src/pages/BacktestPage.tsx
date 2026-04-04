@@ -72,8 +72,6 @@ function runSMABacktest(
 
     if (prevSma === null) continue;
 
-    const portfolioValue = cash + shares * bar.close;
-
     // Buy signal: close crosses above SMA
     if (!inPosition && prev.close <= prevSma && bar.close > smaVal) {
       shares = cash / bar.close;

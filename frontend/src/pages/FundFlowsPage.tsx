@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDownUp, Loader2, AlertTriangle, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { ArrowDownUp, Loader2, AlertTriangle, Search } from 'lucide-react';
 import { useScreener } from '../hooks/useScreener';
 import { cn } from '../lib/utils';
 import type { ScreenerResult } from '../lib/types';

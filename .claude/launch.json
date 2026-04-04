@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "eugene-frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/nzubechukwuanyiam/Desktop/eugene/.claude/worktrees/stoic-nobel/frontend && npm run dev"],
       "port": 5173
     },
     {
       "name": "eugene-main",
       "runtimeExecutable": "/Users/nzubechukwuanyiam/Desktop/eugene/venv/bin/python3",
-      "runtimeArgs": ["/Users/nzubechukwuanyiam/Desktop/eugene/eugene_server.py"],
+      "runtimeArgs": ["/Users/nzubechukwuanyiam/Desktop/eugene/.claude/worktrees/stoic-nobel/eugene_server.py"],
       "port": 8000
     }
   ]

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Activity, Loader2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useScreener } from '../../hooks/useScreener';
+import { cn } from '../lib/utils';
+import { useScreener } from '../hooks/useScreener';
 
 interface ScreenerResult {
   ticker: string;
@@ -91,7 +91,6 @@ export function BreadthPage() {
   // Market-cap tiers
   const capTiers = useMemo(() => {
     return CAP_TIERS.map((t, i) => {
-      const nextMin = i + 1 < CAP_TIERS.length ? CAP_TIERS[i + 1].min : 0;
       const count = results.filter(
         (r) => r.market_cap >= t.min && (i === 0 ? true : r.market_cap < CAP_TIERS[i - 1].min),
       ).length;
@@ -107,7 +106,6 @@ export function BreadthPage() {
   const avgVolume = totalStocks
     ? results.reduce((s, r) => s + (r.volume ?? 0), 0) / totalStocks
     : 0;
-  const totalMarketCap = results.reduce((s, r) => s + (r.market_cap ?? 0), 0);
   const avgBeta = totalStocks
     ? results.reduce((s, r) => s + (r.beta ?? 0), 0) / totalStocks
     : 0;

@@ -1,8 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
   PieChart,
-  TrendingUp,
-  TrendingDown,
   ArrowUpDown,
   Zap,
   Heart,
@@ -20,7 +18,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { cn, formatPercent, formatPrice } from '../lib/utils';
+import { cn, formatPrice } from '../lib/utils';
 import { useScreener } from '../hooks/useScreener';
 import type { ScreenerResult } from '../lib/types';
 
