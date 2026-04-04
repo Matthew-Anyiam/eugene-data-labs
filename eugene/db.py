@@ -271,14 +271,15 @@ def init_db():
                 ON api_keys (key);
 
             CREATE TABLE IF NOT EXISTS users (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                email       TEXT UNIQUE NOT NULL,
-                name        TEXT NOT NULL,
-                password    TEXT NOT NULL,
-                avatar_url  TEXT,
-                tier        TEXT DEFAULT 'free',
-                created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-                last_login  TEXT
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                email           TEXT UNIQUE NOT NULL,
+                name            TEXT NOT NULL,
+                password        TEXT NOT NULL,
+                avatar_url      TEXT,
+                tier            TEXT DEFAULT 'free',
+                email_verified  INTEGER DEFAULT 0,
+                created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+                last_login      TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
@@ -505,6 +506,36 @@ def update_last_login(user_id: int):
             "UPDATE users SET last_login = datetime('now') WHERE id = ?",
             (user_id,),
         )
+
+
+def update_password(user_id: int, new_password_hash: str) -> bool:
+    """Update a user's password hash. Returns True if updated."""
+    with _get_conn() as conn:
+        result = conn.execute(
+            "UPDATE users SET password = ? WHERE id = ?",
+            (new_password_hash, user_id),
+        )
+        return result.rowcount > 0
+
+
+def set_email_verified(user_id: int) -> bool:
+    """Mark a user's email as verified."""
+    with _get_conn() as conn:
+        result = conn.execute(
+            "UPDATE users SET email_verified = 1 WHERE id = ?",
+            (user_id,),
+        )
+        return result.rowcount > 0
+
+
+def is_email_verified(user_id: int) -> bool:
+    """Check if a user's email is verified."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT email_verified FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        return bool(row and row["email_verified"])
 
 
 # ---------------------------------------------------------------------------

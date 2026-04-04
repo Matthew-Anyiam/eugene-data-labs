@@ -477,11 +477,16 @@ def _build_mcp(include_rest: bool = False):
                 if not name:
                     return JSONResponse({"error": "Name is required"}, status_code=400)
 
-                from eugene.user_auth import hash_password, create_token
+                from eugene.user_auth import hash_password, create_token, create_verify_token
                 password_hash = hash_password(password)
                 user = eugene.db.create_user(email, name, password_hash)
                 if user is None:
                     return JSONResponse({"error": "Email already registered"}, status_code=409)
+
+                # Send email verification token
+                verify_token = create_verify_token(str(user["id"]), email)
+                logger.info(f"Email verification token for {email}: {verify_token}")
+                # TODO: Send verification email with link
 
                 token = create_token(str(user["id"]), user["email"], user["name"])
                 return JSONResponse({
@@ -490,6 +495,7 @@ def _build_mcp(include_rest: bool = False):
                         "id": str(user["id"]),
                         "email": user["email"],
                         "name": user["name"],
+                        "email_verified": False,
                         "created_at": user.get("created_at", ""),
                     }
                 })
@@ -587,6 +593,107 @@ def _build_mcp(include_rest: bool = False):
 
             new_token = create_token(payload["user_id"], payload["email"], payload["name"])
             return JSONResponse({"token": new_token})
+
+        # ── Password reset endpoints ─────────────────────────────────
+        @mcp.custom_route("/v1/auth/forgot-password", methods=["POST"])
+        async def auth_forgot_password(request: Request) -> JSONResponse:
+            """Request a password reset. Accepts {email}.
+            Always returns 200 to prevent email enumeration."""
+            from eugene.endpoint_limiter import auth_limiter, get_client_ip
+            client_ip = get_client_ip(request)
+            if not auth_limiter.check_and_record(client_ip):
+                return JSONResponse({"message": "If that email exists, a reset link has been sent."})
+
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                email = data.get("email", "").strip().lower()
+
+                user = eugene.db.get_user_by_email(email)
+                if user:
+                    from eugene.user_auth import create_reset_token
+                    token = create_reset_token(str(user["id"]), user["email"])
+                    # In production, send this via email. For now, log it.
+                    logger.info(f"Password reset token for {email}: {token}")
+                    # TODO: Send email with reset link: /reset-password?token={token}
+            except Exception:
+                logger.exception("Forgot password error")
+
+            # Always return success to prevent enumeration
+            return JSONResponse({"message": "If that email exists, a reset link has been sent."})
+
+        @mcp.custom_route("/v1/auth/reset-password", methods=["POST"])
+        async def auth_reset_password(request: Request) -> JSONResponse:
+            """Reset password with a reset token. Accepts {token, new_password}."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                token = data.get("token", "")
+                new_password = data.get("new_password", "")
+
+                if not token:
+                    return JSONResponse({"error": "Reset token is required"}, status_code=400)
+                if len(new_password) < 8:
+                    return JSONResponse({"error": "Password must be at least 8 characters"}, status_code=400)
+
+                from eugene.user_auth import consume_reset_token, hash_password
+                token_data = consume_reset_token(token)
+                if token_data is None:
+                    return JSONResponse({"error": "Invalid or expired reset token"}, status_code=400)
+
+                new_hash = hash_password(new_password)
+                eugene.db.update_password(int(token_data["user_id"]), new_hash)
+                return JSONResponse({"message": "Password has been reset. You can now log in."})
+            except Exception:
+                logger.exception("Reset password error")
+                return JSONResponse({"error": "Failed to reset password"}, status_code=500)
+
+        # ── Email verification endpoints ────────────────────────────
+        @mcp.custom_route("/v1/auth/verify-email", methods=["POST"])
+        async def auth_verify_email(request: Request) -> JSONResponse:
+            """Verify email with a verification token. Accepts {token}."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body)
+                token = data.get("token", "")
+
+                if not token:
+                    return JSONResponse({"error": "Verification token is required"}, status_code=400)
+
+                from eugene.user_auth import consume_verify_token
+                token_data = consume_verify_token(token)
+                if token_data is None:
+                    return JSONResponse({"error": "Invalid or expired verification token"}, status_code=400)
+
+                eugene.db.set_email_verified(int(token_data["user_id"]))
+                return JSONResponse({"message": "Email verified successfully."})
+            except Exception:
+                logger.exception("Email verification error")
+                return JSONResponse({"error": "Verification failed"}, status_code=500)
+
+        @mcp.custom_route("/v1/auth/resend-verification", methods=["POST"])
+        async def auth_resend_verification(request: Request) -> JSONResponse:
+            """Resend email verification. Requires auth."""
+            user_id = _get_user_id(request)
+            if user_id is None:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+            user = eugene.db.get_user_by_id(user_id)
+            if not user:
+                return JSONResponse({"error": "User not found"}, status_code=404)
+
+            if eugene.db.is_email_verified(user_id):
+                return JSONResponse({"message": "Email is already verified."})
+
+            from eugene.user_auth import create_verify_token
+            token = create_verify_token(str(user_id), user["email"])
+            logger.info(f"Email verification token for {user['email']}: {token}")
+            # TODO: Send email with verify link: /verify-email?token={token}
+
+            return JSONResponse({"message": "Verification email has been sent."})
 
         # ── Helper: extract authenticated user_id from request ──────
         def _get_user_id(request: Request) -> int | None:
@@ -1888,6 +1995,8 @@ def _create_ws_app(mcp):
     async def ws_prices(websocket: WebSocket):
         """Bidirectional WebSocket for price streaming.
 
+        Authentication: pass token as query param ?token=... or in first message.
+
         Client sends JSON messages:
           {"action": "subscribe", "tickers": ["AAPL", "MSFT"]}
           {"action": "unsubscribe", "tickers": ["MSFT"]}
@@ -1897,6 +2006,19 @@ def _create_ws_app(mcp):
           {"type": "prices", "data": {...}, "timestamp": "..."}
           {"type": "subscribed", "tickers": [...]}
         """
+        # Verify auth token from query params
+        token = websocket.query_params.get("token", "")
+        if token:
+            from eugene.user_auth import decode_token
+            payload = decode_token(token)
+            if payload is None:
+                await websocket.close(code=4001, reason="Invalid or expired token")
+                return
+        # Allow unauthenticated in dev mode (AUTH_DISABLED)
+        elif os.environ.get("VITE_AUTH_DISABLED", "").lower() != "true" and not token:
+            await websocket.close(code=4001, reason="Authentication required. Pass ?token=<jwt>")
+            return
+
         await websocket.accept()
 
         tickers: set[str] = set()

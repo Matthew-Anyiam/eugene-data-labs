@@ -107,13 +107,13 @@ class TestCreateToken:
         assert "exp" in payload
         assert "iat" in payload
 
-    def test_default_expiry_is_72_hours(self):
+    def test_default_expiry_is_4_hours(self):
         token = create_token("u1", "a@b.com", "Alice")
         payload_b64 = token.split(".")[1]
         payload = json.loads(
             base64.urlsafe_b64decode(payload_b64 + "==")
         )
-        assert payload["exp"] - payload["iat"] == 72 * 3600
+        assert payload["exp"] - payload["iat"] == 4 * 3600
 
     def test_custom_expiry(self):
         token = create_token("u1", "a@b.com", "Alice", expires_hours=1)
