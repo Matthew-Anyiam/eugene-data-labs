@@ -1466,6 +1466,70 @@ def _build_mcp(include_rest: bool = False):
             result = await asyncio.to_thread(get_impact, lat, lng, radius)
             return JSONResponse(result)
 
+        # --- NASA GIBS satellite imagery endpoints ---
+
+        @mcp.custom_route("/v1/world/satellite/layers", methods=["GET"])
+        @require_api_key
+        async def world_satellite_layers(request: Request) -> JSONResponse:
+            """List available NASA GIBS satellite imagery layers."""
+            from eugene.world.disasters_intel import list_imagery_layers
+            category = request.query_params.get("category")
+            layers = list_imagery_layers(category=category)
+            return JSONResponse({"layers": layers, "count": len(layers)})
+
+        @mcp.custom_route("/v1/world/satellite/tiles", methods=["GET"])
+        @require_api_key
+        async def world_satellite_tiles(request: Request) -> JSONResponse:
+            """Get WMTS tile config for a GIBS layer (for frontend map rendering)."""
+            from eugene.world.disasters_intel import get_imagery_layer
+            layer = request.query_params.get("layer", "viirs_truecolor")
+            date = request.query_params.get("date")
+            try:
+                config = get_imagery_layer(layer, date=date)
+                return JSONResponse(config)
+            except ValueError as e:
+                return JSONResponse({"error": str(e)}, status_code=400)
+
+        @mcp.custom_route("/v1/world/satellite/imagery", methods=["GET"])
+        @require_api_key
+        async def world_satellite_imagery(request: Request) -> JSONResponse:
+            """Get satellite imagery layers for a specific location."""
+            from eugene.world.disasters_intel import get_satellite_imagery
+            lat = _safe_float(request.query_params.get("lat", "0"), 0, "lat")
+            if isinstance(lat, JSONResponse):
+                return lat
+            lng = _safe_float(request.query_params.get("lng", "0"), 0, "lng")
+            if isinstance(lng, JSONResponse):
+                return lng
+            date = request.query_params.get("date")
+            result = await asyncio.to_thread(get_satellite_imagery, lat, lng, date)
+            return JSONResponse(result)
+
+        # --- NASA EONET natural events ---
+
+        @mcp.custom_route("/v1/world/nasa/events", methods=["GET"])
+        @require_api_key
+        async def world_nasa_events(request: Request) -> JSONResponse:
+            """Get active natural events from NASA EONET."""
+            from eugene.world.disasters_intel import get_nasa_events
+            category = request.query_params.get("category")
+            days = _safe_int(request.query_params.get("days", "30"), 30, "days")
+            if isinstance(days, JSONResponse):
+                return days
+            limit = _safe_int(request.query_params.get("limit", "50"), 50, "limit")
+            if isinstance(limit, JSONResponse):
+                return limit
+            result = await asyncio.to_thread(get_nasa_events, category, days, limit)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/nasa/categories", methods=["GET"])
+        @require_api_key
+        async def world_nasa_categories(request: Request) -> JSONResponse:
+            """List NASA EONET event categories."""
+            from eugene.world.disasters_intel import list_event_categories
+            cats = await asyncio.to_thread(list_event_categories)
+            return JSONResponse({"categories": cats})
+
         # --- Source health endpoint ---
 
         @mcp.custom_route("/v1/world/health", methods=["GET"])
