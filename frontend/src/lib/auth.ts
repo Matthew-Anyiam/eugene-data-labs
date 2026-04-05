@@ -52,10 +52,18 @@ export function clearAuth(): void {
 }
 
 async function authFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  });
+  const url = `${API_BASE}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      ...options,
+    });
+  } catch (err) {
+    // Network error — fetch itself failed (DNS, connection refused, CORS, etc.)
+    console.error(`[auth] Network error calling ${url}:`, err);
+    throw new Error('Unable to connect to server. Please check your connection and try again.');
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(body.message || body.error || `Auth error ${res.status}`);

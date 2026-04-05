@@ -5,7 +5,8 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+# Ensure production env is used (VITE_API_URL empty = same-origin)
+RUN cat .env.production && npm run build
 
 # Stage 2: Python backend + frontend dist
 FROM python:3.12-slim
