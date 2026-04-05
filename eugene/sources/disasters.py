@@ -8,6 +8,7 @@ All sources are free, US Gov/UN public domain, real-time.
 """
 
 import logging
+import os
 import requests
 from datetime import datetime, timedelta, timezone
 from eugene.cache import cached
@@ -17,6 +18,10 @@ logger = logging.getLogger(__name__)
 USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 GDACS_API = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
 NASA_FIRMS_API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
+
+# NASA FIRMS uses a separate MAP_KEY (register at https://firms.modaps.eosdis.nasa.gov/api/map_key/)
+# The general NASA_API_KEY (api.nasa.gov) does NOT work with FIRMS.
+NASA_FIRMS_MAP_KEY = os.environ.get("NASA_FIRMS_MAP_KEY", "")
 
 TIMEOUT = 20
 
@@ -257,22 +262,26 @@ def get_fire_hotspots(
 ) -> dict:
     """Get active fire hotspots from NASA FIRMS.
 
-    Uses the open CSV feed (no API key needed for summary data).
-    For detailed data, an API key is needed (free registration).
+    Uses NASA_API_KEY env var for authenticated access (higher quality VIIRS data).
+    Falls back to open CSV feed when no key is configured.
     """
-    # Use the open MODIS/VIIRS active fire summary
-    url = "https://firms.modaps.eosdis.nasa.gov/api/country/csv/OPEN_KEY/VIIRS_SNPP_NRT"
+    api_key = NASA_FIRMS_MAP_KEY or "OPEN_KEY"
+    has_key = bool(NASA_FIRMS_MAP_KEY)
 
     if country:
-        url = f"{url}/{country}/{days}"
+        # Authenticated endpoint with real API key gives full VIIRS_SNPP_NRT data
+        url = f"https://firms.modaps.eosdis.nasa.gov/api/country/csv/{api_key}/VIIRS_SNPP_NRT/{country}/{days}"
+    elif has_key:
+        # With API key: use area endpoint for global data (better quality)
+        url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{api_key}/VIIRS_SNPP_NRT/world/{days}"
     else:
-        # Global summary — use world file
+        # No key: open global summary
         url = "https://firms.modaps.eosdis.nasa.gov/active_fire/c6/text/MODIS_C6_Global_24h.csv"
 
     try:
         resp = requests.get(url, timeout=TIMEOUT)
         if resp.status_code != 200:
-            # Fallback: try the open summary endpoint
+            logger.warning("FIRMS API returned %d, falling back", resp.status_code)
             return _get_fire_summary()
 
         lines = resp.text.strip().split("\n")
@@ -293,9 +302,11 @@ def get_fire_hotspots(
                 "lng": float(row.get("longitude", 0)),
                 "brightness": float(row.get("brightness", 0) or row.get("bright_ti4", 0)),
                 "confidence": row.get("confidence", ""),
+                "frp": float(row.get("frp", 0) or 0),
                 "date": row.get("acq_date", ""),
                 "time": row.get("acq_time", ""),
                 "satellite": row.get("satellite", ""),
+                "daynight": row.get("daynight", ""),
                 "type": "fire",
                 "source": "nasa_firms",
             })
@@ -303,6 +314,7 @@ def get_fire_hotspots(
         return {
             "fires": fires,
             "count": len(fires),
+            "authenticated": has_key,
             "source": "nasa_firms",
         }
 
@@ -316,7 +328,7 @@ def _get_fire_summary() -> dict:
     return {
         "fires": [],
         "count": 0,
-        "note": "Detailed fire data requires NASA FIRMS API key (free). Using summary endpoint.",
+        "note": "Set NASA_API_KEY env var for detailed VIIRS fire data.",
         "source": "nasa_firms",
     }
 
