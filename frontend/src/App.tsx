@@ -18,88 +18,32 @@ import { useAlerts } from './hooks/useAlerts';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
+// Core pages
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const CompanyPage = lazy(() => import('./pages/CompanyPage').then(m => ({ default: m.CompanyPage })));
+const EntityPage = lazy(() => import('./pages/EntityPage').then(m => ({ default: m.EntityPage })));
+const WorldPage = lazy(() => import('./pages/WorldPage').then(m => ({ default: m.WorldPage })));
 const ScreenerPage = lazy(() => import('./pages/ScreenerPage').then(m => ({ default: m.ScreenerPage })));
 const EconomicsPage = lazy(() => import('./pages/EconomicsPage').then(m => ({ default: m.EconomicsPage })));
-const PredictionsPage = lazy(() => import('./pages/PredictionsPage').then(m => ({ default: m.PredictionsPage })));
-const OntologyPage = lazy(() => import('./pages/OntologyPage').then(m => ({ default: m.OntologyPage })));
-const WorldPage = lazy(() => import('./pages/WorldPage').then(m => ({ default: m.WorldPage })));
-const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
-const DocsPage = lazy(() => import('./pages/DocsPage').then(m => ({ default: m.DocsPage })));
-const PricingPage = lazy(() => import('./pages/PricingPage').then(m => ({ default: m.PricingPage })));
-const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const EntityPage = lazy(() => import('./pages/EntityPage').then(m => ({ default: m.EntityPage })));
 const CryptoPage = lazy(() => import('./pages/CryptoPage').then(m => ({ default: m.CryptoPage })));
+const PredictionsPage = lazy(() => import('./pages/PredictionsPage').then(m => ({ default: m.PredictionsPage })));
+const TrendingPage = lazy(() => import('./pages/TrendingPage').then(m => ({ default: m.TrendingPage })));
+const HeatmapPage = lazy(() => import('./pages/HeatmapPage').then(m => ({ default: m.HeatmapPage })));
+const MoversPage = lazy(() => import('./pages/MoversPage').then(m => ({ default: m.MoversPage })));
+// Research
+const FilingsPage = lazy(() => import('./pages/FilingsPage').then(m => ({ default: m.FilingsPage })));
+const TechnicalPage = lazy(() => import('./pages/TechnicalPage').then(m => ({ default: m.TechnicalPage })));
+// Workspace
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(m => ({ default: m.PortfolioPage })));
+const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then(m => ({ default: m.WatchlistPage })));
+const AlertsPage = lazy(() => import('./pages/AlertsPage').then(m => ({ default: m.AlertsPage })));
 const ComparePage = lazy(() => import('./pages/ComparePage').then(m => ({ default: m.ComparePage })));
 const AgentsPage = lazy(() => import('./pages/AgentsPage').then(m => ({ default: m.AgentsPage })));
-const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(m => ({ default: m.PortfolioPage })));
-const AlertsPage = lazy(() => import('./pages/AlertsPage').then(m => ({ default: m.AlertsPage })));
-const NewsPage = lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
-const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
-const HeatmapPage = lazy(() => import('./pages/HeatmapPage').then(m => ({ default: m.HeatmapPage })));
-const BacktestPage = lazy(() => import('./pages/BacktestPage').then(m => ({ default: m.BacktestPage })));
-const InsidersPage = lazy(() => import('./pages/InsidersPage').then(m => ({ default: m.InsidersPage })));
-const EarningsPage = lazy(() => import('./pages/EarningsPage').then(m => ({ default: m.EarningsPage })));
-const IPOPage = lazy(() => import('./pages/IPOPage').then(m => ({ default: m.IPOPage })));
-const DividendsPage = lazy(() => import('./pages/DividendsPage').then(m => ({ default: m.DividendsPage })));
-const TechnicalPage = lazy(() => import('./pages/TechnicalPage').then(m => ({ default: m.TechnicalPage })));
-const ETFPage = lazy(() => import('./pages/ETFPage').then(m => ({ default: m.ETFPage })));
-const ForexPage = lazy(() => import('./pages/ForexPage').then(m => ({ default: m.ForexPage })));
-const CommoditiesPage = lazy(() => import('./pages/CommoditiesPage').then(m => ({ default: m.CommoditiesPage })));
-const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then(m => ({ default: m.WatchlistPage })));
-const MoversPage = lazy(() => import('./pages/MoversPage').then(m => ({ default: m.MoversPage })));
-const SectorsPage = lazy(() => import('./pages/SectorsPage').then(m => ({ default: m.SectorsPage })));
-const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
-const OptionsPage = lazy(() => import('./pages/OptionsPage').then(m => ({ default: m.OptionsPage })));
-const RiskPage = lazy(() => import('./pages/RiskPage').then(m => ({ default: m.RiskPage })));
-const BondsPage = lazy(() => import('./pages/BondsPage').then(m => ({ default: m.BondsPage })));
-const SentimentPage = lazy(() => import('./pages/SentimentPage').then(m => ({ default: m.SentimentPage })));
-const FundsPage = lazy(() => import('./pages/FundsPage').then(m => ({ default: m.FundsPage })));
-const EconCalendarPage = lazy(() => import('./pages/EconCalendarPage').then(m => ({ default: m.EconCalendarPage })));
-const DarkPoolPage = lazy(() => import('./pages/DarkPoolPage').then(m => ({ default: m.DarkPoolPage })));
-const CorrelationPage = lazy(() => import('./pages/CorrelationPage').then(m => ({ default: m.CorrelationPage })));
-const ShortInterestPage = lazy(() => import('./pages/ShortInterestPage').then(m => ({ default: m.ShortInterestPage })));
-const AnalystRatingsPage = lazy(() => import('./pages/AnalystRatingsPage').then(m => ({ default: m.AnalystRatingsPage })));
-const FilingsPage = lazy(() => import('./pages/FilingsPage').then(m => ({ default: m.FilingsPage })));
-const TrendingPage = lazy(() => import('./pages/TrendingPage').then(m => ({ default: m.TrendingPage })));
-const TradeJournalPage = lazy(() => import('./pages/TradeJournalPage').then(m => ({ default: m.TradeJournalPage })));
-const MacroPage = lazy(() => import('./pages/MacroPage').then(m => ({ default: m.MacroPage })));
-const PositionSizerPage = lazy(() => import('./pages/PositionSizerPage').then(m => ({ default: m.PositionSizerPage })));
-const ScreenerBuilderPage = lazy(() => import('./pages/ScreenerBuilderPage').then(m => ({ default: m.ScreenerBuilderPage })));
-const EstimatesPage = lazy(() => import('./pages/EstimatesPage').then(m => ({ default: m.EstimatesPage })));
-const InstitutionalPage = lazy(() => import('./pages/InstitutionalPage').then(m => ({ default: m.InstitutionalPage })));
-const OwnershipPage = lazy(() => import('./pages/OwnershipPage').then(m => ({ default: m.OwnershipPage })));
-const BreadthPage = lazy(() => import('./pages/BreadthPage').then(m => ({ default: m.BreadthPage })));
-const VolatilityPage = lazy(() => import('./pages/VolatilityPage').then(m => ({ default: m.VolatilityPage })));
-const PremarketPage = lazy(() => import('./pages/PremarketPage').then(m => ({ default: m.PremarketPage })));
-const OptionsFlowPage = lazy(() => import('./pages/OptionsFlowPage').then(m => ({ default: m.OptionsFlowPage })));
-const SeasonalityPage = lazy(() => import('./pages/SeasonalityPage').then(m => ({ default: m.SeasonalityPage })));
-const ValuationPage = lazy(() => import('./pages/ValuationPage').then(m => ({ default: m.ValuationPage })));
-const SupplyChainPage = lazy(() => import('./pages/SupplyChainPage').then(m => ({ default: m.SupplyChainPage })));
-const DebtMonitorPage = lazy(() => import('./pages/DebtMonitorPage').then(m => ({ default: m.DebtMonitorPage })));
-const CurrencyConverterPage = lazy(() => import('./pages/CurrencyConverterPage').then(m => ({ default: m.CurrencyConverterPage })));
-const MarginCalculatorPage = lazy(() => import('./pages/MarginCalculatorPage').then(m => ({ default: m.MarginCalculatorPage })));
-const EarningsSurprisesPage = lazy(() => import('./pages/EarningsSurprisesPage').then(m => ({ default: m.EarningsSurprisesPage })));
-const InsiderSentimentPage = lazy(() => import('./pages/InsiderSentimentPage').then(m => ({ default: m.InsiderSentimentPage })));
-const MarketProfilePage = lazy(() => import('./pages/MarketProfilePage').then(m => ({ default: m.MarketProfilePage })));
-const PeerAnalysisPage = lazy(() => import('./pages/PeerAnalysisPage').then(m => ({ default: m.PeerAnalysisPage })));
-const DividendTrackerPage = lazy(() => import('./pages/DividendTrackerPage').then(m => ({ default: m.DividendTrackerPage })));
-const RevenueSegmentsPage = lazy(() => import('./pages/RevenueSegmentsPage').then(m => ({ default: m.RevenueSegmentsPage })));
-const EarningsCalendarProPage = lazy(() => import('./pages/EarningsCalendarProPage').then(m => ({ default: m.EarningsCalendarProPage })));
-const FundFlowsPage = lazy(() => import('./pages/FundFlowsPage').then(m => ({ default: m.FundFlowsPage })));
-const SocialSentimentPage = lazy(() => import('./pages/SocialSentimentPage').then(m => ({ default: m.SocialSentimentPage })));
-const FactorExposurePage = lazy(() => import('./pages/FactorExposurePage').then(m => ({ default: m.FactorExposurePage })));
-const EarningsTranscriptPage = lazy(() => import('./pages/EarningsTranscriptPage').then(m => ({ default: m.EarningsTranscriptPage })));
-const IPOAnalysisPage = lazy(() => import('./pages/IPOAnalysisPage').then(m => ({ default: m.IPOAnalysisPage })));
-const RelativeStrengthPage = lazy(() => import('./pages/RelativeStrengthPage').then(m => ({ default: m.RelativeStrengthPage })));
-const InsiderTrackerPage = lazy(() => import('./pages/InsiderTrackerPage').then(m => ({ default: m.InsiderTrackerPage })));
-const SectorRotationPage = lazy(() => import('./pages/SectorRotationPage').then(m => ({ default: m.SectorRotationPage })));
-const YieldCurvePage = lazy(() => import('./pages/YieldCurvePage').then(m => ({ default: m.YieldCurvePage })));
-const GapScannerPage = lazy(() => import('./pages/GapScannerPage').then(m => ({ default: m.GapScannerPage })));
-const MoneyFlowPage = lazy(() => import('./pages/MoneyFlowPage').then(m => ({ default: m.MoneyFlowPage })));
-const EarningsRevisionsPage = lazy(() => import('./pages/EarningsRevisionsPage').then(m => ({ default: m.EarningsRevisionsPage })));
-const MarketRegimePage = lazy(() => import('./pages/MarketRegimePage').then(m => ({ default: m.MarketRegimePage })));
-const TaxLotPage = lazy(() => import('./pages/TaxLotPage').then(m => ({ default: m.TaxLotPage })));
+// Platform
+const OntologyPage = lazy(() => import('./pages/OntologyPage').then(m => ({ default: m.OntologyPage })));
+const DocsPage = lazy(() => import('./pages/DocsPage').then(m => ({ default: m.DocsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+// Auth & static
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('./pages/SignupPage').then(m => ({ default: m.SignupPage })));
@@ -107,86 +51,25 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ defa
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Eugene Intelligence',
+  '/dashboard': 'Dashboard — Eugene',
+  '/world': 'World Intelligence — Eugene',
   '/screener': 'Screener — Eugene',
   '/economics': 'Economics — Eugene',
-  '/predictions': 'Predictions — Eugene',
-  '/ontology': 'Ontology — Eugene',
-  '/world': 'World — Eugene',
-  '/dashboard': 'Dashboard — Eugene',
-  '/docs': 'Docs — Eugene',
-  '/pricing': 'Pricing — Eugene',
-  '/settings': 'Settings — Eugene',
   '/crypto': 'Crypto — Eugene',
+  '/predictions': 'Predictions — Eugene',
+  '/trending': 'Trending — Eugene',
+  '/heatmap': 'Heatmap — Eugene',
+  '/movers': 'Movers — Eugene',
+  '/filings': 'SEC Filings — Eugene',
+  '/technical': 'Technical Analysis — Eugene',
+  '/portfolio': 'Portfolio — Eugene',
+  '/watchlist': 'Watchlist — Eugene',
+  '/alerts': 'Alerts — Eugene',
   '/compare': 'Compare — Eugene',
   '/agents': 'AI Agents — Eugene',
-  '/portfolio': 'Portfolio — Eugene',
-  '/alerts': 'Alerts — Eugene',
-  '/news': 'News — Eugene',
-  '/reports': 'Reports — Eugene',
-  '/heatmap': 'Market Heatmap — Eugene',
-  '/backtest': 'Backtester — Eugene',
-  '/insiders': 'Insider Trading — Eugene',
-  '/earnings': 'Earnings Calendar — Eugene',
-  '/ipo': 'IPO Calendar — Eugene',
-  '/dividends': 'Dividends — Eugene',
-  '/technical': 'Technical Analysis — Eugene',
-  '/etf': 'ETF Explorer — Eugene',
-  '/forex': 'Forex — Eugene',
-  '/commodities': 'Commodities — Eugene',
-  '/watchlist': 'Watchlist — Eugene',
-  '/movers': 'Market Movers — Eugene',
-  '/sectors': 'Sector Analysis — Eugene',
-  '/calendar': 'Market Calendar — Eugene',
-  '/options': 'Options Chain — Eugene',
-  '/risk': 'Risk Analytics — Eugene',
-  '/bonds': 'Bonds — Eugene',
-  '/sentiment': 'Sentiment — Eugene',
-  '/funds': 'Fund Screener — Eugene',
-  '/econ-calendar': 'Economic Calendar — Eugene',
-  '/dark-pool': 'Dark Pool — Eugene',
-  '/correlation': 'Correlation Matrix — Eugene',
-  '/short-interest': 'Short Interest — Eugene',
-  '/analyst-ratings': 'Analyst Ratings — Eugene',
-  '/filings': 'SEC Filings — Eugene',
-  '/trending': 'Trending Stocks — Eugene',
-  '/trade-journal': 'Trade Journal — Eugene',
-  '/macro': 'Macro Dashboard — Eugene',
-  '/position-sizer': 'Position Sizer — Eugene',
-  '/screener-builder': 'Screener Builder — Eugene',
-  '/estimates': 'Earnings Estimates — Eugene',
-  '/institutional': 'Institutional Holdings — Eugene',
-  '/ownership': 'Ownership Structure — Eugene',
-  '/breadth': 'Market Breadth — Eugene',
-  '/volatility': 'Volatility — Eugene',
-  '/premarket': 'Pre/Post Market — Eugene',
-  '/options-flow': 'Options Flow — Eugene',
-  '/seasonality': 'Seasonality — Eugene',
-  '/valuation': 'Valuation — Eugene',
-  '/supply-chain': 'Supply Chain — Eugene',
-  '/debt-monitor': 'Debt Monitor — Eugene',
-  '/currency-converter': 'Currency Converter — Eugene',
-  '/margin-calculator': 'Margin Calculator — Eugene',
-  '/earnings-surprises': 'Earnings Surprises — Eugene',
-  '/insider-sentiment': 'Insider Sentiment — Eugene',
-  '/market-profile': 'Market Profile — Eugene',
-  '/peer-analysis': 'Peer Analysis — Eugene',
-  '/dividend-tracker': 'Dividend Tracker — Eugene',
-  '/revenue-segments': 'Revenue Segments — Eugene',
-  '/earnings-pro': 'Earnings Calendar Pro — Eugene',
-  '/fund-flows': 'Fund Flows — Eugene',
-  '/social-sentiment': 'Social Sentiment — Eugene',
-  '/factor-exposure': 'Factor Exposure — Eugene',
-  '/earnings-transcript': 'Earnings Transcripts — Eugene',
-  '/ipo-analysis': 'IPO Analysis — Eugene',
-  '/relative-strength': 'Relative Strength — Eugene',
-  '/insider-tracker': 'Insider Tracker — Eugene',
-  '/sector-rotation': 'Sector Rotation — Eugene',
-  '/yield-curve': 'Yield Curve — Eugene',
-  '/gap-scanner': 'Gap Scanner — Eugene',
-  '/money-flow': 'Money Flow — Eugene',
-  '/earnings-revisions': 'Earnings Revisions — Eugene',
-  '/market-regime': 'Market Regime — Eugene',
-  '/tax-lots': 'Tax Lot Optimizer — Eugene',
+  '/ontology': 'Ontology — Eugene',
+  '/docs': 'API Docs — Eugene',
+  '/settings': 'Settings — Eugene',
 };
 
 function TitleUpdater() {
@@ -593,90 +476,35 @@ export default function App() {
 
             {/* Protected workspace routes */}
             <Route element={<ProtectedRoute><WorkspaceLayout /></ProtectedRoute>}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/company/:ticker" element={<CompanyPage />} />
-            <Route path="/entity/:entityId" element={<EntityPage />} />
-            <Route path="/screener" element={<ScreenerPage />} />
-            <Route path="/economics" element={<EconomicsPage />} />
-            <Route path="/predictions" element={<PredictionsPage />} />
-            <Route path="/ontology" element={<OntologyPage />} />
-            <Route path="/world" element={<WorldPage />} />
-            <Route path="/docs" element={<DocsPage />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/crypto" element={<CryptoPage />} />
-            <Route path="/compare" element={<ComparePage />} />
-            <Route path="/agents" element={<AgentsPage />} />
-            <Route path="/portfolio" element={<PortfolioPage />} />
-            <Route path="/alerts" element={<AlertsPage />} />
-            <Route path="/news" element={<NewsPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/heatmap" element={<HeatmapPage />} />
-            <Route path="/backtest" element={<BacktestPage />} />
-            <Route path="/insiders" element={<InsidersPage />} />
-            <Route path="/earnings" element={<EarningsPage />} />
-            <Route path="/ipo" element={<IPOPage />} />
-            <Route path="/dividends" element={<DividendsPage />} />
-            <Route path="/technical" element={<TechnicalPage />} />
-            <Route path="/etf" element={<ETFPage />} />
-            <Route path="/forex" element={<ForexPage />} />
-            <Route path="/commodities" element={<CommoditiesPage />} />
-            <Route path="/watchlist" element={<WatchlistPage />} />
-            <Route path="/movers" element={<MoversPage />} />
-            <Route path="/sectors" element={<SectorsPage />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/options" element={<OptionsPage />} />
-            <Route path="/risk" element={<RiskPage />} />
-            <Route path="/bonds" element={<BondsPage />} />
-            <Route path="/sentiment" element={<SentimentPage />} />
-            <Route path="/funds" element={<FundsPage />} />
-            <Route path="/econ-calendar" element={<EconCalendarPage />} />
-            <Route path="/dark-pool" element={<DarkPoolPage />} />
-            <Route path="/correlation" element={<CorrelationPage />} />
-            <Route path="/short-interest" element={<ShortInterestPage />} />
-            <Route path="/analyst-ratings" element={<AnalystRatingsPage />} />
-            <Route path="/filings" element={<FilingsPage />} />
-            <Route path="/trending" element={<TrendingPage />} />
-            <Route path="/trade-journal" element={<TradeJournalPage />} />
-            <Route path="/macro" element={<MacroPage />} />
-            <Route path="/position-sizer" element={<PositionSizerPage />} />
-            <Route path="/screener-builder" element={<ScreenerBuilderPage />} />
-            <Route path="/estimates" element={<EstimatesPage />} />
-            <Route path="/institutional" element={<InstitutionalPage />} />
-            <Route path="/ownership" element={<OwnershipPage />} />
-            <Route path="/breadth" element={<BreadthPage />} />
-            <Route path="/volatility" element={<VolatilityPage />} />
-            <Route path="/premarket" element={<PremarketPage />} />
-            <Route path="/options-flow" element={<OptionsFlowPage />} />
-            <Route path="/seasonality" element={<SeasonalityPage />} />
-            <Route path="/valuation" element={<ValuationPage />} />
-            <Route path="/supply-chain" element={<SupplyChainPage />} />
-            <Route path="/debt-monitor" element={<DebtMonitorPage />} />
-            <Route path="/currency-converter" element={<CurrencyConverterPage />} />
-            <Route path="/margin-calculator" element={<MarginCalculatorPage />} />
-            <Route path="/earnings-surprises" element={<EarningsSurprisesPage />} />
-            <Route path="/insider-sentiment" element={<InsiderSentimentPage />} />
-            <Route path="/market-profile" element={<MarketProfilePage />} />
-            <Route path="/peer-analysis" element={<PeerAnalysisPage />} />
-            <Route path="/dividend-tracker" element={<DividendTrackerPage />} />
-            <Route path="/revenue-segments" element={<RevenueSegmentsPage />} />
-            <Route path="/earnings-pro" element={<EarningsCalendarProPage />} />
-            <Route path="/fund-flows" element={<FundFlowsPage />} />
-            <Route path="/social-sentiment" element={<SocialSentimentPage />} />
-            <Route path="/factor-exposure" element={<FactorExposurePage />} />
-            <Route path="/earnings-transcript" element={<EarningsTranscriptPage />} />
-            <Route path="/ipo-analysis" element={<IPOAnalysisPage />} />
-            <Route path="/relative-strength" element={<RelativeStrengthPage />} />
-            <Route path="/insider-tracker" element={<InsiderTrackerPage />} />
-            <Route path="/sector-rotation" element={<SectorRotationPage />} />
-            <Route path="/yield-curve" element={<YieldCurvePage />} />
-            <Route path="/gap-scanner" element={<GapScannerPage />} />
-            <Route path="/money-flow" element={<MoneyFlowPage />} />
-            <Route path="/earnings-revisions" element={<EarningsRevisionsPage />} />
-            <Route path="/market-regime" element={<MarketRegimePage />} />
-            <Route path="/tax-lots" element={<TaxLotPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
+              {/* Intelligence */}
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/world" element={<WorldPage />} />
+              <Route path="/trending" element={<TrendingPage />} />
+              <Route path="/predictions" element={<PredictionsPage />} />
+              {/* Markets */}
+              <Route path="/screener" element={<ScreenerPage />} />
+              <Route path="/heatmap" element={<HeatmapPage />} />
+              <Route path="/movers" element={<MoversPage />} />
+              <Route path="/crypto" element={<CryptoPage />} />
+              <Route path="/economics" element={<EconomicsPage />} />
+              {/* Research */}
+              <Route path="/company/:ticker" element={<CompanyPage />} />
+              <Route path="/entity/:entityId" element={<EntityPage />} />
+              <Route path="/filings" element={<FilingsPage />} />
+              <Route path="/technical" element={<TechnicalPage />} />
+              {/* Workspace */}
+              <Route path="/portfolio" element={<PortfolioPage />} />
+              <Route path="/watchlist" element={<WatchlistPage />} />
+              <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/compare" element={<ComparePage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              {/* Platform */}
+              <Route path="/ontology" element={<OntologyPage />} />
+              <Route path="/docs" element={<DocsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              {/* Catch-all */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
         </Routes>
       </Suspense>
       </BrowserRouter>
