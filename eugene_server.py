@@ -1629,6 +1629,84 @@ def _build_mcp(include_rest: bool = False):
             result = await asyncio.to_thread(get_vessel, mmsi=mmsi, lat=lat, lng=lng)
             return JSONResponse(result)
 
+        # --- Chokepoint impact analysis ---
+
+        @mcp.custom_route("/v1/world/supply-chain/chokepoints", methods=["GET"])
+        @require_api_key
+        async def world_chokepoints(request: Request) -> JSONResponse:
+            """Get chokepoint analysis with commodity flows and disruption scenarios."""
+            from eugene.world.supply_chain_intel import get_chokepoints
+            name = request.query_params.get("name")
+            result = get_chokepoints(chokepoint=name)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/supply-chain/chokepoint-impact", methods=["GET"])
+        @require_api_key
+        async def world_chokepoint_impact(request: Request) -> JSONResponse:
+            """Get real-time disruption impact for a chokepoint with live conflict/disaster signals."""
+            from eugene.world.supply_chain_intel import get_chokepoint_impact
+            name = request.query_params.get("name", "Strait of Hormuz")
+            result = await asyncio.to_thread(get_chokepoint_impact, name)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/supply-chain/commodity-exposure", methods=["GET"])
+        @require_api_key
+        async def world_commodity_exposure(request: Request) -> JSONResponse:
+            """Find all chokepoints that affect a given commodity."""
+            from eugene.world.supply_chain_intel import get_commodity_exposure
+            commodity = request.query_params.get("commodity", "oil")
+            result = get_commodity_exposure(commodity)
+            return JSONResponse(result)
+
+        # --- Emerging Markets endpoints ---
+
+        @mcp.custom_route("/v1/world/emerging-markets", methods=["GET"])
+        @require_api_key
+        async def world_em_overview(request: Request) -> JSONResponse:
+            """High-level emerging market overview with GDP, inflation, commodity exposure."""
+            from eugene.world.supply_chain_intel import get_em_dashboard
+            region = request.query_params.get("region")
+            result = await asyncio.to_thread(get_em_dashboard, region)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/emerging-markets/country", methods=["GET"])
+        @require_api_key
+        async def world_em_country(request: Request) -> JSONResponse:
+            """Get economic indicators for an emerging market (World Bank data)."""
+            from eugene.world.supply_chain_intel import get_em_country
+            country = request.query_params.get("country", "BR")
+            years = _safe_int(request.query_params.get("years", "5"), 5, "years")
+            if isinstance(years, JSONResponse):
+                return years
+            result = await asyncio.to_thread(get_em_country, country, years=years)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/emerging-markets/rankings", methods=["GET"])
+        @require_api_key
+        async def world_em_rankings(request: Request) -> JSONResponse:
+            """Rank emerging markets by an economic indicator."""
+            from eugene.world.supply_chain_intel import get_em_rank
+            indicator = request.query_params.get("indicator", "gdp_growth")
+            region = request.query_params.get("region")
+            result = await asyncio.to_thread(get_em_rank, indicator, region)
+            return JSONResponse(result)
+
+        @mcp.custom_route("/v1/world/emerging-markets/indicators", methods=["GET"])
+        @require_api_key
+        async def world_em_indicators(request: Request) -> JSONResponse:
+            """List available emerging market indicators."""
+            from eugene.world.supply_chain_intel import list_em_indicators
+            category = request.query_params.get("category")
+            return JSONResponse({"indicators": list_em_indicators(category)})
+
+        @mcp.custom_route("/v1/world/emerging-markets/countries", methods=["GET"])
+        @require_api_key
+        async def world_em_countries(request: Request) -> JSONResponse:
+            """List emerging market countries."""
+            from eugene.world.supply_chain_intel import list_em_countries
+            region = request.query_params.get("region")
+            return JSONResponse({"countries": list_em_countries(region)})
+
         # --- Flight Intelligence endpoints ---
 
         @mcp.custom_route("/v1/world/flights", methods=["GET"])
