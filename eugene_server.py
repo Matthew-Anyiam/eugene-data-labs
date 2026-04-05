@@ -2223,7 +2223,6 @@ def run_api():
     # Get the underlying ASGI app from FastMCP and wrap it with
     # CORS middleware and SPA static file serving for the frontend.
     from starlette.middleware.cors import CORSMiddleware
-    from starlette.staticfiles import StaticFiles
     from starlette.responses import FileResponse
     from pathlib import Path
     import uvicorn
@@ -2253,10 +2252,7 @@ def run_api():
         # Collect root-level static files (favicon.svg, manifest.json, sw.js, etc.)
         _root_static = {f.name for f in frontend_dist.iterdir() if f.is_file()}
 
-        # Prefixes that belong to the API — never serve index.html for these
-        _API_PREFIXES = ("/v1/", "/v1", "/mcp", "/sse", "/health", "/ws")
-
-        from starlette.routing import Route, Mount
+        from starlette.routing import Route
 
         async def _serve_spa(request):
             """Serve static assets or index.html for SPA client-side routes."""
