@@ -84,17 +84,26 @@ def search(
             timeout=TIMEOUT,
         )
         resp.raise_for_status()
-        return resp.json()
+        raw = resp.json()
+
+        # Normalize response — API returns data.web, data.news, data.images
+        data = raw.get("data", {})
+        results = data.get("web", []) + data.get("news", [])
+        return {
+            "results": results,
+            "count": len(results),
+            "credits_used": raw.get("creditsUsed", 0),
+            "source": "firecrawl",
+        }
     except requests.RequestException as e:
         logger.error("Firecrawl search failed: %s", e)
-        return {"error": str(e), "results": []}
+        return {"error": str(e), "results": [], "count": 0, "source": "firecrawl"}
 
 
 # ---------------------------------------------------------------------------
 # News search (convenience wrapper)
 # ---------------------------------------------------------------------------
 
-@cached(ttl=300)
 def search_news(
     query: str,
     limit: int = 10,
@@ -149,7 +158,7 @@ def scrape_url(
         return {"error": "FIRECRAWL_API_KEY not configured"}
 
     if formats is None:
-        formats = ["markdown"]
+        formats = [{"type": "markdown"}]
 
     body = {
         "url": url,
@@ -166,10 +175,21 @@ def scrape_url(
             timeout=TIMEOUT,
         )
         resp.raise_for_status()
-        return resp.json()
+        raw = resp.json()
+        page = raw.get("data", {})
+        return {
+            "url": url,
+            "markdown": page.get("markdown", ""),
+            "html": page.get("html", ""),
+            "title": page.get("metadata", {}).get("title", ""),
+            "description": page.get("metadata", {}).get("description", ""),
+            "status_code": page.get("metadata", {}).get("statusCode", 200),
+            "credits_used": raw.get("creditsUsed", 0),
+            "source": "firecrawl",
+        }
     except requests.RequestException as e:
         logger.error("Firecrawl scrape failed for %s: %s", url, e)
-        return {"error": str(e), "url": url}
+        return {"error": str(e), "url": url, "source": "firecrawl"}
 
 
 # ---------------------------------------------------------------------------
