@@ -58,3 +58,61 @@ export function useRouteRisk() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Chokepoint impact analysis
+// ---------------------------------------------------------------------------
+
+export interface ChokepointDetail {
+  name: string;
+  lat: number;
+  lng: number;
+  trade_share_pct: number;
+  risk_score: number;
+  status: string;
+  risk_factors: string[];
+  commodities: string[];
+  daily_vessel_transits: number;
+  alternatives: string[];
+}
+
+export interface ChokepointImpact {
+  chokepoint: string;
+  current_status: string;
+  risk_score: number;
+  commodities_affected: { commodity: string; share_pct: number; price_impact_pct: number }[];
+  scenarios: { scenario: string; probability: string; description: string; price_impact: string }[];
+  live_signals: { type: string; description: string; date: string }[];
+}
+
+export interface CommodityExposure {
+  commodity: string;
+  chokepoints: { name: string; share_pct: number; risk_score: number; status: string }[];
+  total_exposure_score: number;
+}
+
+export function useChokepoints() {
+  return useQuery<{ chokepoints: ChokepointDetail[]; count: number }>({
+    queryKey: ['supply-chain', 'chokepoints'],
+    queryFn: () => eugeneApi('/v1/world/supply-chain/chokepoints'),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useChokepointImpact(name: string | undefined) {
+  return useQuery<ChokepointImpact>({
+    queryKey: ['supply-chain', 'chokepoint-impact', name],
+    queryFn: () => eugeneApi('/v1/world/supply-chain/chokepoint-impact', { name }),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!name,
+  });
+}
+
+export function useCommodityExposure(commodity: string | undefined) {
+  return useQuery<CommodityExposure>({
+    queryKey: ['supply-chain', 'commodity-exposure', commodity],
+    queryFn: () => eugeneApi('/v1/world/supply-chain/commodity-exposure', { commodity }),
+    staleTime: 10 * 60 * 1000,
+    enabled: !!commodity,
+  });
+}

@@ -7,8 +7,10 @@ import {
   useRegulatoryChanges,
 } from '../hooks/useWorld';
 import { useActiveDisasters, useActiveConflicts } from '../hooks/useDisasters';
-import { usePortStatus, useRouteRisk } from '../hooks/useSupplyChain';
+import { usePortStatus, useRouteRisk, useChokepoints, useChokepointImpact, useCommodityExposure } from '../hooks/useSupplyChain';
 import { useAirportStatus, useAirspaceStatus } from '../hooks/useFlights';
+import { useNASAEvents, useNASACategories } from '../hooks/useNASA';
+import { useEmergingMarkets, useEMRankings } from '../hooks/useEmergingMarkets';
 import type { NewsArticle, RegulatoryChange } from '../hooks/useWorld';
 import type { Disaster } from '../hooks/useDisasters';
 import type { Port, Chokepoint } from '../hooks/useSupplyChain';
@@ -17,7 +19,7 @@ import {
   Globe, Newspaper, Shield, Search, TrendingUp, TrendingDown,
   Minus, CheckCircle, XCircle, Loader2, ExternalLink,
   Clock, FileText, Zap, BarChart3, AlertTriangle, Swords,
-  Anchor, Plane,
+  Anchor, Plane, Flame, MapPin, Activity,
 } from 'lucide-react';
 
 const NEWS_TOPICS = [
@@ -45,13 +47,18 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export function WorldPage() {
-  const [activeTab, setActiveTab] = useState<'news' | 'sanctions' | 'regulatory' | 'disasters' | 'conflict' | 'supply_chain' | 'flights'>('news');
+  type TabKey = 'news' | 'sanctions' | 'regulatory' | 'disasters' | 'conflict' | 'supply_chain' | 'flights' | 'nasa_events' | 'chokepoints' | 'emerging_markets';
+  const [activeTab, setActiveTab] = useState<TabKey>('news');
   const [newsTopic, setNewsTopic] = useState<string | undefined>();
   const [newsQuery, setNewsQuery] = useState('');
   const [activeNewsQuery, setActiveNewsQuery] = useState('');
   const [sanctionsName, setSanctionsName] = useState('');
   const [activeSanctionsName, setActiveSanctionsName] = useState('');
   const [timespan, setTimespan] = useState('24h');
+  const [nasaCategory, setNasaCategory] = useState<string | undefined>();
+  const [selectedChokepoint, setSelectedChokepoint] = useState<string | undefined>();
+  const [selectedCommodity, setSelectedCommodity] = useState<string | undefined>();
+  const [emIndicator, setEmIndicator] = useState('gdp_growth');
 
   const newsFeed = useNewsFeed(activeNewsQuery || undefined, newsTopic, timespan);
   const sentiment = useNewsSentiment(activeNewsQuery || newsTopic || 'world events', '30d');
@@ -64,6 +71,13 @@ export function WorldPage() {
   const routes = useRouteRisk();
   const airports = useAirportStatus();
   const airspace = useAirspaceStatus();
+  const nasaEvents = useNASAEvents(nasaCategory, 30, 100);
+  const nasaCategories = useNASACategories();
+  const chokepoints = useChokepoints();
+  const chokepointImpact = useChokepointImpact(selectedChokepoint);
+  const commodityExposure = useCommodityExposure(selectedCommodity);
+  const emergingMarkets = useEmergingMarkets();
+  const emRankings = useEMRankings(emIndicator);
 
   const handleNewsSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +113,9 @@ export function WorldPage() {
           { key: 'flights', label: 'Flights', icon: Plane },
           { key: 'sanctions', label: 'Sanctions', icon: Shield },
           { key: 'regulatory', label: 'Regulatory', icon: FileText },
+          { key: 'nasa_events', label: 'NASA Events', icon: Flame },
+          { key: 'chokepoints', label: 'Chokepoints', icon: MapPin },
+          { key: 'emerging_markets', label: 'Emerging Markets', icon: Activity },
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -662,9 +679,426 @@ export function WorldPage() {
         </div>
       )}
 
+      {/* NASA Events Tab */}
+      {activeTab === 'nasa_events' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-500">Natural Events (EONET)</h3>
+            <span className="text-xs text-slate-400">Source: NASA EONET</span>
+          </div>
+
+          {/* Category filters */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setNasaCategory(undefined)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                !nasaCategory
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+              }`}
+            >
+              All
+            </button>
+            {nasaCategories.data?.categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setNasaCategory(cat.id)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  nasaCategory === cat.id
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
+              >
+                {cat.title}
+              </button>
+            ))}
+          </div>
+
+          {nasaEvents.isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            </div>
+          )}
+
+          {nasaEvents.data && (
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">{nasaEvents.data.count} events in the last 30 days</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {nasaEvents.data.events.map((evt) => {
+                  const categoryColors: Record<string, string> = {
+                    wildfires: 'border-l-orange-500',
+                    severeStorms: 'border-l-purple-500',
+                    volcanoes: 'border-l-red-500',
+                    seaLakeIce: 'border-l-cyan-500',
+                    icebergs: 'border-l-blue-400',
+                    floods: 'border-l-blue-600',
+                    earthquakes: 'border-l-amber-600',
+                    drought: 'border-l-yellow-600',
+                  };
+                  const borderColor = categoryColors[evt.category_id] || 'border-l-slate-400';
+                  return (
+                    <div key={evt.id} className={`rounded-lg border border-l-4 border-slate-200 p-3 dark:border-slate-700 ${borderColor}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium leading-snug">{evt.title}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 capitalize dark:bg-slate-800">{evt.category}</span>
+                            <span>{evt.date.slice(0, 10)}</span>
+                            {evt.observation_count > 1 && <span>{evt.observation_count} observations</span>}
+                            {evt.closed && <span className="text-green-500">closed</span>}
+                          </div>
+                        </div>
+                        {evt.sources.length > 0 && (
+                          <a
+                            href={evt.sources[0].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 text-blue-500 hover:text-blue-700"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!nasaEvents.isLoading && nasaEvents.data?.events.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 py-16 dark:border-slate-800">
+              <Flame className="mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
+              <h3 className="mb-2 text-lg font-semibold">No Events Found</h3>
+              <p className="max-w-md text-center text-sm text-slate-500 dark:text-slate-400">
+                No natural events matching this category in the last 30 days.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Chokepoints Tab */}
+      {activeTab === 'chokepoints' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-500">Global Chokepoint Analysis</h3>
+            <span className="text-xs text-slate-400">Click a chokepoint for detailed impact analysis</span>
+          </div>
+
+          {chokepoints.isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            </div>
+          )}
+
+          {chokepoints.data && (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {chokepoints.data.chokepoints.map((cp) => {
+                const isSelected = selectedChokepoint === cp.name;
+                return (
+                  <button
+                    key={cp.name}
+                    onClick={() => {
+                      setSelectedChokepoint(isSelected ? undefined : cp.name);
+                      setSelectedCommodity(undefined);
+                    }}
+                    className={`w-full rounded-lg border p-4 text-left transition-colors ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950/30'
+                        : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{cp.name}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        cp.status === 'high_risk' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                        cp.status === 'elevated' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                        'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                      }`}>
+                        {cp.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+                      <span>{cp.trade_share_pct}% global trade</span>
+                      <span>Risk: {(cp.risk_score * 100).toFixed(0)}%</span>
+                      {cp.daily_vessel_transits > 0 && <span>{cp.daily_vessel_transits} vessels/day</span>}
+                    </div>
+                    {cp.commodities && cp.commodities.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {cp.commodities.slice(0, 4).map((c) => (
+                          <span key={c} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                            {c}
+                          </span>
+                        ))}
+                        {cp.commodities.length > 4 && (
+                          <span className="text-[10px] text-slate-400">+{cp.commodities.length - 4} more</span>
+                        )}
+                      </div>
+                    )}
+                    {cp.risk_factors.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {cp.risk_factors.map((f, i) => (
+                          <span key={i} className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Impact Analysis Panel */}
+          {selectedChokepoint && (
+            <div className="space-y-4 rounded-lg border border-emerald-200 bg-emerald-50/50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">{selectedChokepoint} — Impact Analysis</h3>
+                <button
+                  onClick={() => setSelectedChokepoint(undefined)}
+                  className="text-xs text-slate-500 hover:text-slate-700"
+                >
+                  Close
+                </button>
+              </div>
+
+              {chokepointImpact.isLoading && (
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading impact analysis...
+                </div>
+              )}
+
+              {chokepointImpact.data && (
+                <div className="space-y-4">
+                  {/* Commodities affected */}
+                  {chokepointImpact.data.commodities_affected && chokepointImpact.data.commodities_affected.length > 0 && (
+                    <div>
+                      <h4 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Commodities Affected</h4>
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {chokepointImpact.data.commodities_affected.map((c) => (
+                          <button
+                            key={c.commodity}
+                            onClick={() => setSelectedCommodity(c.commodity)}
+                            className={`rounded-lg border p-2 text-left text-sm transition-colors ${
+                              selectedCommodity === c.commodity
+                                ? 'border-emerald-400 bg-white dark:bg-slate-800'
+                                : 'border-slate-200 hover:bg-white dark:border-slate-700 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <span className="font-medium capitalize">{c.commodity.replace(/_/g, ' ')}</span>
+                            <div className="mt-1 flex gap-3 text-xs text-slate-500">
+                              <span>{c.share_pct}% share</span>
+                              <span className="text-red-500">+{c.price_impact_pct}% price impact</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scenarios */}
+                  {chokepointImpact.data.scenarios && chokepointImpact.data.scenarios.length > 0 && (
+                    <div>
+                      <h4 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Disruption Scenarios</h4>
+                      <div className="space-y-2">
+                        {chokepointImpact.data.scenarios.map((s, i) => (
+                          <div key={i} className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">{s.scenario}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                s.probability === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                                s.probability === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                                'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                              }`}>
+                                {s.probability} probability
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">{s.description}</p>
+                            <p className="mt-1 text-xs font-medium text-red-500">{s.price_impact}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Live Signals */}
+                  {chokepointImpact.data.live_signals && chokepointImpact.data.live_signals.length > 0 && (
+                    <div>
+                      <h4 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Live Signals</h4>
+                      <div className="space-y-1">
+                        {chokepointImpact.data.live_signals.map((sig, i) => (
+                          <div key={i} className="flex items-center gap-2 rounded bg-white px-3 py-2 text-xs dark:bg-slate-800">
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase dark:bg-slate-700">{sig.type}</span>
+                            <span className="text-slate-600 dark:text-slate-300">{sig.description}</span>
+                            <span className="ml-auto text-slate-400">{sig.date.slice(0, 10)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Commodity Exposure Detail */}
+              {commodityExposure.data && selectedCommodity && (
+                <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                  <h4 className="mb-2 text-sm font-medium capitalize">
+                    {selectedCommodity.replace(/_/g, ' ')} — Chokepoint Exposure
+                  </h4>
+                  <p className="mb-3 text-xs text-slate-500">
+                    Total exposure score: <span className="font-medium text-slate-700 dark:text-slate-300">{(commodityExposure.data.total_exposure_score * 100).toFixed(0)}%</span>
+                  </p>
+                  <div className="space-y-2">
+                    {commodityExposure.data.chokepoints.map((cp) => (
+                      <div key={cp.name} className="flex items-center justify-between text-sm">
+                        <span>{cp.name}</span>
+                        <div className="flex items-center gap-3 text-xs text-slate-500">
+                          <span>{cp.share_pct}% share</span>
+                          <span className={cp.status === 'high_risk' ? 'text-red-500' : cp.status === 'elevated' ? 'text-amber-500' : 'text-green-500'}>
+                            {cp.status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Emerging Markets Tab */}
+      {activeTab === 'emerging_markets' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-500">Emerging Markets Dashboard</h3>
+            <span className="text-xs text-slate-400">Source: World Bank</span>
+          </div>
+
+          {/* Indicator selector for rankings */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-500">Rank by:</span>
+            {[
+              { key: 'gdp_growth', label: 'GDP Growth' },
+              { key: 'inflation', label: 'Inflation' },
+              { key: 'current_account', label: 'Current Account' },
+              { key: 'fx_reserves', label: 'FX Reserves' },
+            ].map((ind) => (
+              <button
+                key={ind.key}
+                onClick={() => setEmIndicator(ind.key)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  emIndicator === ind.key
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+                }`}
+              >
+                {ind.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Rankings Table */}
+          {emRankings.isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            </div>
+          )}
+
+          {emRankings.data && (
+            <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">#</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Country</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Region</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500">
+                      {emIndicator.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500">Year</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emRankings.data.rankings.map((r) => (
+                    <tr key={r.code} className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/30">
+                      <td className="px-4 py-2 text-xs text-slate-400">{r.rank}</td>
+                      <td className="px-4 py-2 font-medium">{r.name}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500">{r.region}</td>
+                      <td className="px-4 py-2 text-right font-mono text-sm">
+                        <span className={
+                          emIndicator === 'gdp_growth' || emIndicator === 'fx_reserves'
+                            ? r.value > 0 ? 'text-green-500' : 'text-red-500'
+                            : emIndicator === 'inflation'
+                              ? r.value > 10 ? 'text-red-500' : r.value > 5 ? 'text-amber-500' : 'text-green-500'
+                              : ''
+                        }>
+                          {r.value != null ? r.value.toFixed(1) : 'N/A'}
+                          {(emIndicator === 'gdp_growth' || emIndicator === 'inflation' || emIndicator === 'current_account') && r.value != null ? '%' : ''}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right text-xs text-slate-400">{r.year}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Country cards with commodity exposure */}
+          {emergingMarkets.data && (
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-slate-500">All Emerging Markets ({emergingMarkets.data.count} countries)</h4>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {emergingMarkets.data.countries.map((c) => (
+                  <div key={c.code} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{c.name}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        c.risk_tier === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                        c.risk_tier === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                        'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                      }`}>
+                        {c.risk_tier} risk
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-2 text-xs text-slate-500">
+                      <span>{c.region}</span>
+                      {c.gdp_growth != null && (
+                        <span className={c.gdp_growth > 0 ? 'text-green-500' : 'text-red-500'}>
+                          GDP: {c.gdp_growth.toFixed(1)}%
+                        </span>
+                      )}
+                      {c.inflation != null && (
+                        <span className={c.inflation > 10 ? 'text-red-500' : c.inflation > 5 ? 'text-amber-500' : ''}>
+                          CPI: {c.inflation.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                    {c.commodity_exposure && c.commodity_exposure.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {c.commodity_exposure.map((com) => (
+                          <span key={com} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                            {com}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Attribution */}
       <div className="text-center text-xs text-slate-400 dark:text-slate-500">
-        News: GDELT · Disasters: USGS + GDACS + NASA FIRMS · Conflict: UCDP · Supply Chain: UN Comtrade + AIS · Flights: OpenSky · Sanctions: OFAC + UN SC · Regulatory: Federal Register
+        News: GDELT · Disasters: USGS + GDACS + NASA FIRMS · Conflict: UCDP · Supply Chain: UN Comtrade + AIS · Flights: OpenSky · Sanctions: OFAC + UN SC · Regulatory: Federal Register · Events: NASA EONET · Emerging Markets: World Bank
       </div>
     </div>
   );
