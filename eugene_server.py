@@ -1925,6 +1925,94 @@ def _build_mcp(include_rest: bool = False):
             result = await asyncio.to_thread(parse_holdings_from_filing, ticker, accession=accession)
             return JSONResponse(result)
 
+        # --- Research / Firecrawl endpoints ---
+
+        @mcp.custom_route("/v1/research/search", methods=["POST"])
+        @require_api_key
+        async def research_search(request: Request) -> JSONResponse:
+            """Search the web via Firecrawl."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body) if body else {}
+                query = data.get("query", "").strip()
+                if not query:
+                    return JSONResponse({"error": "query required"}, status_code=400)
+                from eugene.world.research_intel import search_web
+                result = await asyncio.to_thread(
+                    search_web,
+                    query=query,
+                    limit=data.get("limit", 5),
+                    scrape=data.get("scrape", False),
+                )
+                return JSONResponse(result)
+            except Exception as e:
+                logger.exception("Research search failed")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        @mcp.custom_route("/v1/research/news", methods=["POST"])
+        @require_api_key
+        async def research_news(request: Request) -> JSONResponse:
+            """Search news via Firecrawl."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body) if body else {}
+                query = data.get("query", "").strip()
+                if not query:
+                    return JSONResponse({"error": "query required"}, status_code=400)
+                from eugene.world.research_intel import search_news
+                result = await asyncio.to_thread(
+                    search_news,
+                    query=query,
+                    limit=data.get("limit", 10),
+                    country=data.get("country", "US"),
+                )
+                return JSONResponse(result)
+            except Exception as e:
+                logger.exception("Research news search failed")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        @mcp.custom_route("/v1/research/scrape", methods=["POST"])
+        @require_api_key
+        async def research_scrape(request: Request) -> JSONResponse:
+            """Scrape a URL via Firecrawl."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body) if body else {}
+                url = data.get("url", "").strip()
+                if not url:
+                    return JSONResponse({"error": "url required"}, status_code=400)
+                from eugene.world.research_intel import scrape_page
+                result = await asyncio.to_thread(scrape_page, url)
+                return JSONResponse(result)
+            except Exception as e:
+                logger.exception("Research scrape failed")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        @mcp.custom_route("/v1/research/topic", methods=["POST"])
+        @require_api_key
+        async def research_topic(request: Request) -> JSONResponse:
+            """Research a topic: search + scrape top results into a brief."""
+            import json as _json
+            try:
+                body = await request.body()
+                data = _json.loads(body) if body else {}
+                query = data.get("query", "").strip()
+                if not query:
+                    return JSONResponse({"error": "query required"}, status_code=400)
+                from eugene.world.research_intel import research_topic as _research
+                result = await asyncio.to_thread(
+                    _research,
+                    query=query,
+                    depth=data.get("depth", 5),
+                )
+                return JSONResponse(result)
+            except Exception as e:
+                logger.exception("Research topic failed")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
         # --- Worker management endpoints ---
 
         @mcp.custom_route("/v1/workers/status", methods=["GET"])
